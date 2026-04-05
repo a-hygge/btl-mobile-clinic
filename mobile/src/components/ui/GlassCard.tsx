@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
-import { GlassView, type GlassStyle } from 'expo-glass-effect';
+import { GlassView, isLiquidGlassAvailable, type GlassStyle } from 'expo-glass-effect';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -9,16 +9,19 @@ interface GlassCardProps {
   interactive?: boolean;
 }
 
-// iOS 26+ = use native Liquid Glass
-const USE_GLASS =
-  Platform.OS === 'ios' &&
-  typeof Platform.Version === 'string' &&
-  parseInt(Platform.Version, 10) >= 26;
+// Check multiple ways — Platform.Version can be string or number on iOS
+let USE_GLASS = false;
+try {
+  USE_GLASS = isLiquidGlassAvailable();
+} catch {
+  if (Platform.OS === 'ios') {
+    const v = typeof Platform.Version === 'string'
+      ? parseInt(Platform.Version, 10)
+      : Platform.Version;
+    USE_GLASS = v >= 26;
+  }
+}
 
-/**
- * Card with iOS 26 Liquid Glass effect.
- * Falls back to a frosted card on Android / older iOS.
- */
 export function GlassCard({
   children,
   style,
