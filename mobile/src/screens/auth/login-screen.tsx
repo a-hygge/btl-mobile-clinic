@@ -4,6 +4,7 @@ import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-pape
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '../../store/auth.store';
 import { theme } from '../../constants/theme';
+import { HealthPulse } from '../../components/health-pulse';
 
 function getErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'response' in error) {
@@ -48,6 +49,10 @@ export function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
+          <View style={styles.heroVisual}>
+            <View style={styles.heroGlow} />
+            <HealthPulse size={148} />
+          </View>
           <Text variant="headlineMedium" style={styles.title}>
             BTL Healthcare
           </Text>
@@ -120,13 +125,30 @@ const styles = StyleSheet.create({
   },
   hero: {
     gap: 8,
+    alignItems: 'center',
+  },
+  heroVisual: {
+    width: 170,
+    height: 170,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: theme.colors.primaryContainer,
+    opacity: 0.75,
   },
   title: {
     color: theme.colors.primary,
     fontWeight: '700',
+    textAlign: 'center',
   },
   subtitle: {
     color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
   },
   card: {
     gap: 16,
@@ -135,6 +157,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.outline,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
   },
   input: {
     backgroundColor: theme.colors.surface,
