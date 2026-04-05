@@ -1,15 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../services/api';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
-  phone?: string;
-  avatarUrl?: string;
-}
+import type { Role, User } from '../types';
 
 interface AuthState {
   user: User | null;
@@ -17,7 +9,7 @@ interface AuthState {
   isLoading: boolean;
 
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { email: string; password: string; name: string; role: string }) => Promise<void>;
+  register: (data: { email: string; password: string; name: string; role: Role }) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   setUser: (user: User) => void;
@@ -33,7 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { user, accessToken, refreshToken } = res.data.data;
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
-    set({ user, isAuthenticated: true });
+    set({ user, isAuthenticated: true, isLoading: false });
   },
 
   register: async (data) => {
@@ -41,13 +33,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { user, accessToken, refreshToken } = res.data.data;
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
-    set({ user, isAuthenticated: true });
+    set({ user, isAuthenticated: true, isLoading: false });
   },
 
   logout: async () => {
     await SecureStore.deleteItemAsync('accessToken');
     await SecureStore.deleteItemAsync('refreshToken');
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
   loadUser: async () => {
