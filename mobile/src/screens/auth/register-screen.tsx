@@ -1,38 +1,155 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Button,
-  HelperText,
-  SegmentedButtons,
-  Snackbar,
-  Text,
-  TextInput,
-} from 'react-native-paper';
-import { Link, router } from 'expo-router';
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import LottieView from 'lottie-react-native';
+import { router } from 'expo-router';
 import { useAuthStore } from '../../store/auth.store';
 import { theme } from '../../constants/theme';
-import { HealthPulse } from '../../components/health-pulse';
 
-function getErrorMessage(error: unknown) {
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type Role = 'PATIENT' | 'DOCTOR';
+
+function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
-    const response = (error as { response?: { data?: { error?: { message?: string } } } }).response;
+    const response = (error as { response?: { data?: { error?: { message?: string } } } })
+      .response;
     return response?.data?.error?.message ?? 'Registration failed. Please try again.';
   }
-
   return 'Registration failed. Please try again.';
 }
 
+// ── Animated role chip ────────────────────────────────────────────────
+interface RoleChipProps {
+  label: string;
+  icon: 'account' | 'stethoscope';
+  active: boolean;
+  onPress: () => void;
+}
+
+function RoleChip({ label, icon, active, onPress }: RoleChipProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  function handlePressIn() {
+    Animated.spring(scale, { toValue: 0.93, useNativeDriver: true }).start();
+  }
+
+  function handlePressOut() {
+    Animated.spring(scale, { toValue: 1, friction: 3, useNativeDriver: true }).start();
+  }
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={{ flex: 1 }}
+    >
+      <Animated.View
+        style={[
+          styles.chip,
+          active && styles.chipActive,
+          { transform: [{ scale }] },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={22}
+          color={active ? '#FFFFFF' : theme.colors.primary}
+        />
+        <Text
+          variant="labelLarge"
+          style={[styles.chipLabel, active && styles.chipLabelActive]}
+        >
+          {label}
+        </Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────
 export function RegisterScreen() {
   const register = useAuthStore((state) => state.register);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
+  const [role, setRole] = useState<Role>('PATIENT');
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleRegister() {
+  // ── Animated values ──────────────────────────────────────────────
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(-30)).current;
+  const formItems = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+  const formSlides = useRef([
+    new Animated.Value(40),
+    new Animated.Value(40),
+    new Animated.Value(40),
+    new Animated.Value(40),
+    new Animated.Value(40),
+    new Animated.Value(40),
+    new Animated.Value(40),
+  ]).current;
+
+  useEffect(() => {
+    // Hero fade-in
+    Animated.parallel([
+      Animated.timing(heroOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heroTranslateY, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Staggered form fields
+    const staggerAnimations = formItems.map((opacity, index) =>
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 400,
+          delay: 300 + index * 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formSlides[index], {
+          toValue: 0,
+          duration: 400,
+          delay: 300 + index * 100,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    Animated.parallel(staggerAnimations).start();
+  }, []);
+
+  async function handleRegister(): Promise<void> {
     if (!name.trim() || !email.trim() || !password) {
       setError('Name, email, and password are required.');
       return;
@@ -56,91 +173,183 @@ export function RegisterScreen() {
     }
   }
 
+  function renderAnimatedItem(index: number, child: React.ReactNode): React.ReactNode {
+    return (
+      <Animated.View
+        key={index}
+        style={{
+          opacity: formItems[index],
+          transform: [{ translateY: formSlides[index] }],
+        }}
+      >
+        {child}
+      </Animated.View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.hero}>
-          <View style={styles.heroVisual}>
-            <View style={styles.heroGlow} />
-            <HealthPulse size={136} />
-          </View>
-          <Text variant="headlineMedium" style={styles.title}>
-            Create account
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            Start with a patient account. Doctor onboarding can be extended later.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <TextInput
-            label="Full name"
-            mode="outlined"
-            value={name}
-            onChangeText={setName}
-            style={styles.input}
-          />
-          <TextInput
-            label="Email"
-            mode="outlined"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-          />
-          <TextInput
-            label="Password"
-            mode="outlined"
-            secureTextEntry={secureTextEntry}
-            value={password}
-            onChangeText={setPassword}
-            right={
-              <TextInput.Icon
-                icon={secureTextEntry ? 'eye-off' : 'eye'}
-                onPress={() => setSecureTextEntry((value) => !value)}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Gradient Hero (compact) ──────────────────────────── */}
+        <Animated.View
+          style={[
+            styles.heroContainer,
+            { opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] },
+          ]}
+        >
+          <LinearGradient
+            colors={['#2196F3', '#1565C0']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradient}
+          >
+            <View style={styles.lottieWrapper}>
+              <LottieView
+                source={require('../../assets/animations/medical-hero.json')}
+                autoPlay
+                loop
+                style={styles.lottie}
               />
-            }
-            style={styles.input}
-          />
-
-          <View style={styles.roleBlock}>
-            <Text variant="labelLarge" style={styles.roleLabel}>
-              Account type
+            </View>
+            <Text variant="headlineMedium" style={styles.heroTitle}>
+              Create Account
             </Text>
-            <SegmentedButtons
-              value={role}
-              onValueChange={(value) => setRole(value as 'PATIENT' | 'DOCTOR')}
-              buttons={[
-                { value: 'PATIENT', label: 'Patient' },
-                { value: 'DOCTOR', label: 'Doctor' },
-              ]}
-            />
-          </View>
+            <Text variant="bodyMedium" style={styles.heroSubtitle}>
+              Join BTL Healthcare and start managing your care today.
+            </Text>
+          </LinearGradient>
+        </Animated.View>
 
-          <Button mode="contained" onPress={handleRegister} loading={submitting} disabled={submitting}>
-            Create account
-          </Button>
+        {/* ── Form Card ────────────────────────────────────────── */}
+        <View style={styles.card}>
+          {/* Role selection */}
+          {renderAnimatedItem(
+            0,
+            <View style={styles.roleSection}>
+              <Text variant="labelLarge" style={styles.roleTitle}>
+                I am a
+              </Text>
+              <View style={styles.roleRow}>
+                <RoleChip
+                  label="Patient"
+                  icon="account"
+                  active={role === 'PATIENT'}
+                  onPress={() => setRole('PATIENT')}
+                />
+                <RoleChip
+                  label="Doctor"
+                  icon="stethoscope"
+                  active={role === 'DOCTOR'}
+                  onPress={() => setRole('DOCTOR')}
+                />
+              </View>
+            </View>,
+          )}
 
-          <HelperText type="info" visible>
-            The backend contract can extend doctor verification later.
-          </HelperText>
+          {renderAnimatedItem(
+            1,
+            <TextInput
+              label="Full Name"
+              mode="outlined"
+              value={name}
+              onChangeText={setName}
+              left={<TextInput.Icon icon="account-outline" />}
+              style={styles.input}
+            />,
+          )}
 
-          <View style={styles.footer}>
-            <Text variant="bodyMedium">Already have an account?</Text>
-            <Link href="/login" asChild>
-              <Button mode="text" compact>
-                Sign in
-              </Button>
-            </Link>
-          </View>
+          {renderAnimatedItem(
+            2,
+            <TextInput
+              label="Email"
+              mode="outlined"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              left={<TextInput.Icon icon="email-outline" />}
+              style={styles.input}
+            />,
+          )}
+
+          {renderAnimatedItem(
+            3,
+            <TextInput
+              label="Password"
+              mode="outlined"
+              secureTextEntry={secureTextEntry}
+              value={password}
+              onChangeText={setPassword}
+              left={<TextInput.Icon icon="lock-outline" />}
+              right={
+                <TextInput.Icon
+                  icon={secureTextEntry ? 'eye-off-outline' : 'eye-outline'}
+                  onPress={() => setSecureTextEntry((v) => !v)}
+                />
+              }
+              style={styles.input}
+            />,
+          )}
+
+          {renderAnimatedItem(
+            4,
+            <Button
+              mode="contained"
+              onPress={handleRegister}
+              loading={submitting}
+              disabled={submitting}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              style={styles.registerButton}
+            >
+              {submitting ? 'Creating account...' : 'Create Account'}
+            </Button>,
+          )}
+
+          {renderAnimatedItem(
+            5,
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons
+                name="shield-check-outline"
+                size={16}
+                color={theme.colors.secondary}
+              />
+              <Text variant="bodySmall" style={styles.infoText}>
+                Your data is securely encrypted and protected.
+              </Text>
+            </View>,
+          )}
+
+          {renderAnimatedItem(
+            6,
+            <View style={styles.footer}>
+              <Text variant="bodyMedium" style={styles.footerText}>
+                Already have an account?
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/login')}>
+                <Text variant="labelLarge" style={styles.footerLink}>
+                  Login
+                </Text>
+              </TouchableOpacity>
+            </View>,
+          )}
         </View>
       </ScrollView>
 
-      <Snackbar visible={Boolean(error)} onDismiss={() => setError('')}>
+      <Snackbar
+        visible={Boolean(error)}
+        onDismiss={() => setError('')}
+        duration={4000}
+        action={{ label: 'OK', onPress: () => setError('') }}
+        style={styles.snackbar}
+      >
         {error}
       </Snackbar>
     </KeyboardAvoidingView>
@@ -152,63 +361,132 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  content: {
+  scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    gap: 20,
   },
-  hero: {
-    gap: 8,
+  // ── Hero ──────────────────────────────────────────────────────────
+  heroContainer: {
+    overflow: 'hidden',
+  },
+  gradient: {
+    width: SCREEN_WIDTH,
+    paddingTop: Platform.OS === 'ios' ? 56 : 36,
+    paddingBottom: 32,
     alignItems: 'center',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-  heroVisual: {
-    width: 160,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
+  lottieWrapper: {
+    width: 140,
+    height: 140,
+    marginBottom: 8,
   },
-  heroGlow: {
-    position: 'absolute',
-    width: 152,
-    height: 152,
-    borderRadius: 76,
-    backgroundColor: theme.colors.secondaryContainer,
-    opacity: 0.7,
+  lottie: {
+    width: '100%',
+    height: '100%',
   },
-  title: {
-    color: theme.colors.primary,
+  heroTitle: {
+    color: '#FFFFFF',
     fontWeight: '700',
     textAlign: 'center',
   },
-  subtitle: {
-    color: theme.colors.onSurfaceVariant,
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 32,
   },
+  // ── Card ──────────────────────────────────────────────────────────
   card: {
+    marginTop: -16,
+    marginHorizontal: 20,
+    padding: 24,
     gap: 16,
     borderRadius: 20,
-    padding: 20,
     backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
     shadowColor: '#0f172a',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+    marginBottom: 32,
   },
   input: {
     backgroundColor: theme.colors.surface,
   },
-  roleBlock: {
-    gap: 8,
+  // ── Role chips ────────────────────────────────────────────────────
+  roleSection: {
+    gap: 10,
   },
-  roleLabel: {
+  roleTitle: {
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
+  },
+  chipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  chipLabel: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  chipLabelActive: {
+    color: '#FFFFFF',
+  },
+  // ── Button ────────────────────────────────────────────────────────
+  registerButton: {
+    marginTop: 4,
+    borderRadius: 12,
+  },
+  buttonContent: {
+    height: 50,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // ── Info row ──────────────────────────────────────────────────────
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  infoText: {
     color: theme.colors.onSurfaceVariant,
   },
+  // ── Footer ────────────────────────────────────────────────────────
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  footerText: {
+    color: theme.colors.onSurfaceVariant,
+  },
+  footerLink: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  // ── Snackbar ──────────────────────────────────────────────────────
+  snackbar: {
+    backgroundColor: theme.colors.error,
   },
 });
