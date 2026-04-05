@@ -159,32 +159,21 @@ export async function listDoctorSlots(input: ListDoctorSlotsInput): Promise<Doct
     throw AppError.notFound('Doctor not found');
   }
 
-  const date = input.date ? new Date(input.date) : undefined;
-  if (input.date && Number.isNaN(date?.getTime())) {
-    throw AppError.badRequest('Invalid date');
-  }
-
-  const startOfDay = date ? new Date(date) : undefined;
-  if (startOfDay) {
-    startOfDay.setHours(0, 0, 0, 0);
-  }
-  const endOfDay = startOfDay ? new Date(startOfDay) : undefined;
-  if (endOfDay) {
-    endOfDay.setDate(endOfDay.getDate() + 1);
+  // For @db.Date columns, use UTC midnight directly — never use local setHours()
+  let dateFilter: Date | undefined;
+  if (input.date) {
+    const parsed = new Date(input.date + 'T00:00:00.000Z');
+    if (Number.isNaN(parsed.getTime())) {
+      throw AppError.badRequest('Invalid date');
+    }
+    dateFilter = parsed;
   }
 
   const slots = await prisma.timeSlot.findMany({
     where: {
       doctorId: input.id,
       isBooked: false,
-      ...(startOfDay && endOfDay
-        ? {
-            date: {
-              gte: startOfDay,
-              lt: endOfDay,
-            },
-          }
-        : {}),
+      ...(dateFilter ? { date: dateFilter } : {}),
     },
     orderBy: [
       { date: 'asc' },

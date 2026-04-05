@@ -8,6 +8,11 @@ async function main() {
 
   // Clean existing data
   await prisma.$executeRaw`TRUNCATE TABLE "users" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "specialties" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "clinics" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "services" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "work_schedules" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "time_slots" CASCADE`;
 
   const passwordHash = await bcrypt.hash('password123', 10);
 
@@ -108,7 +113,7 @@ async function main() {
     }),
   ]);
 
-  await Promise.all([
+  const doctors = await Promise.all([
     prisma.doctor.create({
       data: {
         userId: doctorUsers[0].id,
@@ -172,14 +177,15 @@ async function main() {
   ]);
 
   // ====== WORK SCHEDULES (current month) ======
+  // Use UTC dates to avoid timezone shift with @db.Date columns
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    if (date.getDay() === 0) continue; // skip Sunday
+    const date = new Date(Date.UTC(year, month, day));
+    if (date.getUTCDay() === 0) continue; // skip Sunday
 
     await prisma.workSchedule.createMany({
       data: [
@@ -188,6 +194,50 @@ async function main() {
       ],
       skipDuplicates: true,
     });
+  }
+
+  // ====== DOCTOR SERVICES ======
+  await prisma.doctorService.createMany({
+    data: [
+      { doctorId: doctors[0].id, serviceId: services[0].id, price: 200000 },
+      { doctorId: doctors[0].id, serviceId: services[4].id, price: 180000 },
+      { doctorId: doctors[1].id, serviceId: services[0].id, price: 200000 },
+      { doctorId: doctors[1].id, serviceId: services[3].id, price: 250000 },
+      { doctorId: doctors[2].id, serviceId: services[0].id, price: 200000 },
+      { doctorId: doctors[2].id, serviceId: services[1].id, price: 150000 },
+      { doctorId: doctors[2].id, serviceId: services[2].id, price: 300000 },
+    ],
+    skipDuplicates: true,
+  });
+
+  // ====== TIME SLOTS (next 7 days) ======
+  const timeSlotTemplates = [
+    { startTime: '08:00', endTime: '08:30' },
+    { startTime: '08:30', endTime: '09:00' },
+    { startTime: '09:00', endTime: '09:30' },
+    { startTime: '09:30', endTime: '10:00' },
+    { startTime: '13:00', endTime: '13:30' },
+    { startTime: '13:30', endTime: '14:00' },
+    { startTime: '14:00', endTime: '14:30' },
+    { startTime: '14:30', endTime: '15:00' },
+  ];
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = new Date(Date.UTC(year, month, today.getUTCDate() + offset));
+
+    if (date.getUTCDay() === 0) continue;
+
+    for (const doctor of doctors) {
+      await prisma.timeSlot.createMany({
+        data: timeSlotTemplates.map((slot) => ({
+          doctorId: doctor.id,
+          date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   console.log('Seed completed!');
