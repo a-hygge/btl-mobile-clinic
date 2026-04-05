@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Avatar, Button, Card, Divider, List, Text } from 'react-native-paper';
+import { Avatar, Button, Divider, List, Text } from 'react-native-paper';
+import { GlassCard } from '../../components/ui/GlassCard';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/auth.store';
 import { theme } from '../../constants/theme';
@@ -37,45 +38,49 @@ export function ProfileScreen() {
         </View>
       </View>
 
-      <Card style={styles.card}>
-        <List.Item
-          title="Phone"
-          description={user?.phone ?? 'Not set'}
-          left={(props) => <List.Icon {...props} icon="phone" />}
-        />
-        <Divider />
-        <List.Item
-          title="Address"
-          description={user?.address ?? 'Not set'}
-          left={(props) => <List.Icon {...props} icon="map-marker" />}
-        />
-        <Divider />
-        <List.Item
-          title="Insurance ID"
-          description={user?.insuranceId ?? 'Not set'}
-          left={(props) => <List.Icon {...props} icon="card-account-details" />}
-        />
-      </Card>
+      <GlassCard style={styles.card}>
+        <View>
+          <List.Item
+            title="Phone"
+            description={user?.phone ?? 'Not set'}
+            left={(props) => <List.Icon {...props} icon="phone" />}
+          />
+          <Divider />
+          <List.Item
+            title="Address"
+            description={user?.address ?? 'Not set'}
+            left={(props) => <List.Icon {...props} icon="map-marker" />}
+          />
+          <Divider />
+          <List.Item
+            title="Insurance ID"
+            description={user?.insuranceId ?? 'Not set'}
+            left={(props) => <List.Icon {...props} icon="card-account-details" />}
+          />
+        </View>
+      </GlassCard>
 
-      <Card style={styles.card}>
-        <List.Item
-          title="Edit Profile"
-          left={(props) => <List.Icon {...props} icon="account-edit" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-        />
-        <Divider />
-        <List.Item
-          title="Change Password"
-          left={(props) => <List.Icon {...props} icon="lock-reset" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-        />
-        <Divider />
-        <List.Item
-          title="Settings"
-          left={(props) => <List.Icon {...props} icon="cog" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-        />
-      </Card>
+      <GlassCard style={styles.card}>
+        <View>
+          <List.Item
+            title="Edit Profile"
+            left={(props) => <List.Icon {...props} icon="account-edit" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          />
+          <Divider />
+          <List.Item
+            title="Change Password"
+            left={(props) => <List.Icon {...props} icon="lock-reset" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          />
+          <Divider />
+          <List.Item
+            title="Settings"
+            left={(props) => <List.Icon {...props} icon="cog" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          />
+        </View>
+      </GlassCard>
 
       <Button
         mode="outlined"
@@ -129,9 +134,6 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginTop: 16,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    overflow: 'hidden',
   },
   logoutBtn: {
     marginHorizontal: 16,
