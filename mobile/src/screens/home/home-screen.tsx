@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Card, Searchbar, Text } from 'react-native-paper';
+import { Searchbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,6 +8,7 @@ import LottieView from 'lottie-react-native';
 import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme } from '../../constants/theme';
+import { GlassCard } from '../../components/ui/GlassCard';
 
 const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
   'Tim mach': 'heart-pulse',
@@ -105,39 +106,45 @@ export function HomeScreen() {
       <FadeInView delay={200}>
         <View style={styles.quickActions}>
           <Pressable style={styles.actionCard} onPress={() => router.push('/booking')}>
-            <LinearGradient
-              colors={['#4CAF50', '#388E3C']}
-              style={styles.actionGradient}
-            >
-              <MaterialCommunityIcons name="calendar-plus" size={28} color="#fff" />
-              <Text variant="labelLarge" style={styles.actionLabel}>
-                Book Now
-              </Text>
-            </LinearGradient>
+            <GlassCard style={styles.actionGlass} tintColor="#4CAF50" interactive>
+              <LinearGradient
+                colors={['#4CAF50', '#388E3C']}
+                style={styles.actionGradient}
+              >
+                <MaterialCommunityIcons name="calendar-plus" size={28} color="#fff" />
+                <Text variant="labelLarge" style={styles.actionLabel}>
+                  Book Now
+                </Text>
+              </LinearGradient>
+            </GlassCard>
           </Pressable>
 
           <Pressable style={styles.actionCard} onPress={() => router.push('/appointments')}>
-            <LinearGradient
-              colors={['#FF9800', '#F57C00']}
-              style={styles.actionGradient}
-            >
-              <MaterialCommunityIcons name="clipboard-list" size={28} color="#fff" />
-              <Text variant="labelLarge" style={styles.actionLabel}>
-                My Visits
-              </Text>
-            </LinearGradient>
+            <GlassCard style={styles.actionGlass} tintColor="#FF9800" interactive>
+              <LinearGradient
+                colors={['#FF9800', '#F57C00']}
+                style={styles.actionGradient}
+              >
+                <MaterialCommunityIcons name="clipboard-list" size={28} color="#fff" />
+                <Text variant="labelLarge" style={styles.actionLabel}>
+                  My Visits
+                </Text>
+              </LinearGradient>
+            </GlassCard>
           </Pressable>
 
           <Pressable style={styles.actionCard} onPress={() => router.push('/profile')}>
-            <LinearGradient
-              colors={['#9C27B0', '#7B1FA2']}
-              style={styles.actionGradient}
-            >
-              <MaterialCommunityIcons name="account-heart" size={28} color="#fff" />
-              <Text variant="labelLarge" style={styles.actionLabel}>
-                Health
-              </Text>
-            </LinearGradient>
+            <GlassCard style={styles.actionGlass} tintColor="#9C27B0" interactive>
+              <LinearGradient
+                colors={['#9C27B0', '#7B1FA2']}
+                style={styles.actionGradient}
+              >
+                <MaterialCommunityIcons name="account-heart" size={28} color="#fff" />
+                <Text variant="labelLarge" style={styles.actionLabel}>
+                  Health
+                </Text>
+              </LinearGradient>
+            </GlassCard>
           </Pressable>
         </View>
       </FadeInView>
@@ -179,8 +186,8 @@ export function HomeScreen() {
                       })
                     }
                   >
-                    <Card style={styles.doctorCard}>
-                      <Card.Content style={styles.doctorContent}>
+                    <GlassCard style={styles.doctorCard} tintColor={theme.colors.primary} interactive>
+                      <View style={styles.doctorContent}>
                         <View style={styles.doctorIcon}>
                           <MaterialCommunityIcons
                             name={iconName}
@@ -210,8 +217,8 @@ export function HomeScreen() {
                           </View>
                         </View>
                         <MaterialCommunityIcons name="chevron-right" size={24} color="#BDBDBD" />
-                      </Card.Content>
-                    </Card>
+                      </View>
+                    </GlassCard>
                   </Pressable>
                 </FadeInView>
               );
@@ -281,6 +288,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  actionGlass: {
+    padding: 0,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   actionGradient: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -315,8 +327,6 @@ const styles = StyleSheet.create({
   doctorCard: {
     marginBottom: 10,
     borderRadius: 16,
-    backgroundColor: '#fff',
-    elevation: 1,
   },
   doctorContent: {
     flexDirection: 'row',
