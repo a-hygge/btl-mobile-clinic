@@ -42,11 +42,11 @@ export function HomeScreen() {
           <Text variant="titleMedium" style={styles.cardTitle}>
             Quick actions
           </Text>
-          <Button mode="contained" onPress={() => router.push('/appointments')}>
-            View my appointments
+          <Button mode="contained" onPress={() => router.push('/booking')}>
+            Book an appointment
           </Button>
-          <Button mode="outlined" onPress={() => void reload()}>
-            Refresh doctors
+          <Button mode="contained-tonal" onPress={() => router.push('/appointments')}>
+            View my appointments
           </Button>
         </Card.Content>
       </Card>
