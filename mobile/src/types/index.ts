@@ -19,11 +19,19 @@ export interface User {
 export interface Doctor {
   id: string;
   userId: string;
-  user: User;
+  name: string;
   specialty: Specialty;
-  clinic?: Clinic;
+  clinic?: Clinic | null;
   experienceYears: number;
-  bio?: string;
+  bio?: string | null;
+  licenseNumber?: string | null;
+  doctorServices?: {
+    id: string;
+    serviceId: string;
+    name: string;
+    price: number;
+    category?: string | null;
+  }[];
   consultationFee: number;
   status: 'PENDING' | 'ACTIVE' | 'REJECTED';
   averageRating?: number;
@@ -74,7 +82,16 @@ export interface Appointment {
   diagnosis?: string;
   totalAmount: number;
   createdAt: string;
-  doctor?: Doctor;
+  doctor?: {
+    id: string;
+    userId: string;
+    name: string;
+    specialty: Specialty;
+    clinic?: Pick<Clinic, 'id' | 'name' | 'address'> | null;
+    experienceYears: number;
+    consultationFee: number;
+    status: 'PENDING' | 'ACTIVE' | 'REJECTED';
+  };
   patient?: User;
   timeSlot?: TimeSlot;
   services?: AppointmentService[];
