@@ -1,156 +1,359 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Searchbar, Text } from 'react-native-paper';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Card, Searchbar, Text } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme } from '../../constants/theme';
-import { HealthPulse } from '../../components/health-pulse';
+
+const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  'Tim mach': 'heart-pulse',
+  'Than kinh': 'brain',
+  'Tieu hoa': 'stomach',
+  'Da lieu': 'face-woman',
+  'Nhi khoa': 'baby-face',
+  'Mat': 'eye',
+};
+
+function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 500,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 500,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [delay, opacity, translateY]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 export function HomeScreen() {
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
   const [search, setSearch] = useState('');
-  const { doctors, isLoading, error, reload } = useDoctors(search);
+  const { doctors, isLoading } = useDoctors(search);
 
-  async function handleLogout() {
-    await logout();
-    router.replace('/login');
-  }
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
 
   return (
-    <ScrollView contentContainerStyle={styles.root}>
-      <View style={styles.hero}>
-        <View style={styles.heroCard}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      {/* Hero gradient header */}
+      <LinearGradient
+        colors={['#2196F3', '#1565C0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.heroContent}>
           <View style={styles.heroText}>
-            <Text variant="headlineMedium" style={styles.title}>
-              Welcome back
+            <Text variant="bodyLarge" style={styles.greeting}>
+              {greeting} 👋
             </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              {user?.name ?? 'BTL Healthcare user'}
+            <Text variant="headlineMedium" style={styles.heroName}>
+              {user?.name ?? 'User'}
             </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Browse doctors, pick a slot, and book care in a few taps.
+            <Text variant="bodyMedium" style={styles.heroSub}>
+              How are you feeling today?
             </Text>
           </View>
-          <HealthPulse size={112} />
+          <LottieView
+            source={require('../../assets/animations/health-pulse.json')}
+            autoPlay
+            loop
+            style={styles.heroLottie}
+          />
         </View>
-      </View>
+      </LinearGradient>
 
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            Quick actions
-          </Text>
-          <Button mode="contained" onPress={() => router.push('/booking')}>
-            Book an appointment
-          </Button>
-          <Button mode="contained-tonal" onPress={() => router.push('/appointments')}>
-            View my appointments
-          </Button>
-        </Card.Content>
-      </Card>
+      {/* Search bar - floating over gradient */}
+      <FadeInView delay={100}>
+        <View style={styles.searchWrap}>
+          <Searchbar
+            placeholder="Search doctors or specialties..."
+            value={search}
+            onChangeText={setSearch}
+            style={styles.searchBar}
+            elevation={2}
+          />
+        </View>
+      </FadeInView>
 
-      <Searchbar
-        placeholder="Search doctors or specialties"
-        value={search}
-        onChangeText={setSearch}
-      />
+      {/* Quick actions */}
+      <FadeInView delay={200}>
+        <View style={styles.quickActions}>
+          <Pressable style={styles.actionCard} onPress={() => router.push('/booking')}>
+            <LinearGradient
+              colors={['#4CAF50', '#388E3C']}
+              style={styles.actionGradient}
+            >
+              <MaterialCommunityIcons name="calendar-plus" size={28} color="#fff" />
+              <Text variant="labelLarge" style={styles.actionLabel}>
+                Book Now
+              </Text>
+            </LinearGradient>
+          </Pressable>
 
-      {doctors.length > 0 ? (
-        doctors.map((doctor) => (
-          <Card key={doctor.id} style={styles.card}>
-            <Card.Content style={styles.cardContent}>
-              <Text variant="titleMedium" style={styles.cardTitle}>
-                {doctor.name}
+          <Pressable style={styles.actionCard} onPress={() => router.push('/appointments')}>
+            <LinearGradient
+              colors={['#FF9800', '#F57C00']}
+              style={styles.actionGradient}
+            >
+              <MaterialCommunityIcons name="clipboard-list" size={28} color="#fff" />
+              <Text variant="labelLarge" style={styles.actionLabel}>
+                My Visits
               </Text>
-              <Text variant="bodyMedium" style={styles.cardBody}>
-                {doctor.specialty.name}
-                {doctor.clinic ? ` • ${doctor.clinic.name}` : ''}
+            </LinearGradient>
+          </Pressable>
+
+          <Pressable style={styles.actionCard} onPress={() => router.push('/profile')}>
+            <LinearGradient
+              colors={['#9C27B0', '#7B1FA2']}
+              style={styles.actionGradient}
+            >
+              <MaterialCommunityIcons name="account-heart" size={28} color="#fff" />
+              <Text variant="labelLarge" style={styles.actionLabel}>
+                Health
               </Text>
-              <Text variant="bodyMedium" style={styles.cardBody}>
-                {doctor.experienceYears} years • {doctor.consultationFee.toLocaleString()} VND
-              </Text>
-              <Text variant="bodySmall" style={styles.cardBody}>
-                Rating {(doctor.averageRating ?? 0).toFixed(1)} ({doctor.totalReviews ?? 0} reviews)
-              </Text>
-              <Button
-                mode="contained-tonal"
-                onPress={() =>
-                  router.push({
-                    pathname: '/doctors/[id]',
-                    params: { id: doctor.id },
-                  })
-                }
-              >
-                View details
-              </Button>
-            </Card.Content>
-          </Card>
-        ))
-      ) : (
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
-            <Text variant="bodyMedium">
-              {isLoading ? 'Loading doctors...' : error || 'No doctors found.'}
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </FadeInView>
+
+      {/* Top Doctors */}
+      <FadeInView delay={300}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleLarge" style={styles.sectionTitle}>
+              Top Doctors
             </Text>
-          </Card.Content>
-        </Card>
-      )}
+            <Text variant="bodySmall" style={styles.seeAll}>
+              {doctors.length} available
+            </Text>
+          </View>
 
-      <Button mode="contained" onPress={handleLogout}>
-        Logout
-      </Button>
+          {isLoading ? (
+            <View style={styles.loadingWrap}>
+              <LottieView
+                source={require('../../assets/animations/loading.json')}
+                autoPlay
+                loop
+                style={{ width: 100, height: 100 }}
+              />
+            </View>
+          ) : (
+            doctors.map((doctor, index) => {
+              const iconName = doctor.specialty?.name
+                ? SPECIALTY_ICONS[doctor.specialty.name] ?? 'medical-bag'
+                : 'medical-bag';
+
+              return (
+                <FadeInView key={doctor.id} delay={400 + index * 80}>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/doctors/[id]',
+                        params: { id: doctor.id },
+                      })
+                    }
+                  >
+                    <Card style={styles.doctorCard}>
+                      <Card.Content style={styles.doctorContent}>
+                        <View style={styles.doctorIcon}>
+                          <MaterialCommunityIcons
+                            name={iconName}
+                            size={28}
+                            color={theme.colors.primary}
+                          />
+                        </View>
+                        <View style={styles.doctorInfo}>
+                          <Text variant="titleMedium" style={styles.doctorName}>
+                            {doctor.name}
+                          </Text>
+                          <Text variant="bodySmall" style={styles.doctorMeta}>
+                            {doctor.specialty?.name}
+                            {doctor.clinic ? ` • ${doctor.clinic.name}` : ''}
+                          </Text>
+                          <View style={styles.doctorStats}>
+                            <MaterialCommunityIcons name="star" size={14} color="#FF9800" />
+                            <Text variant="bodySmall" style={styles.rating}>
+                              {(doctor.averageRating ?? 0).toFixed(1)}
+                            </Text>
+                            <Text variant="bodySmall" style={styles.doctorMeta}>
+                              • {doctor.experienceYears}y exp
+                            </Text>
+                            <Text variant="bodySmall" style={styles.fee}>
+                              {doctor.consultationFee.toLocaleString()}đ
+                            </Text>
+                          </View>
+                        </View>
+                        <MaterialCommunityIcons name="chevron-right" size={24} color="#BDBDBD" />
+                      </Card.Content>
+                    </Card>
+                  </Pressable>
+                </FadeInView>
+              );
+            })
+          )}
+        </View>
+      </FadeInView>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    padding: 24,
+  scroll: {
+    flex: 1,
     backgroundColor: theme.colors.background,
-    gap: 20,
-    paddingBottom: 40,
+  },
+  content: {
+    paddingBottom: 24,
   },
   hero: {
-    gap: 12,
+    paddingTop: 56,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  heroCard: {
-    borderRadius: 24,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-    padding: 18,
+  heroContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
   },
   heroText: {
     flex: 1,
+    gap: 4,
+  },
+  greeting: {
+    color: 'rgba(255,255,255,0.85)',
+  },
+  heroName: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  heroSub: {
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
+  heroLottie: {
+    width: 100,
+    height: 100,
+  },
+  searchWrap: {
+    marginTop: -22,
+    marginHorizontal: 16,
+  },
+  searchBar: {
+    borderRadius: 16,
+    backgroundColor: '#fff',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  actionCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
     gap: 8,
   },
-  title: {
-    color: theme.colors.primary,
+  actionLabel: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
     fontWeight: '700',
-  },
-  subtitle: {
-    color: theme.colors.onSurfaceVariant,
-  },
-  card: {
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
-  },
-  cardContent: {
-    gap: 10,
-  },
-  cardTitle: {
     color: theme.colors.onSurface,
-    fontWeight: '700',
   },
-  cardBody: {
-    color: theme.colors.onSurfaceVariant,
+  seeAll: {
+    color: theme.colors.primary,
+  },
+  loadingWrap: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  doctorCard: {
+    marginBottom: 10,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    elevation: 1,
+  },
+  doctorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  doctorIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doctorInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  doctorName: {
+    fontWeight: '600',
+  },
+  doctorMeta: {
+    color: '#757575',
+  },
+  doctorStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  rating: {
+    fontWeight: '600',
+    color: '#FF9800',
+  },
+  fee: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
 });
