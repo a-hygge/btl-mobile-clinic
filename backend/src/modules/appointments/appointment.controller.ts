@@ -4,6 +4,7 @@ import { sendSuccess } from '../../utils/api-response';
 import {
   appointmentActionSchema,
   appointmentListQuerySchema,
+  availableSlotsQuerySchema,
   createAppointmentSchema,
   idParamSchema,
 } from './appointment.schemas';
@@ -13,8 +14,23 @@ import {
   confirmAppointment,
   createAppointment,
   getAppointmentById,
+  getAvailableSlots,
   getMyAppointments,
 } from './appointment.service';
+
+export async function getAvailableSlotsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const query = availableSlotsQuerySchema.parse(req.query);
+    const slots = await getAvailableSlots(query);
+    sendSuccess(res, slots);
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createAppointmentController(
   req: Request,

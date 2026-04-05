@@ -1,10 +1,24 @@
 import { AppointmentStatus, Role } from '@prisma/client';
 
 export interface CreateAppointmentInput {
-  doctorId: string;
-  timeSlotId: string;
+  specialtyId: string;
+  clinicId?: string;
+  date: string;
+  startTime: string;
   serviceIds: string[];
   notes?: string;
+}
+
+export interface AvailableSlotDto {
+  date: string;
+  startTime: string;
+  endTime: string;
+  availableCount: number;
+  clinics: {
+    id: string;
+    name: string;
+    address: string;
+  }[];
 }
 
 export interface AppointmentListQuery {

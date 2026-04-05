@@ -7,6 +7,7 @@ import {
   confirmAppointmentController,
   createAppointmentController,
   getAppointmentByIdController,
+  getAvailableSlotsController,
   getMyAppointmentsController,
 } from './appointment.controller';
 
@@ -17,6 +18,9 @@ const asyncHandler = (handler: RequestHandler): RequestHandler => {
 };
 
 export const appointmentsRouter = Router();
+
+// Available slots - public, no auth needed (patient browses before booking)
+appointmentsRouter.get('/available-slots', asyncHandler(getAvailableSlotsController));
 
 appointmentsRouter.post(
   '/',

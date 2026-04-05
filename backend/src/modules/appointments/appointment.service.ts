@@ -5,6 +5,7 @@ import { getPaginationMeta, getSkipTake } from '../../utils/pagination';
 import {
   AppointmentDto,
   AppointmentListQuery,
+  AvailableSlotDto,
   CreateAppointmentInput,
   AppointmentUserContext,
 } from './appointment.types';
@@ -184,47 +185,119 @@ async function assertAppointmentAccess(
   throw AppError.forbidden('You do not have access to this appointment');
 }
 
+/**
+ * Get available time slots for a specialty (optionally filtered by clinic) on a date.
+ * Groups by startTime/endTime and counts how many doctors are free.
+ */
+export async function getAvailableSlots(input: {
+  specialtyId: string;
+  clinicId?: string;
+  date: string;
+}): Promise<AvailableSlotDto[]> {
+  const dateFilter = new Date(input.date + 'T00:00:00.000Z');
+  if (Number.isNaN(dateFilter.getTime())) {
+    throw AppError.badRequest('Invalid date');
+  }
+
+  const slots = await prisma.timeSlot.findMany({
+    where: {
+      isBooked: false,
+      date: dateFilter,
+      doctor: {
+        status: DoctorStatus.ACTIVE,
+        deletedAt: null,
+        specialtyId: input.specialtyId,
+        ...(input.clinicId ? { clinicId: input.clinicId } : {}),
+      },
+    },
+    include: {
+      doctor: {
+        include: {
+          clinic: { select: { id: true, name: true, address: true } },
+        },
+      },
+    },
+    orderBy: [{ startTime: 'asc' }],
+  });
+
+  // Group by startTime-endTime
+  const grouped = new Map<string, {
+    startTime: string;
+    endTime: string;
+    count: number;
+    clinics: Map<string, { id: string; name: string; address: string }>;
+  }>();
+
+  for (const slot of slots) {
+    const key = `${slot.startTime}-${slot.endTime}`;
+    const group = grouped.get(key) ?? {
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      count: 0,
+      clinics: new Map(),
+    };
+    group.count++;
+    if (slot.doctor.clinic) {
+      group.clinics.set(slot.doctor.clinic.id, slot.doctor.clinic);
+    }
+    grouped.set(key, group);
+  }
+
+  return Array.from(grouped.values()).map((g) => ({
+    date: input.date,
+    startTime: g.startTime,
+    endTime: g.endTime,
+    availableCount: g.count,
+    clinics: Array.from(g.clinics.values()),
+  }));
+}
+
+/**
+ * Create appointment by specialty + date + time.
+ * System auto-assigns an available doctor.
+ */
 export async function createAppointment(
   userId: string,
   input: CreateAppointmentInput
 ): Promise<AppointmentDto> {
-  const doctor = await prisma.doctor.findUnique({
-    where: { id: input.doctorId },
+  const dateFilter = new Date(input.date + 'T00:00:00.000Z');
+  if (Number.isNaN(dateFilter.getTime())) {
+    throw AppError.badRequest('Invalid date');
+  }
+
+  // Find an available slot matching specialty + clinic + date + time
+  const candidateSlot = await prisma.timeSlot.findFirst({
+    where: {
+      isBooked: false,
+      date: dateFilter,
+      startTime: input.startTime,
+      doctor: {
+        status: DoctorStatus.ACTIVE,
+        deletedAt: null,
+        specialtyId: input.specialtyId,
+        ...(input.clinicId ? { clinicId: input.clinicId } : {}),
+      },
+    },
     include: {
-      specialty: true,
-      clinic: true,
-      user: true,
+      doctor: { include: { specialty: true, clinic: true, user: true } },
+    },
+    orderBy: {
+      // Prefer doctor with fewer bookings today (load balance)
+      doctor: { appointments: { _count: 'asc' } },
     },
   });
 
-  if (!doctor) {
-    throw AppError.notFound('Doctor not found');
+  if (!candidateSlot) {
+    throw AppError.conflict('No available doctor for the selected time');
   }
 
-  if (doctor.status !== DoctorStatus.ACTIVE) {
-    throw AppError.conflict('Doctor is not available for booking');
-  }
-
-  const timeSlot = await prisma.timeSlot.findUnique({
-    where: { id: input.timeSlotId },
-  });
-
-  if (!timeSlot || timeSlot.doctorId !== doctor.id) {
-    throw AppError.notFound('Time slot not found');
-  }
-
-  if (timeSlot.isBooked) {
-    throw AppError.conflict('Selected time slot is already booked');
-  }
+  const doctor = candidateSlot.doctor;
 
   const uniqueServiceIds = [...new Set(input.serviceIds)];
   const services =
     uniqueServiceIds.length > 0
       ? await prisma.service.findMany({
-          where: {
-            id: { in: uniqueServiceIds },
-            deletedAt: null,
-          },
+          where: { id: { in: uniqueServiceIds }, deletedAt: null },
         })
       : [];
 
@@ -232,42 +305,31 @@ export async function createAppointment(
     throw AppError.notFound('One or more services were not found');
   }
 
-  const serviceTotal = services.reduce((sum, service) => sum + decimalToNumber(service.price), 0);
-  const consultationFee = decimalToNumber(doctor.consultationFee);
-  const totalAmount = consultationFee + serviceTotal;
+  const serviceTotal = services.reduce((sum, s) => sum + decimalToNumber(s.price), 0);
+  const totalAmount = decimalToNumber(doctor.consultationFee) + serviceTotal;
 
   const appointment = await prisma.$transaction(async (tx) => {
     const lockedSlot = await tx.timeSlot.updateMany({
-      where: {
-        id: timeSlot.id,
-        doctorId: doctor.id,
-        isBooked: false,
-      },
-      data: {
-        isBooked: true,
-      },
+      where: { id: candidateSlot.id, isBooked: false },
+      data: { isBooked: true },
     });
 
     if (lockedSlot.count === 0) {
-      throw AppError.conflict('Selected time slot is already booked');
+      throw AppError.conflict('Slot was just taken, please try again');
     }
 
-    const created = await tx.appointment.create({
+    return tx.appointment.create({
       data: {
         patientId: userId,
         doctorId: doctor.id,
-        timeSlotId: timeSlot.id,
+        timeSlotId: candidateSlot.id,
         notes: input.notes,
         totalAmount,
         services:
           services.length > 0
             ? {
                 create: services.map((service) => ({
-                  service: {
-                    connect: {
-                      id: service.id,
-                    },
-                  },
+                  service: { connect: { id: service.id } },
                   price: service.price,
                 })),
               }
@@ -275,8 +337,6 @@ export async function createAppointment(
       },
       include: appointmentInclude,
     });
-
-    return created;
   });
 
   return mapAppointment(appointment);
