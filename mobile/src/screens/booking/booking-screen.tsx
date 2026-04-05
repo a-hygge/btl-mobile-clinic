@@ -6,7 +6,8 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Button, Card, Chip, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Snackbar, Text, TextInput } from 'react-native-paper';
+import { GlassCard } from '../../components/ui/GlassCard';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -479,8 +480,8 @@ export function BookingScreen() {
 
         {/* Step 1: Specialty */}
         <Animated.View style={step1Anim}>
-          <Card style={styles.card}>
-            <Card.Content style={styles.cardContent}>
+          <GlassCard style={styles.card} glassStyle="regular">
+            <View style={styles.cardContent}>
               <View style={styles.stepHeader}>
                 <MaterialCommunityIcons name="stethoscope" size={20} color={PRIMARY} />
                 <Text variant="titleMedium" style={styles.stepTitle}>
@@ -503,15 +504,15 @@ export function BookingScreen() {
                   </Chip>
                 ))}
               </View>
-            </Card.Content>
-          </Card>
+            </View>
+          </GlassCard>
         </Animated.View>
 
         {/* Step 2: Clinic */}
         {showStep2 && (
           <Animated.View style={step2Anim}>
-            <Card style={styles.card}>
-              <Card.Content style={styles.cardContent}>
+            <GlassCard style={styles.card} glassStyle="regular">
+              <View style={styles.cardContent}>
                 <View style={styles.stepHeader}>
                   <MaterialCommunityIcons name="hospital-building" size={20} color={PRIMARY} />
                   <Text variant="titleMedium" style={styles.stepTitle}>
@@ -542,16 +543,16 @@ export function BookingScreen() {
                     </Chip>
                   ))}
                 </View>
-              </Card.Content>
-            </Card>
+              </View>
+            </GlassCard>
           </Animated.View>
         )}
 
         {/* Step 3: Date */}
         {showStep3 && (
           <Animated.View style={step3Anim}>
-            <Card style={styles.card}>
-              <Card.Content style={styles.cardContent}>
+            <GlassCard style={styles.card} glassStyle="regular">
+              <View style={styles.cardContent}>
                 <View style={styles.stepHeader}>
                   <MaterialCommunityIcons name="calendar" size={20} color={PRIMARY} />
                   <Text variant="titleMedium" style={styles.stepTitle}>
@@ -566,16 +567,16 @@ export function BookingScreen() {
                   outlineColor={theme.colors.outline}
                   activeOutlineColor={PRIMARY}
                 />
-              </Card.Content>
-            </Card>
+              </View>
+            </GlassCard>
           </Animated.View>
         )}
 
         {/* Step 4: Time slots */}
         {showStep4 && (
           <Animated.View style={step4Anim}>
-            <Card style={styles.card}>
-              <Card.Content style={styles.cardContent}>
+            <GlassCard style={styles.card} glassStyle="regular">
+              <View style={styles.cardContent}>
                 <View style={styles.stepHeader}>
                   <MaterialCommunityIcons name="clock-outline" size={20} color={PRIMARY} />
                   <Text variant="titleMedium" style={styles.stepTitle}>
@@ -616,16 +617,16 @@ export function BookingScreen() {
                     No slots available for this date.
                   </Text>
                 )}
-              </Card.Content>
-            </Card>
+              </View>
+            </GlassCard>
           </Animated.View>
         )}
 
         {/* Step 5: Notes + Confirm */}
         {showStep5 && (
           <Animated.View style={step5Anim}>
-            <Card style={styles.card}>
-              <Card.Content style={styles.cardContent}>
+            <GlassCard style={styles.card} glassStyle="regular" tintColor="#2196F3">
+              <View style={styles.cardContent}>
                 <View style={styles.stepHeader}>
                   <MaterialCommunityIcons name="check-decagram" size={20} color={SECONDARY} />
                   <Text variant="titleMedium" style={styles.stepTitle}>
@@ -688,8 +689,8 @@ export function BookingScreen() {
                     Confirm booking
                   </Button>
                 </Animated.View>
-              </Card.Content>
-            </Card>
+              </View>
+            </GlassCard>
           </Animated.View>
         )}
       </ScrollView>
@@ -728,10 +729,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   card: {
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
+    // GlassCard already provides borderRadius and background
   },
   cardContent: {
     gap: 12,
