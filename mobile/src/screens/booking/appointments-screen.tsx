@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Snackbar, Text } from 'react-native-paper';
+import { Button, Chip, Snackbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
+import { GlassCard } from '../../components/ui/GlassCard';
 import { theme } from '../../constants/theme';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }> = {
@@ -120,8 +121,8 @@ export function AppointmentsScreen() {
           const cfg = STATUS_CONFIG[appt.status] ?? STATUS_CONFIG.PENDING;
           return (
             <FadeInView key={appt.id} delay={i * 60}>
-              <Card style={styles.card}>
-                <Card.Content style={styles.cardContent}>
+              <GlassCard style={styles.card} tintColor={cfg.color}>
+                <View style={styles.cardContent}>
                   <View style={styles.cardTop}>
                     <View style={[styles.statusDot, { backgroundColor: cfg.color }]} />
                     <View style={styles.cardInfo}>
@@ -165,8 +166,8 @@ export function AppointmentsScreen() {
                       Cancel
                     </Button>
                   ) : null}
-                </Card.Content>
-              </Card>
+                </View>
+              </GlassCard>
             </FadeInView>
           );
         })
@@ -229,9 +230,6 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginBottom: 10,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    elevation: 1,
   },
   cardContent: {
     gap: 10,
