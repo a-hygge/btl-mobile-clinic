@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
+import { GlassCard } from '../../components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -271,17 +272,17 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
 
       {/* ---- Rating ---- */}
       <AnimatedSection index={1}>
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
+        <GlassCard style={styles.card}>
+          <View style={styles.cardContent}>
             <StarRating rating={rating} reviewCount={reviews} />
-          </Card.Content>
-        </Card>
+          </View>
+        </GlassCard>
       </AnimatedSection>
 
       {/* ---- About ---- */}
       <AnimatedSection index={2}>
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
+        <GlassCard style={styles.card}>
+          <View style={styles.cardContent}>
             <View style={styles.sectionTitleRow}>
               <MaterialCommunityIcons
                 name="information-outline"
@@ -293,15 +294,15 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             <Text variant="bodyMedium" style={styles.bodyText}>
               {doctor.bio || 'Profile is being updated.'}
             </Text>
-          </Card.Content>
-        </Card>
+          </View>
+        </GlassCard>
       </AnimatedSection>
 
       {/* ---- Services ---- */}
       {doctor.doctorServices && doctor.doctorServices.length > 0 && (
         <AnimatedSection index={3}>
-          <Card style={styles.card}>
-            <Card.Content style={styles.cardContent}>
+          <GlassCard style={styles.card}>
+            <View style={styles.cardContent}>
               <View style={styles.sectionTitleRow}>
                 <MaterialCommunityIcons
                   name="medical-bag"
@@ -322,8 +323,8 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
                   </View>
                 </View>
               ))}
-            </Card.Content>
-          </Card>
+            </View>
+          </GlassCard>
         </AnimatedSection>
       )}
 
@@ -428,10 +429,6 @@ const styles = StyleSheet.create({
   /* Cards */
   card: {
     marginHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
   },
   cardContent: {
     gap: 12,
