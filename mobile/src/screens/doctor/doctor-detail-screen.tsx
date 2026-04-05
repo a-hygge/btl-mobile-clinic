@@ -1,70 +1,21 @@
-import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Text } from 'react-native-paper';
 import { router } from 'expo-router';
-import { createAppointment } from '../../services/appointments.service';
 import { useDoctorDetail } from '../../hooks/use-doctor-detail';
 import { theme } from '../../constants/theme';
-
-function getErrorMessage(error: unknown) {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const response = (error as { response?: { data?: { error?: { message?: string } } } }).response;
-    return response?.data?.error?.message ?? 'Could not complete booking.';
-  }
-
-  return 'Could not complete booking.';
-}
-
-function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 interface DoctorDetailScreenProps {
   doctorId: string;
 }
 
 export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
-  const { doctor, slots, isLoading, error, reload } = useDoctorDetail(doctorId, selectedDate);
-  const [selectedSlotId, setSelectedSlotId] = useState('');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState('');
-
-  const availableSlots = useMemo(
-    () => slots.filter((slot) => !slot.isBooked),
-    [slots]
-  );
-
-  async function handleBook() {
-    if (!doctor || !selectedSlotId) {
-      setNotice('Please choose an available slot first.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createAppointment({
-        doctorId: doctor.id,
-        timeSlotId: selectedSlotId,
-        notes: notes.trim() || undefined,
-      });
-      router.replace('/appointments');
-    } catch (bookingError) {
-      setNotice(getErrorMessage(bookingError));
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const { doctor, isLoading } = useDoctorDetail(doctorId);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Button mode="text" onPress={() => router.back()}>
+        <Button icon="arrow-left" mode="text" onPress={() => router.back()}>
           Back
-        </Button>
-        <Button mode="text" onPress={() => void reload()}>
-          Refresh
         </Button>
       </View>
 
@@ -85,7 +36,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
 
           <Card style={styles.card}>
             <Card.Content style={styles.cardContent}>
-              <Text variant="titleMedium">Doctor profile</Text>
+              <Text variant="titleMedium">About</Text>
               <Text variant="bodyMedium">{doctor.bio || 'Profile is being updated.'}</Text>
               <Text variant="bodySmall" style={styles.meta}>
                 Rating: {(doctor.averageRating ?? 0).toFixed(1)} ({doctor.totalReviews ?? 0} reviews)
@@ -93,66 +44,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             </Card.Content>
           </Card>
 
-          <Card style={styles.card}>
-            <Card.Content style={styles.cardContent}>
-              <Text variant="titleMedium">Booking date</Text>
-              <TextInput
-                mode="outlined"
-                label="Date (YYYY-MM-DD)"
-                value={selectedDate}
-                onChangeText={setSelectedDate}
-              />
-              <Text variant="bodySmall" style={styles.meta}>
-                Use any seeded date within the next 7 days.
-              </Text>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.card}>
-            <Card.Content style={styles.cardContent}>
-              <Text variant="titleMedium">Available slots</Text>
-              <View style={styles.slotList}>
-                {availableSlots.length > 0 ? (
-                  availableSlots.map((slot) => (
-                    <Chip
-                      key={slot.id}
-                      selected={selectedSlotId === slot.id}
-                      onPress={() => setSelectedSlotId(slot.id)}
-                      style={styles.slotChip}
-                    >
-                      {slot.startTime} - {slot.endTime}
-                    </Chip>
-                  ))
-                ) : (
-                  <Text variant="bodyMedium">No open slots for this date.</Text>
-                )}
-              </View>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.card}>
-            <Card.Content style={styles.cardContent}>
-              <Text variant="titleMedium">Notes</Text>
-              <TextInput
-                mode="outlined"
-                multiline
-                numberOfLines={4}
-                label="Symptoms or notes"
-                value={notes}
-                onChangeText={setNotes}
-              />
-              <Button
-                mode="contained"
-                onPress={handleBook}
-                loading={submitting}
-                disabled={submitting || isLoading}
-              >
-                Confirm booking
-              </Button>
-            </Card.Content>
-          </Card>
-
-          {doctor.doctorServices.length > 0 ? (
+          {doctor.doctorServices && doctor.doctorServices.length > 0 ? (
             <Card style={styles.card}>
               <Card.Content style={styles.cardContent}>
                 <Text variant="titleMedium">Services</Text>
@@ -165,6 +57,10 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
               </Card.Content>
             </Card>
           ) : null}
+
+          <Button mode="contained" onPress={() => router.push('/booking')}>
+            Book this specialty
+          </Button>
         </>
       ) : (
         <Card style={styles.card}>
@@ -175,10 +71,6 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
           </Card.Content>
         </Card>
       )}
-
-      <Snackbar visible={Boolean(error || notice)} onDismiss={() => setNotice('')}>
-        {notice || error}
-      </Snackbar>
     </ScrollView>
   );
 }
@@ -215,15 +107,6 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: theme.colors.onSurfaceVariant,
-  },
-  slotList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  slotChip: {
-    marginRight: 8,
-    marginBottom: 8,
   },
   serviceRow: {
     flexDirection: 'row',
