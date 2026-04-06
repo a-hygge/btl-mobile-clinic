@@ -2,17 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, RadioButton, Snackbar, Text, TextInput } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -23,15 +23,25 @@ import {
   getAvailableSlots,
   type AvailableSlot,
 } from '../../services/appointments.service';
-import type { Specialty, Clinic } from '../../types';
+import { createPayment, type CreatePaymentResponse } from '../../services/payment.service';
+import type { Specialty, Clinic, Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
-// Helpers (unchanged business logic)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function getTodayDate(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 function getErrorMessage(error: unknown): string {
@@ -46,503 +56,426 @@ function getErrorMessage(error: unknown): string {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STEP_COUNT = 5;
-const STEP_LABELS: string[] = ['Specialty', 'Clinic', 'Date', 'Slots', 'Confirm'];
-const STEP_ICONS: (keyof typeof MaterialCommunityIcons.glyphMap)[] = [
-  'stethoscope',
-  'hospital-building',
-  'calendar',
-  'clock-outline',
-  'check-decagram',
-];
-const CARD_SLIDE_DISTANCE = 40;
-const CARD_ANIM_DURATION = 400;
-const STAGGER_DELAY = 120;
-const PULSE_DURATION = 1200;
-const PROGRESS_ANIM_DURATION = 350;
-
 const H_MARGIN = 16;
-const SECTION_GAP = 24;
+const SECTION_GAP = 20;
 const ELEMENT_GAP = 12;
+const FADE_DURATION = 350;
+const SLIDE_DISTANCE = 30;
+
+const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  cardiology: 'heart-pulse',
+  dermatology: 'hand-back-right-outline',
+  neurology: 'brain',
+  pediatrics: 'baby-face-outline',
+  orthopedics: 'bone',
+  ophthalmology: 'eye-outline',
+  dentistry: 'tooth-outline',
+  psychiatry: 'head-cog-outline',
+  general: 'stethoscope',
+};
+
+const SPECIALTY_COLORS: string[] = [
+  systemColors.red,
+  systemColors.blue,
+  systemColors.purple,
+  systemColors.orange,
+  systemColors.teal,
+  systemColors.green,
+  systemColors.indigo,
+  systemColors.pink,
+  systemColors.yellow,
+];
+
+function getSpecialtyIcon(name: string): keyof typeof MaterialCommunityIcons.glyphMap {
+  const lower = name.toLowerCase();
+  for (const [key, icon] of Object.entries(SPECIALTY_ICONS)) {
+    if (lower.includes(key)) return icon;
+  }
+  return 'stethoscope';
+}
+
+function getSpecialtyColor(index: number): string {
+  return SPECIALTY_COLORS[index % SPECIALTY_COLORS.length];
+}
 
 // ---------------------------------------------------------------------------
-// Animated step-card hook — fade-in + slide-up
+// FadeInView — animated section reveal
 // ---------------------------------------------------------------------------
 
-function useStepAnimation(visible: boolean, delay: number = 0) {
-  const anim = useRef(new Animated.Value(0)).current;
+interface FadeInViewProps {
+  visible: boolean;
+  delay?: number;
+  children: React.ReactNode;
+}
+
+function FadeInView({ visible, delay = 0, children }: FadeInViewProps) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(SLIDE_DISTANCE)).current;
 
   useEffect(() => {
     if (visible) {
-      anim.setValue(0);
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: CARD_ANIM_DURATION,
-        delay,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    } else {
-      anim.setValue(0);
-    }
-  }, [visible, delay, anim]);
-
-  const style: Animated.WithAnimatedObject<{
-    opacity: number;
-    transform: { translateY: number }[];
-  }> = {
-    opacity: anim,
-    transform: [
-      {
-        translateY: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [CARD_SLIDE_DISTANCE, 0],
+      opacity.setValue(0);
+      translateY.setValue(SLIDE_DISTANCE);
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: FADE_DURATION,
+          delay,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
         }),
-      },
-    ],
-  };
-
-  return style;
-}
-
-// ---------------------------------------------------------------------------
-// Pulse animation hook for the confirm button
-// ---------------------------------------------------------------------------
-
-function usePulseAnimation(active: boolean) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (active) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(scale, {
-            toValue: 1.04,
-            duration: PULSE_DURATION / 2,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: PULSE_DURATION / 2,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-      loopRef.current = pulse;
-      pulse.start();
-    } else {
-      loopRef.current?.stop();
-      scale.setValue(1);
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: FADE_DURATION,
+          delay,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
+  }, [visible, delay, opacity, translateY]);
 
-    return () => {
-      loopRef.current?.stop();
-    };
-  }, [active, scale]);
-
-  return { transform: [{ scale }] };
-}
-
-// ---------------------------------------------------------------------------
-// Progress indicator component
-// ---------------------------------------------------------------------------
-
-interface ProgressBarProps {
-  currentStep: number;
-}
-
-function ProgressBar({ currentStep }: ProgressBarProps) {
-  const fillAnims = useRef<Animated.Value[]>(
-    Array.from({ length: STEP_COUNT }, () => new Animated.Value(0)),
-  ).current;
-
-  useEffect(() => {
-    fillAnims.forEach((anim, i) => {
-      Animated.timing(anim, {
-        toValue: i < currentStep ? 1 : 0,
-        duration: PROGRESS_ANIM_DURATION,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    });
-  }, [currentStep, fillAnims]);
+  if (!visible) return null;
 
   return (
-    <View style={progressStyles.container}>
-      {fillAnims.map((anim, i) => {
-        const isActive = i < currentStep;
-        const isCurrent = i === currentStep;
-        return (
-          <View key={i} style={progressStyles.stepWrapper}>
-            <View
-              style={[
-                progressStyles.dot,
-                isActive
-                  ? progressStyles.dotActive
-                  : isCurrent
-                    ? progressStyles.dotCurrent
-                    : progressStyles.dotInactive,
-              ]}
-            >
-              {isActive ? (
-                <MaterialCommunityIcons name="check" size={12} color="#fff" />
-              ) : (
-                <MaterialCommunityIcons
-                  name={STEP_ICONS[i]}
-                  size={13}
-                  color={isCurrent ? systemColors.blue : '#fff'}
-                />
-              )}
-            </View>
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
-            <Text
-              style={[
-                progressStyles.label,
-                isActive
-                  ? progressStyles.labelActive
-                  : isCurrent
-                    ? progressStyles.labelCurrent
-                    : progressStyles.labelInactive,
-              ]}
-              numberOfLines={1}
-            >
-              {STEP_LABELS[i]}
-            </Text>
+// ---------------------------------------------------------------------------
+// Section header with step number
+// ---------------------------------------------------------------------------
 
-            {i < STEP_COUNT - 1 && (
-              <View style={progressStyles.barTrack}>
-                <Animated.View
-                  style={[
-                    progressStyles.barFill,
-                    {
-                      width: anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
-                />
-              </View>
-            )}
-          </View>
-        );
-      })}
+interface SectionHeaderProps {
+  step: number;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconColor: string;
+  title: string;
+}
+
+function SectionHeader({ step, icon, iconColor, title }: SectionHeaderProps) {
+  return (
+    <View style={sectionHeaderStyles.container}>
+      <View style={[sectionHeaderStyles.stepBadge, { backgroundColor: iconColor }]}>
+        <Text style={sectionHeaderStyles.stepText}>{step}</Text>
+      </View>
+      <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+      <Text style={sectionHeaderStyles.title}>{title}</Text>
     </View>
   );
 }
 
-const progressStyles = StyleSheet.create({
+const sectionHeaderStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
   },
-  stepWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  dot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
-  dotActive: {
-    backgroundColor: systemColors.blue,
+  stepText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
   },
-  dotCurrent: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: systemColors.blue,
-  },
-  dotInactive: {
-    backgroundColor: systemColors.gray3,
-  },
-  label: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  labelActive: {
-    color: systemColors.blue,
+  title: {
+    fontSize: 17,
     fontWeight: '600',
-  },
-  labelCurrent: {
     color: theme.colors.onSurface,
-    fontWeight: '600',
-  },
-  labelInactive: {
-    color: systemColors.gray,
-  },
-  barTrack: {
-    position: 'absolute',
-    top: 12,
-    left: '60%',
-    right: '-40%',
-    height: 3,
-    backgroundColor: systemColors.gray4,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    backgroundColor: systemColors.blue,
-    borderRadius: 1.5,
   },
 });
 
 // ---------------------------------------------------------------------------
-// Selectable chip component — bigger tap targets
+// Specialty card (2-column grid)
 // ---------------------------------------------------------------------------
 
-interface SelectableChipProps {
-  label: string;
+interface SpecialtyCardProps {
+  specialty: Specialty;
+  index: number;
   selected: boolean;
   onPress: () => void;
-  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
-  iconColor?: string;
-  subtitle?: string;
 }
 
-function SelectableChip({
-  label,
-  selected,
-  onPress,
-  icon,
-  iconColor = systemColors.blue,
-  subtitle,
-}: SelectableChipProps) {
+function SpecialtyCard({ specialty, index, selected, onPress }: SpecialtyCardProps) {
+  const color = getSpecialtyColor(index);
+  const icon = getSpecialtyIcon(specialty.name);
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={[chipStyles.chip, selected && chipStyles.chipSelected]}
-    >
-      {icon && (
-        <View style={[chipStyles.iconCircle, { backgroundColor: iconColor + '18' }]}>
-          <MaterialCommunityIcons name={icon} size={16} color={iconColor} />
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.specialtyCardWrapper}>
+      <View
+        style={[
+          specCardStyles.card,
+          selected && { borderColor: color, backgroundColor: color + '10' },
+        ]}
+      >
+        <View style={[specCardStyles.iconCircle, { backgroundColor: color + '18' }]}>
+          <MaterialCommunityIcons name={icon} size={24} color={color} />
         </View>
-      )}
-      <View style={subtitle ? chipStyles.textCol : undefined}>
-        <Text
-          style={[chipStyles.label, selected && chipStyles.labelSelected]}
-          numberOfLines={1}
-        >
-          {label}
+        <Text style={[specCardStyles.name, selected && { color }]} numberOfLines={1}>
+          {specialty.name}
         </Text>
-        {subtitle ? (
-          <Text style={chipStyles.subtitle} numberOfLines={1}>
-            {subtitle}
+        {specialty.description ? (
+          <Text style={specCardStyles.desc} numberOfLines={2}>
+            {specialty.description}
           </Text>
         ) : null}
+        {selected && (
+          <View style={[specCardStyles.checkBadge, { backgroundColor: color }]}>
+            <MaterialCommunityIcons name="check" size={12} color="#fff" />
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
 }
 
-const chipStyles = StyleSheet.create({
-  chip: {
+const specCardStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    position: 'relative',
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  name: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+    marginBottom: 2,
+  },
+  desc: {
+    fontSize: 11,
+    color: systemColors.gray,
+    lineHeight: 15,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Clinic card
+// ---------------------------------------------------------------------------
+
+interface ClinicCardProps {
+  clinic: Clinic | null; // null = "Any clinic"
+  selected: boolean;
+  onPress: () => void;
+}
+
+function ClinicCard({ clinic, selected, onPress }: ClinicCardProps) {
+  const isAny = !clinic;
+  return (
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <View
+        style={[
+          clinicCardStyles.card,
+          selected && {
+            borderColor: systemColors.teal,
+            backgroundColor: systemColors.teal + '10',
+          },
+        ]}
+      >
+        <View
+          style={[
+            clinicCardStyles.iconCircle,
+            { backgroundColor: (isAny ? systemColors.blue : systemColors.teal) + '18' },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={isAny ? 'map-marker-radius-outline' : 'hospital-building'}
+            size={22}
+            color={isAny ? systemColors.blue : systemColors.teal}
+          />
+        </View>
+        <View style={clinicCardStyles.textCol}>
+          <Text
+            style={[clinicCardStyles.name, selected && { color: systemColors.teal }]}
+            numberOfLines={1}
+          >
+            {isAny ? 'Any clinic' : clinic.name}
+          </Text>
+          <Text style={clinicCardStyles.address} numberOfLines={1}>
+            {isAny ? 'System will assign the best match' : clinic.address}
+          </Text>
+        </View>
+        {selected && (
+          <MaterialCommunityIcons name="check-circle" size={22} color={systemColors.teal} />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const clinicCardStyles = StyleSheet.create({
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
-    paddingHorizontal: 14,
-    borderRadius: 22,
     backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1.5,
-    borderColor: systemColors.gray4,
-    gap: 8,
+    borderColor: systemColors.gray5,
+    gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
   },
-  chipSelected: {
-    borderColor: systemColors.blue,
-    backgroundColor: systemColors.blue + '10',
-  },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textCol: {
-    flexShrink: 1,
+    flex: 1,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
+  name: {
+    fontSize: 15,
+    fontWeight: '600',
     color: theme.colors.onSurface,
   },
-  labelSelected: {
-    color: systemColors.blue,
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 11,
+  address: {
+    fontSize: 12,
     color: systemColors.gray,
-    marginTop: 1,
+    marginTop: 2,
   },
 });
 
 // ---------------------------------------------------------------------------
-// Slot chip — taller with time + availability subtitle
+// Time slot card (grid)
 // ---------------------------------------------------------------------------
 
-interface SlotChipProps {
+interface SlotCardProps {
   slot: AvailableSlot;
   selected: boolean;
   onPress: () => void;
 }
 
-function SlotChip({ slot, selected, onPress }: SlotChipProps) {
+function SlotCard({ slot, selected, onPress }: SlotCardProps) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={[slotChipStyles.chip, selected && slotChipStyles.chipSelected]}
-    >
-      <Text style={[slotChipStyles.time, selected && slotChipStyles.timeSelected]}>
-        {slot.startTime} - {slot.endTime}
-      </Text>
-      <Text style={slotChipStyles.avail}>
-        {slot.availableCount} available
-      </Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.slotCardWrapper}>
+      <View
+        style={[
+          slotCardStyles.card,
+          selected && {
+            borderColor: systemColors.green,
+            backgroundColor: systemColors.green + '10',
+          },
+        ]}
+      >
+        <Text style={[slotCardStyles.time, selected && { color: systemColors.green }]}>
+          {slot.startTime}
+        </Text>
+        <Text style={slotCardStyles.dash}>-</Text>
+        <Text style={[slotCardStyles.endTime, selected && { color: systemColors.green }]}>
+          {slot.endTime}
+        </Text>
+        <View style={slotCardStyles.availBadge}>
+          <Text style={slotCardStyles.availText}>{slot.availableCount} avail.</Text>
+        </View>
+        {selected && (
+          <View style={slotCardStyles.checkDot}>
+            <MaterialCommunityIcons name="check" size={10} color="#fff" />
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
 
-const slotChipStyles = StyleSheet.create({
-  chip: {
-    height: 48,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: systemColors.gray4,
+const slotCardStyles = StyleSheet.create({
+  card: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: systemColors.gray5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
-  },
-  chipSelected: {
-    borderColor: systemColors.green,
-    backgroundColor: systemColors.green + '10',
+    position: 'relative',
   },
   time: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: theme.colors.onSurface,
   },
-  timeSelected: {
-    color: systemColors.green,
-  },
-  avail: {
+  dash: {
     fontSize: 11,
+    color: systemColors.gray2,
+    marginVertical: 1,
+  },
+  endTime: {
+    fontSize: 13,
+    fontWeight: '500',
     color: systemColors.gray,
-    marginTop: 1,
   },
-});
-
-// ---------------------------------------------------------------------------
-// Success overlay component
-// ---------------------------------------------------------------------------
-
-interface SuccessOverlayProps {
-  visible: boolean;
-  onFinish: () => void;
-}
-
-function SuccessOverlay({ visible, onFinish }: SuccessOverlayProps) {
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-
-      const timer = setTimeout(() => {
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }).start(() => onFinish());
-      }, 2200);
-
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [visible, opacity, onFinish]);
-
-  if (!visible) return null;
-
-  return (
-    <Animated.View style={[overlayStyles.container, { opacity }]}>
-      <LinearGradient
-        colors={[systemColors.blue, systemColors.green]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={overlayStyles.gradient}
-      >
-        <LottieView
-          source={require('../../assets/animations/success.json')}
-          autoPlay
-          loop={false}
-          style={overlayStyles.lottie}
-        />
-        <Text style={overlayStyles.title}>Booking confirmed!</Text>
-        <Text style={overlayStyles.subtitle}>Redirecting to your appointments...</Text>
-      </LinearGradient>
-    </Animated.View>
-  );
-}
-
-const overlayStyles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    elevation: 100,
+  availBadge: {
+    marginTop: 6,
+    backgroundColor: systemColors.gray6,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  gradient: {
-    flex: 1,
+  availText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: systemColors.gray,
+  },
+  checkDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: systemColors.green,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  lottie: {
-    width: 180,
-    height: 180,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 6,
   },
 });
 
 // ---------------------------------------------------------------------------
-// Summary row for confirm step
+// Summary row
 // ---------------------------------------------------------------------------
 
 interface SummaryRowProps {
@@ -571,12 +504,12 @@ const summaryStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -588,7 +521,7 @@ const summaryStyles = StyleSheet.create({
     color: systemColors.gray,
   },
   value: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.onSurface,
     marginTop: 1,
@@ -596,45 +529,108 @@ const summaryStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
+// Payment method option
+// ---------------------------------------------------------------------------
+
+type PaymentMethod = 'CASH' | 'VNPAY' | 'MOMO';
+
+interface PaymentMethodInfo {
+  value: PaymentMethod;
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  color: string;
+  desc: string;
+}
+
+const PAYMENT_METHODS: PaymentMethodInfo[] = [
+  {
+    value: 'CASH',
+    label: 'Cash',
+    icon: 'cash',
+    color: systemColors.green,
+    desc: 'Pay at the clinic',
+  },
+  {
+    value: 'VNPAY',
+    label: 'VNPAY',
+    icon: 'bank-outline',
+    color: systemColors.blue,
+    desc: 'Online banking via VNPAY',
+  },
+  {
+    value: 'MOMO',
+    label: 'Momo',
+    icon: 'wallet-outline',
+    color: systemColors.pink,
+    desc: 'Pay with Momo e-wallet',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Success result type
+// ---------------------------------------------------------------------------
+
+interface BookingResult {
+  appointment: Appointment;
+  payment: CreatePaymentResponse | null;
+}
+
+// ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
 
 export function BookingScreen() {
   const insets = useSafeAreaInsets();
+  const { specialtyId } = useLocalSearchParams<{ specialtyId?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
 
-  // --- State (unchanged) ---------------------------------------------------
+  // --- Data state ---
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
-
   const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [selectedClinic, setSelectedClinic] = useState<string>('');
-
-  const [date, setDate] = useState(getTodayDate());
-  const [dateObj, setDateObj] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // --- Selection state ---
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>(specialtyId ?? '');
+  const [selectedClinic, setSelectedClinic] = useState<string>('');
+  const [dateObj, setDateObj] = useState(new Date());
+  const [date, setDate] = useState(getTodayDate());
   const [selectedTime, setSelectedTime] = useState('');
-
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+
+  // --- UI state ---
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
-
   const [showSuccess, setShowSuccess] = useState(false);
+  const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
 
-  // --- API calls (unchanged) -----------------------------------------------
+  // --- Load initial data ---
   useEffect(() => {
     Promise.all([getSpecialties(), getClinics()])
       .then(([specs, cls]) => {
         setSpecialties(specs);
         setClinics(cls);
       })
-      .catch(() => setNotice('Could not load data'));
+      .catch(() => setNotice('Could not load data. Please try again.'))
+      .finally(() => setInitialLoading(false));
   }, []);
 
+  // --- Auto-select specialty from route params ---
+  useEffect(() => {
+    if (specialtyId && specialties.length > 0) {
+      const match = specialties.find((s) => s.id === specialtyId);
+      if (match) {
+        setSelectedSpecialty(match.id);
+      }
+    }
+  }, [specialtyId, specialties]);
+
+  // --- Load slots when specialty + date change ---
   const loadSlots = useCallback(async () => {
     if (!selectedSpecialty || !date) return;
-    setLoading(true);
+    setSlotsLoading(true);
     setSelectedTime('');
     try {
       const result = await getAvailableSlots({
@@ -646,7 +642,7 @@ export function BookingScreen() {
     } catch {
       setSlots([]);
     } finally {
-      setLoading(false);
+      setSlotsLoading(false);
     }
   }, [selectedSpecialty, selectedClinic, date]);
 
@@ -654,25 +650,25 @@ export function BookingScreen() {
     void loadSlots();
   }, [loadSlots]);
 
-  const [bookedAppointmentId, setBookedAppointmentId] = useState<string | null>(null);
-
-  const handleSuccessFinish = useCallback(() => {
-    setShowSuccess(false);
-    if (bookedAppointmentId) {
-      router.push({ pathname: '/payment', params: { appointmentId: bookedAppointmentId } });
-    } else {
-      router.replace('/appointments');
+  // --- Date picker handler ---
+  function onDateChange(_event: unknown, selectedDate?: Date) {
+    if (selectedDate) {
+      setDateObj(selectedDate);
+      setDate(selectedDate.toISOString().slice(0, 10));
     }
-  }, [bookedAppointmentId]);
+  }
 
-  async function handleBook(): Promise<void> {
+  // --- Book + Pay ---
+  async function handleConfirm(): Promise<void> {
     if (!selectedSpecialty || !selectedTime) {
       setNotice('Please select a specialty and time slot.');
       return;
     }
+
     setSubmitting(true);
     try {
-      const result = await createAppointment({
+      // 1. Create appointment
+      const appointment = await createAppointment({
         specialtyId: selectedSpecialty,
         clinicId: selectedClinic || undefined,
         date,
@@ -680,7 +676,19 @@ export function BookingScreen() {
         serviceIds: [],
         notes: notes.trim() || undefined,
       });
-      setBookedAppointmentId(result.id);
+
+      // 2. Create payment
+      let payment: CreatePaymentResponse | null = null;
+      try {
+        payment = await createPayment({
+          appointmentId: appointment.id,
+          method: paymentMethod,
+        });
+      } catch {
+        // Payment creation failed, but appointment was created
+      }
+
+      setBookingResult({ appointment, payment });
       setShowSuccess(true);
     } catch (err) {
       setNotice(getErrorMessage(err));
@@ -689,330 +697,397 @@ export function BookingScreen() {
     }
   }
 
-  // --- Date picker handler --------------------------------------------------
-  function onDateChange(_event: unknown, selectedDate?: Date) {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDateObj(selectedDate);
-      const formatted = selectedDate.toISOString().slice(0, 10);
-      setDate(formatted);
-    }
-  }
-
-  // --- Derived values ------------------------------------------------------
+  // --- Derived ---
   const selectedSpecObj = specialties.find((s) => s.id === selectedSpecialty);
   const selectedClinicObj = clinics.find((c) => c.id === selectedClinic);
+  const selectedSlot = slots.find((s) => s.startTime === selectedTime);
+  const estimatedFee = '150,000 VND'; // placeholder — real value would come from doctor/service
 
-  const showStep2 = Boolean(selectedSpecialty);
-  const showStep3 = Boolean(selectedSpecialty);
-  const showStep4 = Boolean(selectedSpecialty && date);
-  const showStep5 = Boolean(selectedTime);
+  const showClinic = Boolean(selectedSpecialty);
+  const showDate = Boolean(selectedSpecialty);
+  const showSlots = Boolean(selectedSpecialty && date);
+  const showReview = Boolean(selectedTime);
 
-  let currentStep = 0;
-  if (selectedSpecialty) currentStep = 1;
-  if (selectedSpecialty && selectedClinic !== undefined) currentStep = 2;
-  if (selectedSpecialty && date) currentStep = 3;
-  if (selectedSpecialty && date && selectedTime) currentStep = 4;
-  if (showSuccess) currentStep = 5;
+  // --- Render ---
+  if (initialLoading) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <LottieView
+          source={require('../../assets/animations/loading.json')}
+          autoPlay
+          loop
+          style={{ width: 120, height: 120 }}
+        />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
-  // --- Animations ----------------------------------------------------------
-  const step1Anim = useStepAnimation(true, 0);
-  const step2Anim = useStepAnimation(showStep2, STAGGER_DELAY);
-  const step3Anim = useStepAnimation(showStep3, STAGGER_DELAY * 2);
-  const step4Anim = useStepAnimation(showStep4, STAGGER_DELAY * 3);
-  const step5Anim = useStepAnimation(showStep5, STAGGER_DELAY * 4);
-  const pulseStyle = usePulseAnimation(showStep5 && !submitting);
-
-  // --- Render --------------------------------------------------------------
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <MaterialCommunityIcons name="chevron-left" size={28} color={systemColors.blue} />
           </TouchableOpacity>
-          <Text variant="headlineSmall" style={styles.title}>
-            Book appointment
-          </Text>
+          <View style={styles.headerTextCol}>
+            <Text variant="headlineSmall" style={styles.title}>
+              Book Appointment
+            </Text>
+            <Text style={styles.subtitle}>Complete each step to schedule your visit</Text>
+          </View>
         </View>
 
-        {/* Progress indicator */}
-        <ProgressBar currentStep={currentStep} />
+        {/* Step 1: Specialty Selection */}
+        <FadeInView visible delay={0}>
+          <SectionHeader
+            step={1}
+            icon="stethoscope"
+            iconColor={systemColors.blue}
+            title="Select Specialty"
+          />
+          <View style={styles.specialtyGrid}>
+            {specialties.map((spec, i) => (
+              <SpecialtyCard
+                key={spec.id}
+                specialty={spec}
+                index={i}
+                selected={selectedSpecialty === spec.id}
+                onPress={() => {
+                  setSelectedSpecialty(spec.id);
+                  setSelectedTime('');
+                }}
+              />
+            ))}
+          </View>
+        </FadeInView>
 
-        {/* Step 1: Specialty */}
-        <Animated.View style={step1Anim}>
+        {/* Step 2: Clinic Selection */}
+        <FadeInView visible={showClinic} delay={100}>
+          <SectionHeader
+            step={2}
+            icon="hospital-building"
+            iconColor={systemColors.teal}
+            title="Choose Clinic"
+          />
+          <View style={styles.clinicList}>
+            <ClinicCard
+              clinic={null}
+              selected={selectedClinic === ''}
+              onPress={() => setSelectedClinic('')}
+            />
+            {clinics.map((clinic) => (
+              <ClinicCard
+                key={clinic.id}
+                clinic={clinic}
+                selected={selectedClinic === clinic.id}
+                onPress={() => setSelectedClinic(clinic.id)}
+              />
+            ))}
+          </View>
+        </FadeInView>
+
+        {/* Step 3: Date Selection */}
+        <FadeInView visible={showDate} delay={200}>
+          <SectionHeader
+            step={3}
+            icon="calendar"
+            iconColor={systemColors.orange}
+            title="Pick a Date"
+          />
           <GlassCard style={styles.card} glassStyle="regular">
-            <View style={styles.cardInner}>
-              <View style={styles.stepHeader}>
-                <View style={[styles.stepIconCircle, { backgroundColor: systemColors.blue + '14' }]}>
-                  <MaterialCommunityIcons name="stethoscope" size={18} color={systemColors.blue} />
-                </View>
-                <Text style={styles.stepTitle}>Select specialty</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipScroll}
-              >
-                {specialties.map((spec) => (
-                  <SelectableChip
-                    key={spec.id}
-                    label={spec.name}
-                    selected={selectedSpecialty === spec.id}
-                    onPress={() => setSelectedSpecialty(spec.id)}
-                    icon="stethoscope"
-                    iconColor={systemColors.blue}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+            <DateTimePicker
+              value={dateObj}
+              mode="date"
+              display="inline"
+              minimumDate={new Date()}
+              onChange={onDateChange}
+              themeVariant="light"
+            />
           </GlassCard>
-        </Animated.View>
+        </FadeInView>
 
-        {/* Step 2: Clinic */}
-        {showStep2 && (
-          <Animated.View style={step2Anim}>
-            <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardInner}>
-                <View style={styles.stepHeader}>
-                  <View
-                    style={[styles.stepIconCircle, { backgroundColor: systemColors.teal + '14' }]}
-                  >
-                    <MaterialCommunityIcons
-                      name="hospital-building"
-                      size={18}
-                      color={systemColors.teal}
-                    />
-                  </View>
-                  <Text style={styles.stepTitle}>Clinic (optional)</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipScroll}
-                >
-                  <SelectableChip
-                    label="Any clinic"
-                    selected={selectedClinic === ''}
-                    onPress={() => setSelectedClinic('')}
-                    icon="hospital-building"
-                    iconColor={systemColors.teal}
-                  />
-                  {clinics.map((clinic) => (
-                    <SelectableChip
-                      key={clinic.id}
-                      label={clinic.name}
-                      selected={selectedClinic === clinic.id}
-                      onPress={() => setSelectedClinic(clinic.id)}
-                      icon="hospital-building"
-                      iconColor={systemColors.teal}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {/* Step 3: Date */}
-        {showStep3 && (
-          <Animated.View style={step3Anim}>
-            <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardInner}>
-                <View style={styles.stepHeader}>
-                  <View
-                    style={[
-                      styles.stepIconCircle,
-                      { backgroundColor: systemColors.orange + '14' },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="calendar"
-                      size={18}
-                      color={systemColors.orange}
-                    />
-                  </View>
-                  <Text style={styles.stepTitle}>Select date</Text>
-                </View>
-                <Pressable
-                  onPress={() => setShowDatePicker(true)}
-                  style={styles.dateButton}
-                >
-                  <MaterialCommunityIcons
-                    name="calendar-month"
-                    size={22}
-                    color={systemColors.orange}
-                  />
-                  <Text style={styles.dateText}>
-                    {date || 'Select date'}
-                  </Text>
-                  <MaterialCommunityIcons
-                    name="chevron-down"
-                    size={18}
-                    color={systemColors.gray}
-                  />
-                </Pressable>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={dateObj}
-                    mode="date"
-                    display="inline"
-                    minimumDate={new Date()}
-                    onChange={onDateChange}
-                  />
-                )}
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {/* Step 4: Time slots */}
-        {showStep4 && (
-          <Animated.View style={step4Anim}>
-            <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardInner}>
-                <View style={styles.stepHeader}>
-                  <View
-                    style={[
-                      styles.stepIconCircle,
-                      { backgroundColor: systemColors.indigo + '14' },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="clock-outline"
-                      size={18}
-                      color={systemColors.indigo}
-                    />
-                  </View>
-                  <Text style={styles.stepTitle}>Available time slots</Text>
-                </View>
-                {loading ? (
-                  <View style={styles.loadingContainer}>
-                    <LottieView
-                      source={require('../../assets/animations/loading.json')}
-                      autoPlay
-                      loop
-                      style={styles.loadingLottie}
-                    />
-                    <Text style={styles.loadingText}>Finding available slots...</Text>
-                  </View>
-                ) : slots.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.chipScroll}
-                  >
-                    {slots.map((slot) => (
-                      <SlotChip
-                        key={slot.startTime}
-                        slot={slot}
-                        selected={selectedTime === slot.startTime}
-                        onPress={() => setSelectedTime(slot.startTime)}
-                      />
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text style={styles.emptyText}>No slots available for this date.</Text>
-                )}
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {/* Step 5: Notes + Confirm */}
-        {showStep5 && (
-          <Animated.View style={step5Anim}>
-            <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardInner}>
-                <View style={styles.stepHeader}>
-                  <View
-                    style={[
-                      styles.stepIconCircle,
-                      { backgroundColor: systemColors.green + '14' },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="check-decagram"
-                      size={18}
-                      color={systemColors.green}
-                    />
-                  </View>
-                  <Text style={styles.stepTitle}>Confirm booking</Text>
-                </View>
-
-                {/* Summary card */}
-                <View style={styles.summaryCard}>
-                  <SummaryRow
-                    icon="stethoscope"
-                    iconColor={systemColors.blue}
-                    label="Specialty"
-                    value={selectedSpecObj?.name ?? '—'}
-                  />
-                  <View style={styles.summaryDivider} />
-                  <SummaryRow
-                    icon="hospital-building"
-                    iconColor={systemColors.teal}
-                    label="Clinic"
-                    value={selectedClinicObj?.name ?? 'Any clinic'}
-                  />
-                  <View style={styles.summaryDivider} />
-                  <SummaryRow
-                    icon="calendar"
-                    iconColor={systemColors.orange}
-                    label="Date"
-                    value={date}
-                  />
-                  <View style={styles.summaryDivider} />
-                  <SummaryRow
-                    icon="clock-outline"
-                    iconColor={systemColors.indigo}
-                    label="Time"
-                    value={selectedTime}
-                  />
-                </View>
-
-                <TextInput
-                  mode="outlined"
-                  multiline
-                  numberOfLines={3}
-                  label="Notes / symptoms (optional)"
-                  value={notes}
-                  onChangeText={setNotes}
-                  outlineColor={systemColors.gray4}
-                  activeOutlineColor={systemColors.blue}
+        {/* Step 4: Time Slot Selection */}
+        <FadeInView visible={showSlots} delay={300}>
+          <SectionHeader
+            step={4}
+            icon="clock-outline"
+            iconColor={systemColors.indigo}
+            title="Select Time Slot"
+          />
+          {slotsLoading ? (
+            <View style={styles.slotsLoadingContainer}>
+              <LottieView
+                source={require('../../assets/animations/loading.json')}
+                autoPlay
+                loop
+                style={{ width: 80, height: 80 }}
+              />
+              <Text style={styles.loadingText}>Finding available slots...</Text>
+            </View>
+          ) : slots.length > 0 ? (
+            <View style={styles.slotsGrid}>
+              {slots.map((slot) => (
+                <SlotCard
+                  key={slot.startTime}
+                  slot={slot}
+                  selected={selectedTime === slot.startTime}
+                  onPress={() => setSelectedTime(slot.startTime)}
                 />
-
-                {/* Pulsing confirm button */}
-                <Animated.View style={pulseStyle}>
-                  <Button
-                    mode="contained"
-                    onPress={handleBook}
-                    loading={submitting}
-                    disabled={submitting}
-                    icon="check-circle"
-                    buttonColor={systemColors.green}
-                    textColor="#fff"
-                    contentStyle={styles.confirmButtonContent}
-                    labelStyle={styles.confirmButtonLabel}
-                    style={styles.confirmButton}
-                  >
-                    Confirm booking
-                  </Button>
-                </Animated.View>
+              ))}
+            </View>
+          ) : (
+            <GlassCard style={styles.card} glassStyle="regular">
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons
+                  name="calendar-remove"
+                  size={40}
+                  color={systemColors.gray3}
+                />
+                <Text style={styles.emptyText}>
+                  No slots available for this date.
+                </Text>
+                <Text style={styles.emptyHint}>
+                  Try selecting a different date or clinic.
+                </Text>
               </View>
             </GlassCard>
-          </Animated.View>
-        )}
+          )}
+        </FadeInView>
+
+        {/* Step 5: Notes */}
+        <FadeInView visible={showReview} delay={100}>
+          <SectionHeader
+            step={5}
+            icon="text-box-outline"
+            iconColor={systemColors.purple}
+            title="Notes (Optional)"
+          />
+          <TextInput
+            mode="outlined"
+            multiline
+            numberOfLines={3}
+            placeholder="Describe your symptoms or add any notes for the doctor..."
+            value={notes}
+            onChangeText={setNotes}
+            outlineColor={systemColors.gray4}
+            activeOutlineColor={systemColors.purple}
+            outlineStyle={{ borderRadius: 14 }}
+            style={styles.notesInput}
+          />
+        </FadeInView>
+
+        {/* Step 6: Review & Payment */}
+        <FadeInView visible={showReview} delay={200}>
+          <SectionHeader
+            step={6}
+            icon="check-decagram"
+            iconColor={systemColors.green}
+            title="Review & Payment"
+          />
+          <GlassCard style={styles.card} glassStyle="regular">
+            {/* Summary */}
+            <View style={styles.summaryCard}>
+              <SummaryRow
+                icon="stethoscope"
+                iconColor={systemColors.blue}
+                label="Specialty"
+                value={selectedSpecObj?.name ?? '--'}
+              />
+              <View style={styles.divider} />
+              <SummaryRow
+                icon="hospital-building"
+                iconColor={systemColors.teal}
+                label="Clinic"
+                value={selectedClinicObj?.name ?? 'Any clinic'}
+              />
+              <View style={styles.divider} />
+              <SummaryRow
+                icon="calendar"
+                iconColor={systemColors.orange}
+                label="Date"
+                value={formatDate(date)}
+              />
+              <View style={styles.divider} />
+              <SummaryRow
+                icon="clock-outline"
+                iconColor={systemColors.indigo}
+                label="Time"
+                value={
+                  selectedSlot
+                    ? `${selectedSlot.startTime} - ${selectedSlot.endTime}`
+                    : selectedTime
+                }
+              />
+              <View style={styles.divider} />
+              <SummaryRow
+                icon="cash"
+                iconColor={systemColors.green}
+                label="Estimated Fee"
+                value={estimatedFee}
+              />
+            </View>
+
+            {/* Payment method */}
+            <Text style={styles.paymentTitle}>Payment Method</Text>
+            <View style={styles.paymentMethods}>
+              {PAYMENT_METHODS.map((method) => (
+                <Pressable
+                  key={method.value}
+                  onPress={() => setPaymentMethod(method.value)}
+                  style={[
+                    styles.paymentOption,
+                    paymentMethod === method.value && {
+                      borderColor: method.color,
+                      backgroundColor: method.color + '08',
+                    },
+                  ]}
+                >
+                  <View style={styles.paymentOptionRow}>
+                    <View
+                      style={[
+                        styles.paymentIconCircle,
+                        { backgroundColor: method.color + '18' },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={method.icon}
+                        size={20}
+                        color={method.color}
+                      />
+                    </View>
+                    <View style={styles.paymentTextCol}>
+                      <Text style={styles.paymentLabel}>{method.label}</Text>
+                      <Text style={styles.paymentDesc}>{method.desc}</Text>
+                    </View>
+                    <RadioButton
+                      value={method.value}
+                      status={paymentMethod === method.value ? 'checked' : 'unchecked'}
+                      onPress={() => setPaymentMethod(method.value)}
+                      color={method.color}
+                    />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Confirm button */}
+            <Button
+              mode="contained"
+              onPress={handleConfirm}
+              loading={submitting}
+              disabled={submitting}
+              icon="check-circle"
+              buttonColor={systemColors.green}
+              textColor="#fff"
+              contentStyle={styles.confirmBtnContent}
+              labelStyle={styles.confirmBtnLabel}
+              style={styles.confirmBtn}
+            >
+              {submitting ? 'Booking...' : 'Confirm & Pay'}
+            </Button>
+          </GlassCard>
+        </FadeInView>
       </ScrollView>
 
-      {/* Success overlay */}
-      <SuccessOverlay visible={showSuccess} onFinish={handleSuccessFinish} />
+      {/* Success Modal */}
+      <Modal visible={showSuccess} animationType="fade" transparent statusBarTranslucent>
+        <View style={successStyles.backdrop}>
+          <View style={successStyles.card}>
+            <LottieView
+              source={require('../../assets/animations/success.json')}
+              autoPlay
+              loop={false}
+              style={successStyles.lottie}
+            />
+            <Text style={successStyles.title}>Appointment Booked!</Text>
+            <Text style={successStyles.subtitle}>
+              Your appointment has been confirmed successfully.
+            </Text>
 
-      <Snackbar visible={Boolean(notice)} onDismiss={() => setNotice('')} duration={3000}>
+            {bookingResult?.appointment && (
+              <View style={successStyles.detailCard}>
+                {bookingResult.appointment.doctor && (
+                  <SummaryRow
+                    icon="doctor"
+                    iconColor={systemColors.blue}
+                    label="Doctor"
+                    value={bookingResult.appointment.doctor.name}
+                  />
+                )}
+                <SummaryRow
+                  icon="calendar"
+                  iconColor={systemColors.orange}
+                  label="Date"
+                  value={
+                    bookingResult.appointment.timeSlot
+                      ? formatDate(bookingResult.appointment.timeSlot.date)
+                      : formatDate(date)
+                  }
+                />
+                <SummaryRow
+                  icon="clock-outline"
+                  iconColor={systemColors.indigo}
+                  label="Time"
+                  value={
+                    bookingResult.appointment.timeSlot
+                      ? `${bookingResult.appointment.timeSlot.startTime} - ${bookingResult.appointment.timeSlot.endTime}`
+                      : selectedTime
+                  }
+                />
+              </View>
+            )}
+
+            <Button
+              mode="contained"
+              onPress={() => {
+                setShowSuccess(false);
+                if (bookingResult?.appointment) {
+                  router.push(
+                    `/appointment-detail?id=${bookingResult.appointment.id}` as never,
+                  );
+                } else {
+                  router.replace('/appointments' as never);
+                }
+              }}
+              icon="eye-outline"
+              buttonColor={systemColors.blue}
+              textColor="#fff"
+              contentStyle={{ paddingVertical: 4 }}
+              labelStyle={{ fontWeight: '700', fontSize: 15 }}
+              style={{ borderRadius: 14, width: '100%' }}
+            >
+              View Appointment
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={() => {
+                setShowSuccess(false);
+                router.replace('/(tabs)/home' as never);
+              }}
+              textColor={systemColors.gray}
+              labelStyle={{ fontSize: 14 }}
+              style={{ marginTop: 4 }}
+            >
+              Back to Home
+            </Button>
+          </View>
+        </View>
+      </Modal>
+
+      <Snackbar
+        visible={Boolean(notice)}
+        onDismiss={() => setNotice('')}
+        duration={3500}
+        action={{ label: 'OK', onPress: () => setNotice('') }}
+      >
         {notice}
       </Snackbar>
     </View>
@@ -1028,15 +1103,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     paddingHorizontal: H_MARGIN,
-    paddingBottom: 100,
+    paddingBottom: 120,
     gap: SECTION_GAP,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    marginBottom: 4,
   },
   backBtn: {
     width: 36,
@@ -1045,9 +1125,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTextCol: {
+    flex: 1,
+  },
   title: {
     fontWeight: '700',
     color: theme.colors.onSurface,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: systemColors.gray,
+    marginTop: 2,
   },
   card: {
     shadowColor: '#000',
@@ -1056,89 +1144,164 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  cardInner: {
-    gap: ELEMENT_GAP,
-  },
-  stepHeader: {
+  specialtyGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 10,
   },
-  stepIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  specialtyCardWrapper: {
+    width: '48%',
+    flexGrow: 1,
   },
-  stepTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+  clinicList: {
+    gap: 8,
   },
-  chipScroll: {
-    gap: 10,
-    paddingVertical: 2,
-  },
-  dateButton: {
+  slotsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  slotCardWrapper: {
+    width: '30%',
+    flexGrow: 1,
+  },
+  slotsLoadingContainer: {
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderWidth: 1.5,
-    borderColor: systemColors.gray4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  dateText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.onSurface,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  loadingLottie: {
-    width: 80,
-    height: 80,
+    paddingVertical: 16,
   },
   loadingText: {
     fontSize: 14,
     color: systemColors.gray,
     marginTop: 4,
   },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 6,
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: systemColors.gray,
-    fontStyle: 'italic',
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: systemColors.gray2,
+  },
+  notesInput: {
+    backgroundColor: '#fff',
+    fontSize: 14,
   },
   summaryCard: {
     backgroundColor: systemColors.gray6,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
+    marginBottom: ELEMENT_GAP,
   },
-  summaryDivider: {
+  divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: systemColors.gray4,
   },
-  confirmButton: {
+  paymentTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+    marginBottom: 8,
+  },
+  paymentMethods: {
+    gap: 8,
+    marginBottom: ELEMENT_GAP,
+  },
+  paymentOption: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: systemColors.gray5,
+    backgroundColor: '#fff',
+    padding: 12,
+  },
+  paymentOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  paymentIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentTextCol: {
+    flex: 1,
+  },
+  paymentLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+  },
+  paymentDesc: {
+    fontSize: 12,
+    color: systemColors.gray,
+    marginTop: 1,
+  },
+  confirmBtn: {
     borderRadius: 14,
     marginTop: 4,
   },
-  confirmButtonContent: {
+  confirmBtnContent: {
     paddingVertical: 6,
   },
-  confirmButtonLabel: {
+  confirmBtnLabel: {
     fontSize: 16,
     fontWeight: '700',
+  },
+});
+
+const successStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  lottie: {
+    width: 140,
+    height: 140,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+    marginTop: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: systemColors.gray,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  detailCard: {
+    backgroundColor: systemColors.gray6,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    width: '100%',
+    marginBottom: 20,
   },
 });
