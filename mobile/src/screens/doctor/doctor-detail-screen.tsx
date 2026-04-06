@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -202,8 +202,8 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             Back
           </Button>
         </View>
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
+        <GlassCard style={styles.card}>
+          <View style={styles.cardContent}>
             <MaterialCommunityIcons
               name="alert-circle-outline"
               size={40}
@@ -213,8 +213,8 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
               Doctor details are unavailable.
             </Text>
-          </Card.Content>
-        </Card>
+          </View>
+        </GlassCard>
       </ScrollView>
     );
   }
