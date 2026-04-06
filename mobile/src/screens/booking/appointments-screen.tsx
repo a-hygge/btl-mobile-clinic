@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Snackbar, Text } from 'react-native-paper';
+import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, Snackbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
@@ -8,14 +8,25 @@ import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { theme, systemColors } from '../../constants/theme';
 
-const STATUS_CONFIG: Record<string, { color: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }> = {
-  PENDING: { color: '#FF9500', icon: 'clock-outline', label: 'Pending' },
-  CONFIRMED: { color: '#007AFF', icon: 'check-circle-outline', label: 'Confirmed' },
-  COMPLETED: { color: '#34C759', icon: 'check-decagram', label: 'Completed' },
-  CANCELED: { color: '#FF3B30', icon: 'close-circle-outline', label: 'Canceled' },
+const STATUS_CONFIG: Record<
+  string,
+  { color: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }
+> = {
+  PENDING: { color: systemColors.orange, icon: 'clock-outline', label: 'Pending' },
+  CONFIRMED: { color: systemColors.blue, icon: 'check-circle-outline', label: 'Confirmed' },
+  COMPLETED: { color: systemColors.green, icon: 'check-decagram', label: 'Completed' },
+  CANCELED: { color: systemColors.red, icon: 'close-circle-outline', label: 'Canceled' },
 };
 
 type FilterStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
+
+const FILTER_OPTIONS: { key: FilterStatus; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELED', label: 'Canceled' },
+];
 
 function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -44,14 +55,105 @@ function formatDate(value?: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Filter pill component
+// ---------------------------------------------------------------------------
+
+interface FilterPillProps {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  color?: string;
+}
+
+function FilterPill({ label, selected, onPress, color }: FilterPillProps) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[
+        filterStyles.pill,
+        selected && {
+          backgroundColor: color ?? systemColors.blue,
+          borderColor: color ?? systemColors.blue,
+        },
+      ]}
+    >
+      <Text
+        style={[filterStyles.pillText, selected && filterStyles.pillTextActive]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const filterStyles = StyleSheet.create({
+  pill: {
+    height: 36,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: systemColors.gray4,
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+  },
+  pillTextActive: {
+    color: '#fff',
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Status badge component
+// ---------------------------------------------------------------------------
+
+interface StatusBadgeProps {
+  status: string;
+}
+
+function StatusBadge({ status }: StatusBadgeProps) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.PENDING;
+  return (
+    <View style={[badgeStyles.badge, { backgroundColor: cfg.color + '18' }]}>
+      <MaterialCommunityIcons name={cfg.icon} size={14} color={cfg.color} />
+      <Text style={[badgeStyles.text, { color: cfg.color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
+
 export function AppointmentsScreen() {
   const { appointments, isLoading, error, reload, cancelById } = useMyAppointments();
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('ALL');
 
-  const filtered = filter === 'ALL'
-    ? appointments
-    : appointments.filter((a) => a.status === filter);
+  const filtered =
+    filter === 'ALL' ? appointments : appointments.filter((a) => a.status === filter);
 
   async function handleCancel(id: string) {
     try {
@@ -64,113 +166,137 @@ export function AppointmentsScreen() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      {/* Compact hero header */}
       <LinearGradient
-        colors={['#FF9500', '#C93400']}
+        colors={[systemColors.orange, '#C93400']}
         style={styles.hero}
       >
-        <Text variant="headlineMedium" style={styles.heroTitle}>
-          My Appointments
-        </Text>
-        <Text variant="bodyMedium" style={styles.heroSub}>
-          {appointments.length} total • {appointments.filter((a) => a.status === 'PENDING' || a.status === 'CONFIRMED').length} upcoming
+        <Text style={styles.heroTitle}>My Appointments</Text>
+        <Text style={styles.heroSub}>
+          {appointments.length} total
+          {' \u2022 '}
+          {appointments.filter((a) => a.status === 'PENDING' || a.status === 'CONFIRMED').length}
+          {' upcoming'}
         </Text>
       </LinearGradient>
 
-      {/* Filter chips */}
-      <View style={styles.filterRow}>
-        {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELED'] as FilterStatus[]).map((s) => (
-          <Chip
-            key={s}
-            selected={filter === s}
-            onPress={() => setFilter(s)}
-            compact
-            style={[styles.filterChip, filter === s && styles.filterChipActive]}
-            textStyle={filter === s ? styles.filterTextActive : undefined}
-          >
-            {s === 'ALL' ? 'All' : STATUS_CONFIG[s]?.label ?? s}
-          </Chip>
+      {/* Filter chips — horizontal scroll, pill-shaped */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterScroll}
+      >
+        {FILTER_OPTIONS.map((opt) => (
+          <FilterPill
+            key={opt.key}
+            label={opt.label}
+            selected={filter === opt.key}
+            onPress={() => setFilter(opt.key)}
+            color={
+              opt.key === 'ALL'
+                ? systemColors.blue
+                : STATUS_CONFIG[opt.key]?.color
+            }
+          />
         ))}
-      </View>
+      </ScrollView>
 
+      {/* Content */}
       {isLoading ? (
         <View style={styles.center}>
           <LottieView
             source={require('../../assets/animations/loading.json')}
             autoPlay
             loop
-            style={{ width: 120, height: 120 }}
+            style={styles.loadingLottie}
           />
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          <LottieView
-            source={require('../../assets/animations/empty-state.json')}
-            autoPlay
-            loop
-            style={{ width: 150, height: 150 }}
+          <MaterialCommunityIcons
+            name="calendar-blank-outline"
+            size={48}
+            color={systemColors.gray3}
           />
-          <Text variant="bodyLarge" style={styles.emptyText}>
-            No appointments found
+          <Text style={styles.emptyTitle}>No appointments found</Text>
+          <Text style={styles.emptyCaption}>
+            {filter === 'ALL'
+              ? 'Book your first appointment to get started.'
+              : 'No appointments match this filter.'}
           </Text>
-          <Button mode="contained" onPress={() => void reload()} style={{ marginTop: 12 }}>
+          <Button
+            mode="contained"
+            onPress={() => void reload()}
+            buttonColor={systemColors.blue}
+            textColor="#fff"
+            style={styles.refreshBtn}
+          >
             Refresh
           </Button>
         </View>
       ) : (
-        filtered.map((appt, i) => {
-          const cfg = STATUS_CONFIG[appt.status] ?? STATUS_CONFIG.PENDING;
-          return (
+        <View style={styles.cardList}>
+          {filtered.map((appt, i) => (
             <FadeInView key={appt.id} delay={i * 60}>
-              <GlassCard style={styles.card} tintColor={cfg.color}>
-                <View style={styles.cardContent}>
-                  <View style={styles.cardTop}>
-                    <View style={[styles.statusDot, { backgroundColor: cfg.color }]} />
-                    <View style={styles.cardInfo}>
-                      <Text variant="titleMedium" style={styles.doctorName}>
+              <GlassCard style={styles.card} glassStyle="regular">
+                <View style={styles.cardInner}>
+                  {/* Top row: doctor name + status badge */}
+                  <View style={styles.cardTopRow}>
+                    <View style={styles.cardNameCol}>
+                      <Text style={styles.doctorName} numberOfLines={1}>
                         {appt.doctor?.name ?? 'Doctor'}
                       </Text>
-                      <Text variant="bodySmall" style={styles.meta}>
+                      <Text style={styles.specialtyText} numberOfLines={1}>
                         {appt.doctor?.specialty?.name ?? 'Specialty'}
                       </Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: cfg.color + '18' }]}>
-                      <MaterialCommunityIcons name={cfg.icon} size={14} color={cfg.color} />
-                      <Text variant="labelSmall" style={{ color: cfg.color, fontWeight: '600' }}>
-                        {cfg.label}
+                    <StatusBadge status={appt.status} />
+                  </View>
+
+                  {/* Detail rows */}
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons
+                        name="calendar"
+                        size={16}
+                        color={systemColors.orange}
+                      />
+                      <Text style={styles.detailText}>
+                        {formatDate(appt.timeSlot?.date)}
+                        {' \u2022 '}
+                        {appt.timeSlot?.startTime} - {appt.timeSlot?.endTime}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <MaterialCommunityIcons
+                        name="cash"
+                        size={16}
+                        color={systemColors.green}
+                      />
+                      <Text style={styles.detailText}>
+                        {appt.totalAmount.toLocaleString()} VND
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="calendar" size={16} color={systemColors.gray} />
-                    <Text variant="bodyMedium" style={styles.meta}>
-                      {formatDate(appt.timeSlot?.date)} • {appt.timeSlot?.startTime} - {appt.timeSlot?.endTime}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="cash" size={16} color={systemColors.gray} />
-                    <Text variant="bodyMedium" style={styles.meta}>
-                      {appt.totalAmount.toLocaleString()} VND
-                    </Text>
-                  </View>
-
-                  {(appt.status === 'PENDING' || appt.status === 'CONFIRMED') ? (
+                  {/* Cancel button */}
+                  {(appt.status === 'PENDING' || appt.status === 'CONFIRMED') && (
                     <Button
                       mode="outlined"
                       compact
                       onPress={() => void handleCancel(appt.id)}
-                      textColor={theme.colors.error}
+                      textColor={systemColors.red}
                       style={styles.cancelBtn}
+                      labelStyle={styles.cancelLabel}
                     >
-                      Cancel
+                      Cancel appointment
                     </Button>
-                  ) : null}
+                  )}
                 </View>
               </GlassCard>
             </FadeInView>
-          );
-        })
+          ))}
+        </View>
       )}
 
       <Snackbar visible={Boolean(error || notice)} onDismiss={() => setNotice('')} duration={3000}>
@@ -180,96 +306,116 @@ export function AppointmentsScreen() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   content: {
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   hero: {
-    paddingTop: 56,
-    paddingBottom: 24,
+    paddingTop: 52,
+    paddingBottom: 18,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    gap: 4,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    gap: 2,
   },
   heroTitle: {
-    color: '#fff',
+    fontSize: 22,
     fontWeight: '700',
+    color: '#fff',
   },
   heroSub: {
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
   },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
+  filterScroll: {
+    gap: 10,
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    flexWrap: 'wrap',
-  },
-  filterChip: {
-    backgroundColor: '#fff',
-  },
-  filterChipActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  filterTextActive: {
-    color: '#fff',
+    paddingVertical: 14,
   },
   center: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: 56,
+    paddingHorizontal: 32,
   },
-  emptyText: {
+  loadingLottie: {
+    width: 100,
+    height: 100,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+    marginTop: 12,
+  },
+  emptyCaption: {
+    fontSize: 14,
     color: systemColors.gray,
-    marginTop: 8,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  refreshBtn: {
+    marginTop: 16,
+    borderRadius: 12,
+  },
+  cardList: {
+    paddingHorizontal: 16,
+    gap: 12,
   },
   card: {
-    marginHorizontal: 16,
-    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  cardContent: {
-    gap: 10,
+  cardInner: {
+    gap: 12,
   },
-  cardTop: {
+  cardTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  cardInfo: {
+  cardNameCol: {
     flex: 1,
+    gap: 2,
   },
   doctorName: {
+    fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.onSurface,
   },
-  meta: {
+  specialtyText: {
+    fontSize: 14,
     color: systemColors.gray,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+  detailSection: {
+    gap: 6,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingLeft: 20,
+  },
+  detailText: {
+    fontSize: 14,
+    color: theme.colors.onSurface,
   },
   cancelBtn: {
     alignSelf: 'flex-end',
-    borderColor: theme.colors.error,
-    borderRadius: 10,
+    borderColor: systemColors.red + '40',
+    borderRadius: 12,
+  },
+  cancelLabel: {
+    fontSize: 13,
   },
 });

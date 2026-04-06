@@ -4,15 +4,16 @@ import {
   Easing,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { Button, Chip, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
+import { theme, systemColors } from '../../constants/theme';
 import { getSpecialties, getClinics } from '../../services/specialties.service';
 import {
   createAppointment,
@@ -44,14 +45,22 @@ function getErrorMessage(error: unknown): string {
 
 const STEP_COUNT = 5;
 const STEP_LABELS: string[] = ['Specialty', 'Clinic', 'Date', 'Slots', 'Confirm'];
+const STEP_ICONS: (keyof typeof MaterialCommunityIcons.glyphMap)[] = [
+  'stethoscope',
+  'hospital-building',
+  'calendar',
+  'clock-outline',
+  'check-decagram',
+];
 const CARD_SLIDE_DISTANCE = 40;
 const CARD_ANIM_DURATION = 400;
 const STAGGER_DELAY = 120;
 const PULSE_DURATION = 1200;
 const PROGRESS_ANIM_DURATION = 350;
 
-const PRIMARY = '#007AFF';
-const SECONDARY = '#34C759';
+const H_MARGIN = 16;
+const SECTION_GAP = 24;
+const ELEMENT_GAP = 12;
 
 // ---------------------------------------------------------------------------
 // Animated step-card hook — fade-in + slide-up
@@ -75,7 +84,10 @@ function useStepAnimation(visible: boolean, delay: number = 0) {
     }
   }, [visible, delay, anim]);
 
-  const style: Animated.WithAnimatedObject<{ opacity: number; transform: { translateY: number }[] }> = {
+  const style: Animated.WithAnimatedObject<{
+    opacity: number;
+    transform: { translateY: number }[];
+  }> = {
     opacity: anim,
     transform: [
       {
@@ -150,7 +162,7 @@ function ProgressBar({ currentStep }: ProgressBarProps) {
         toValue: i < currentStep ? 1 : 0,
         duration: PROGRESS_ANIM_DURATION,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false, // width interpolation needs JS driver
+        useNativeDriver: false,
       }).start();
     });
   }, [currentStep, fillAnims]);
@@ -159,34 +171,44 @@ function ProgressBar({ currentStep }: ProgressBarProps) {
     <View style={progressStyles.container}>
       {fillAnims.map((anim, i) => {
         const isActive = i < currentStep;
+        const isCurrent = i === currentStep;
         return (
           <View key={i} style={progressStyles.stepWrapper}>
-            {/* Dot */}
             <View
               style={[
                 progressStyles.dot,
-                isActive ? progressStyles.dotActive : progressStyles.dotInactive,
+                isActive
+                  ? progressStyles.dotActive
+                  : isCurrent
+                    ? progressStyles.dotCurrent
+                    : progressStyles.dotInactive,
               ]}
             >
               {isActive ? (
                 <MaterialCommunityIcons name="check" size={12} color="#fff" />
               ) : (
-                <Text style={progressStyles.dotText}>{i + 1}</Text>
+                <MaterialCommunityIcons
+                  name={STEP_ICONS[i]}
+                  size={13}
+                  color={isCurrent ? systemColors.blue : '#fff'}
+                />
               )}
             </View>
 
-            {/* Label */}
             <Text
               style={[
                 progressStyles.label,
-                isActive ? progressStyles.labelActive : progressStyles.labelInactive,
+                isActive
+                  ? progressStyles.labelActive
+                  : isCurrent
+                    ? progressStyles.labelCurrent
+                    : progressStyles.labelInactive,
               ]}
               numberOfLines={1}
             >
               {STEP_LABELS[i]}
             </Text>
 
-            {/* Connecting bar (not after last) */}
             {i < STEP_COUNT - 1 && (
               <View style={progressStyles.barTrack}>
                 <Animated.View
@@ -215,7 +237,7 @@ const progressStyles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: 4,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   stepWrapper: {
     flex: 1,
@@ -223,49 +245,211 @@ const progressStyles = StyleSheet.create({
     position: 'relative',
   },
   dot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   dotActive: {
-    backgroundColor: PRIMARY,
+    backgroundColor: systemColors.blue,
+  },
+  dotCurrent: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: systemColors.blue,
   },
   dotInactive: {
-    backgroundColor: theme.colors.outline,
-  },
-  dotText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
+    backgroundColor: systemColors.gray3,
   },
   label: {
     fontSize: 10,
     textAlign: 'center',
   },
   labelActive: {
-    color: PRIMARY,
+    color: systemColors.blue,
+    fontWeight: '600',
+  },
+  labelCurrent: {
+    color: theme.colors.onSurface,
     fontWeight: '600',
   },
   labelInactive: {
-    color: theme.colors.outline,
+    color: systemColors.gray,
   },
   barTrack: {
     position: 'absolute',
-    top: 11,
+    top: 12,
     left: '60%',
     right: '-40%',
     height: 3,
-    backgroundColor: theme.colors.outline,
+    backgroundColor: systemColors.gray4,
     borderRadius: 1.5,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    backgroundColor: PRIMARY,
+    backgroundColor: systemColors.blue,
     borderRadius: 1.5,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Selectable chip component — bigger tap targets
+// ---------------------------------------------------------------------------
+
+interface SelectableChipProps {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconColor?: string;
+  subtitle?: string;
+}
+
+function SelectableChip({
+  label,
+  selected,
+  onPress,
+  icon,
+  iconColor = systemColors.blue,
+  subtitle,
+}: SelectableChipProps) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[chipStyles.chip, selected && chipStyles.chipSelected]}
+    >
+      {icon && (
+        <View style={[chipStyles.iconCircle, { backgroundColor: iconColor + '18' }]}>
+          <MaterialCommunityIcons name={icon} size={16} color={iconColor} />
+        </View>
+      )}
+      <View style={subtitle ? chipStyles.textCol : undefined}>
+        <Text
+          style={[chipStyles.label, selected && chipStyles.labelSelected]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {subtitle ? (
+          <Text style={chipStyles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: systemColors.gray4,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  chipSelected: {
+    borderColor: systemColors.blue,
+    backgroundColor: systemColors.blue + '10',
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textCol: {
+    flexShrink: 1,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.onSurface,
+  },
+  labelSelected: {
+    color: systemColors.blue,
+    fontWeight: '600',
+  },
+  subtitle: {
+    fontSize: 11,
+    color: systemColors.gray,
+    marginTop: 1,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Slot chip — taller with time + availability subtitle
+// ---------------------------------------------------------------------------
+
+interface SlotChipProps {
+  slot: AvailableSlot;
+  selected: boolean;
+  onPress: () => void;
+}
+
+function SlotChip({ slot, selected, onPress }: SlotChipProps) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[slotChipStyles.chip, selected && slotChipStyles.chipSelected]}
+    >
+      <Text style={[slotChipStyles.time, selected && slotChipStyles.timeSelected]}>
+        {slot.startTime} - {slot.endTime}
+      </Text>
+      <Text style={slotChipStyles.avail}>
+        {slot.availableCount} available
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const slotChipStyles = StyleSheet.create({
+  chip: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: systemColors.gray4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  chipSelected: {
+    borderColor: systemColors.green,
+    backgroundColor: systemColors.green + '10',
+  },
+  time: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+  },
+  timeSelected: {
+    color: systemColors.green,
+  },
+  avail: {
+    fontSize: 11,
+    color: systemColors.gray,
+    marginTop: 1,
   },
 });
 
@@ -307,7 +491,7 @@ function SuccessOverlay({ visible, onFinish }: SuccessOverlayProps) {
   return (
     <Animated.View style={[overlayStyles.container, { opacity }]}>
       <LinearGradient
-        colors={[PRIMARY, SECONDARY]}
+        colors={[systemColors.blue, systemColors.green]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={overlayStyles.gradient}
@@ -351,6 +535,60 @@ const overlayStyles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.85)',
     marginTop: 6,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Summary row for confirm step
+// ---------------------------------------------------------------------------
+
+interface SummaryRowProps {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconColor: string;
+  label: string;
+  value: string;
+}
+
+function SummaryRow({ icon, iconColor, label, value }: SummaryRowProps) {
+  return (
+    <View style={summaryStyles.row}>
+      <View style={[summaryStyles.iconCircle, { backgroundColor: iconColor + '14' }]}>
+        <MaterialCommunityIcons name={icon} size={16} color={iconColor} />
+      </View>
+      <View style={summaryStyles.textCol}>
+        <Text style={summaryStyles.label}>{label}</Text>
+        <Text style={summaryStyles.value}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+const summaryStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textCol: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 12,
+    color: systemColors.gray,
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+    marginTop: 1,
   },
 });
 
@@ -409,10 +647,16 @@ export function BookingScreen() {
     void loadSlots();
   }, [loadSlots]);
 
+  const [bookedAppointmentId, setBookedAppointmentId] = useState<string | null>(null);
+
   const handleSuccessFinish = useCallback(() => {
     setShowSuccess(false);
-    router.replace('/appointments');
-  }, []);
+    if (bookedAppointmentId) {
+      router.push({ pathname: '/payment', params: { appointmentId: bookedAppointmentId } });
+    } else {
+      router.replace('/appointments');
+    }
+  }, [bookedAppointmentId]);
 
   async function handleBook(): Promise<void> {
     if (!selectedSpecialty || !selectedTime) {
@@ -421,7 +665,7 @@ export function BookingScreen() {
     }
     setSubmitting(true);
     try {
-      await createAppointment({
+      const result = await createAppointment({
         specialtyId: selectedSpecialty,
         clinicId: selectedClinic || undefined,
         date,
@@ -429,6 +673,7 @@ export function BookingScreen() {
         serviceIds: [],
         notes: notes.trim() || undefined,
       });
+      setBookedAppointmentId(result.id);
       setShowSuccess(true);
     } catch (err) {
       setNotice(getErrorMessage(err));
@@ -439,16 +684,16 @@ export function BookingScreen() {
 
   // --- Derived values ------------------------------------------------------
   const selectedSpecObj = specialties.find((s) => s.id === selectedSpecialty);
+  const selectedClinicObj = clinics.find((c) => c.id === selectedClinic);
 
   const showStep2 = Boolean(selectedSpecialty);
   const showStep3 = Boolean(selectedSpecialty);
   const showStep4 = Boolean(selectedSpecialty && date);
   const showStep5 = Boolean(selectedTime);
 
-  // Determine current progress step (1-indexed count of completed steps)
   let currentStep = 0;
   if (selectedSpecialty) currentStep = 1;
-  if (selectedSpecialty && selectedClinic !== undefined) currentStep = 2; // clinic is optional so always "done" once step 1 done
+  if (selectedSpecialty && selectedClinic !== undefined) currentStep = 2;
   if (selectedSpecialty && date) currentStep = 3;
   if (selectedSpecialty && date && selectedTime) currentStep = 4;
   if (showSuccess) currentStep = 5;
@@ -464,12 +709,15 @@ export function BookingScreen() {
   // --- Render --------------------------------------------------------------
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
-          <Button icon="arrow-left" mode="text" onPress={() => router.back()}>
-            Back
-          </Button>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={systemColors.blue} />
+          </TouchableOpacity>
           <Text variant="headlineSmall" style={styles.title}>
             Book appointment
           </Text>
@@ -481,29 +729,29 @@ export function BookingScreen() {
         {/* Step 1: Specialty */}
         <Animated.View style={step1Anim}>
           <GlassCard style={styles.card} glassStyle="regular">
-            <View style={styles.cardContent}>
+            <View style={styles.cardInner}>
               <View style={styles.stepHeader}>
-                <MaterialCommunityIcons name="stethoscope" size={20} color={PRIMARY} />
-                <Text variant="titleMedium" style={styles.stepTitle}>
-                  1. Select specialty
-                </Text>
+                <View style={[styles.stepIconCircle, { backgroundColor: systemColors.blue + '14' }]}>
+                  <MaterialCommunityIcons name="stethoscope" size={18} color={systemColors.blue} />
+                </View>
+                <Text style={styles.stepTitle}>Select specialty</Text>
               </View>
-              <View style={styles.chipList}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipScroll}
+              >
                 {specialties.map((spec) => (
-                  <Chip
+                  <SelectableChip
                     key={spec.id}
+                    label={spec.name}
                     selected={selectedSpecialty === spec.id}
                     onPress={() => setSelectedSpecialty(spec.id)}
-                    style={[
-                      styles.chip,
-                      selectedSpecialty === spec.id && styles.chipSelected,
-                    ]}
-                    selectedColor={PRIMARY}
-                  >
-                    {spec.name}
-                  </Chip>
+                    icon="stethoscope"
+                    iconColor={systemColors.blue}
+                  />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           </GlassCard>
         </Animated.View>
@@ -512,37 +760,42 @@ export function BookingScreen() {
         {showStep2 && (
           <Animated.View style={step2Anim}>
             <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardContent}>
+              <View style={styles.cardInner}>
                 <View style={styles.stepHeader}>
-                  <MaterialCommunityIcons name="hospital-building" size={20} color={PRIMARY} />
-                  <Text variant="titleMedium" style={styles.stepTitle}>
-                    2. Clinic (optional)
-                  </Text>
+                  <View
+                    style={[styles.stepIconCircle, { backgroundColor: systemColors.teal + '14' }]}
+                  >
+                    <MaterialCommunityIcons
+                      name="hospital-building"
+                      size={18}
+                      color={systemColors.teal}
+                    />
+                  </View>
+                  <Text style={styles.stepTitle}>Clinic (optional)</Text>
                 </View>
-                <View style={styles.chipList}>
-                  <Chip
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipScroll}
+                >
+                  <SelectableChip
+                    label="Any clinic"
                     selected={selectedClinic === ''}
                     onPress={() => setSelectedClinic('')}
-                    style={[styles.chip, selectedClinic === '' && styles.chipSelected]}
-                    selectedColor={PRIMARY}
-                  >
-                    Any clinic
-                  </Chip>
+                    icon="hospital-building"
+                    iconColor={systemColors.teal}
+                  />
                   {clinics.map((clinic) => (
-                    <Chip
+                    <SelectableChip
                       key={clinic.id}
+                      label={clinic.name}
                       selected={selectedClinic === clinic.id}
                       onPress={() => setSelectedClinic(clinic.id)}
-                      style={[
-                        styles.chip,
-                        selectedClinic === clinic.id && styles.chipSelected,
-                      ]}
-                      selectedColor={PRIMARY}
-                    >
-                      {clinic.name}
-                    </Chip>
+                      icon="hospital-building"
+                      iconColor={systemColors.teal}
+                    />
                   ))}
-                </View>
+                </ScrollView>
               </View>
             </GlassCard>
           </Animated.View>
@@ -552,21 +805,39 @@ export function BookingScreen() {
         {showStep3 && (
           <Animated.View style={step3Anim}>
             <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardContent}>
+              <View style={styles.cardInner}>
                 <View style={styles.stepHeader}>
-                  <MaterialCommunityIcons name="calendar" size={20} color={PRIMARY} />
-                  <Text variant="titleMedium" style={styles.stepTitle}>
-                    3. Select date
-                  </Text>
+                  <View
+                    style={[
+                      styles.stepIconCircle,
+                      { backgroundColor: systemColors.orange + '14' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="calendar"
+                      size={18}
+                      color={systemColors.orange}
+                    />
+                  </View>
+                  <Text style={styles.stepTitle}>Select date</Text>
                 </View>
-                <TextInput
-                  mode="outlined"
-                  label="Date (YYYY-MM-DD)"
-                  value={date}
-                  onChangeText={setDate}
-                  outlineColor={theme.colors.outline}
-                  activeOutlineColor={PRIMARY}
-                />
+                <View style={styles.dateCard}>
+                  <MaterialCommunityIcons
+                    name="calendar-month"
+                    size={22}
+                    color={systemColors.orange}
+                  />
+                  <TextInput
+                    mode="outlined"
+                    label="Date (YYYY-MM-DD)"
+                    value={date}
+                    onChangeText={setDate}
+                    outlineColor={systemColors.gray4}
+                    activeOutlineColor={systemColors.blue}
+                    style={styles.dateInput}
+                    dense
+                  />
+                </View>
               </View>
             </GlassCard>
           </Animated.View>
@@ -576,12 +847,21 @@ export function BookingScreen() {
         {showStep4 && (
           <Animated.View style={step4Anim}>
             <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardContent}>
+              <View style={styles.cardInner}>
                 <View style={styles.stepHeader}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color={PRIMARY} />
-                  <Text variant="titleMedium" style={styles.stepTitle}>
-                    4. Available time slots
-                  </Text>
+                  <View
+                    style={[
+                      styles.stepIconCircle,
+                      { backgroundColor: systemColors.indigo + '14' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="clock-outline"
+                      size={18}
+                      color={systemColors.indigo}
+                    />
+                  </View>
+                  <Text style={styles.stepTitle}>Available time slots</Text>
                 </View>
                 {loading ? (
                   <View style={styles.loadingContainer}>
@@ -591,31 +871,25 @@ export function BookingScreen() {
                       loop
                       style={styles.loadingLottie}
                     />
-                    <Text variant="bodyMedium" style={styles.loadingText}>
-                      Finding available slots...
-                    </Text>
+                    <Text style={styles.loadingText}>Finding available slots...</Text>
                   </View>
                 ) : slots.length > 0 ? (
-                  <View style={styles.chipList}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chipScroll}
+                  >
                     {slots.map((slot) => (
-                      <Chip
+                      <SlotChip
                         key={slot.startTime}
+                        slot={slot}
                         selected={selectedTime === slot.startTime}
                         onPress={() => setSelectedTime(slot.startTime)}
-                        style={[
-                          styles.chip,
-                          selectedTime === slot.startTime && styles.chipSelected,
-                        ]}
-                        selectedColor={PRIMARY}
-                      >
-                        {slot.startTime} - {slot.endTime} ({slot.availableCount} avail.)
-                      </Chip>
+                      />
                     ))}
-                  </View>
+                  </ScrollView>
                 ) : (
-                  <Text variant="bodyMedium" style={styles.emptyText}>
-                    No slots available for this date.
-                  </Text>
+                  <Text style={styles.emptyText}>No slots available for this date.</Text>
                 )}
               </View>
             </GlassCard>
@@ -625,41 +899,54 @@ export function BookingScreen() {
         {/* Step 5: Notes + Confirm */}
         {showStep5 && (
           <Animated.View style={step5Anim}>
-            <GlassCard style={styles.card} glassStyle="regular" tintColor="#007AFF">
-              <View style={styles.cardContent}>
+            <GlassCard style={styles.card} glassStyle="regular">
+              <View style={styles.cardInner}>
                 <View style={styles.stepHeader}>
-                  <MaterialCommunityIcons name="check-decagram" size={20} color={SECONDARY} />
-                  <Text variant="titleMedium" style={styles.stepTitle}>
-                    5. Confirm booking
-                  </Text>
+                  <View
+                    style={[
+                      styles.stepIconCircle,
+                      { backgroundColor: systemColors.green + '14' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="check-decagram"
+                      size={18}
+                      color={systemColors.green}
+                    />
+                  </View>
+                  <Text style={styles.stepTitle}>Confirm booking</Text>
                 </View>
 
-                {/* Summary box */}
-                <LinearGradient
-                  colors={[`${PRIMARY}15`, `${SECONDARY}15`]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.summaryBox}
-                >
-                  <View style={styles.summaryRow}>
-                    <MaterialCommunityIcons name="stethoscope" size={16} color={PRIMARY} />
-                    <Text variant="bodyMedium" style={styles.summaryText}>
-                      {selectedSpecObj?.name}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <MaterialCommunityIcons name="calendar" size={16} color={PRIMARY} />
-                    <Text variant="bodyMedium" style={styles.summaryText}>
-                      {date}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <MaterialCommunityIcons name="clock-outline" size={16} color={PRIMARY} />
-                    <Text variant="bodyMedium" style={styles.summaryText}>
-                      {selectedTime}
-                    </Text>
-                  </View>
-                </LinearGradient>
+                {/* Summary card */}
+                <View style={styles.summaryCard}>
+                  <SummaryRow
+                    icon="stethoscope"
+                    iconColor={systemColors.blue}
+                    label="Specialty"
+                    value={selectedSpecObj?.name ?? '—'}
+                  />
+                  <View style={styles.summaryDivider} />
+                  <SummaryRow
+                    icon="hospital-building"
+                    iconColor={systemColors.teal}
+                    label="Clinic"
+                    value={selectedClinicObj?.name ?? 'Any clinic'}
+                  />
+                  <View style={styles.summaryDivider} />
+                  <SummaryRow
+                    icon="calendar"
+                    iconColor={systemColors.orange}
+                    label="Date"
+                    value={date}
+                  />
+                  <View style={styles.summaryDivider} />
+                  <SummaryRow
+                    icon="clock-outline"
+                    iconColor={systemColors.indigo}
+                    label="Time"
+                    value={selectedTime}
+                  />
+                </View>
 
                 <TextInput
                   mode="outlined"
@@ -668,8 +955,8 @@ export function BookingScreen() {
                   label="Notes / symptoms (optional)"
                   value={notes}
                   onChangeText={setNotes}
-                  outlineColor={theme.colors.outline}
-                  activeOutlineColor={PRIMARY}
+                  outlineColor={systemColors.gray4}
+                  activeOutlineColor={systemColors.blue}
                 />
 
                 {/* Pulsing confirm button */}
@@ -680,7 +967,7 @@ export function BookingScreen() {
                     loading={submitting}
                     disabled={submitting}
                     icon="check-circle"
-                    buttonColor={SECONDARY}
+                    buttonColor={systemColors.green}
                     textColor="#fff"
                     contentStyle={styles.confirmButtonContent}
                     labelStyle={styles.confirmButtonLabel}
@@ -715,44 +1002,73 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   content: {
-    padding: 20,
-    gap: 16,
-    paddingBottom: 40,
+    paddingHorizontal: H_MARGIN,
+    paddingTop: 20,
+    paddingBottom: 100,
+    gap: SECTION_GAP,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontWeight: '700',
-    color: PRIMARY,
+    color: theme.colors.onSurface,
   },
   card: {
-    // GlassCard already provides borderRadius and background
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  cardContent: {
-    gap: 12,
+  cardInner: {
+    gap: ELEMENT_GAP,
   },
   stepHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  stepIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepTitle: {
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.onSurface,
   },
-  chipList: {
+  chipScroll: {
+    gap: 10,
+    paddingVertical: 2,
+  },
+  dateCard: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingLeft: 14,
+    paddingRight: 4,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: systemColors.gray5,
   },
-  chip: {
-    marginBottom: 4,
-  },
-  chipSelected: {
-    backgroundColor: `${PRIMARY}20`,
+  dateInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -763,26 +1079,24 @@ const styles = StyleSheet.create({
     height: 80,
   },
   loadingText: {
-    color: theme.colors.onSurface,
+    fontSize: 14,
+    color: systemColors.gray,
     marginTop: 4,
   },
   emptyText: {
-    color: theme.colors.onSurface,
+    fontSize: 14,
+    color: systemColors.gray,
     fontStyle: 'italic',
   },
-  summaryBox: {
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
+  summaryCard: {
+    backgroundColor: systemColors.gray6,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryText: {
-    color: PRIMARY,
-    fontWeight: '600',
+  summaryDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: systemColors.gray4,
   },
   confirmButton: {
     borderRadius: 14,
