@@ -1,6 +1,5 @@
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
-import { GlassView, isLiquidGlassAvailable, type GlassStyle } from 'expo-glass-effect';
-import { BlurView } from 'expo-blur';
+import { GlassView, type GlassStyle } from 'expo-glass-effect';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -8,14 +7,6 @@ interface GlassCardProps {
   glassStyle?: GlassStyle;
   tintColor?: string;
   interactive?: boolean;
-}
-
-// Native Liquid Glass requires iOS 26+ with working UIGlassEffect
-let USE_NATIVE_GLASS = false;
-try {
-  USE_NATIVE_GLASS = isLiquidGlassAvailable();
-} catch {
-  // isLiquidGlassAvailable may not exist at module init time
 }
 
 const IS_IOS = Platform.OS === 'ios';
@@ -27,8 +18,8 @@ export function GlassCard({
   tintColor,
   interactive = false,
 }: GlassCardProps) {
-  // Best: native Liquid Glass (iOS 26+ with working API)
-  if (USE_NATIVE_GLASS) {
+  // Always use GlassView on iOS — it handles its own fallback natively
+  if (IS_IOS) {
     return (
       <GlassView
         style={[styles.glass, style]}
@@ -38,18 +29,6 @@ export function GlassCard({
       >
         {children}
       </GlassView>
-    );
-  }
-
-  // Good fallback: BlurView frosted glass (iOS)
-  if (IS_IOS) {
-    return (
-      <View style={[styles.blurOuter, style]}>
-        <BlurView style={StyleSheet.absoluteFill} intensity={60} tint="light" />
-        <View style={styles.blurContent}>
-          {children}
-        </View>
-      </View>
     );
   }
 
@@ -63,19 +42,6 @@ export function GlassCard({
 
 const styles = StyleSheet.create({
   glass: {
-    padding: 16,
-  },
-  blurOuter: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-  },
-  blurContent: {
     padding: 16,
   },
   fallback: {
