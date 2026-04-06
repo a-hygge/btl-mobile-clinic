@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Searchbar, Text } from 'react-native-paper';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -10,6 +18,12 @@ import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { api, extractData, extractPaginatedData } from '../../services/api';
+import type { Appointment, Specialty } from '../../types';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
   'Tim mach': 'heart-pulse',
@@ -18,6 +32,10 @@ const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphM
   'Da lieu': 'face-woman',
   'Nhi khoa': 'baby-face',
   'Mat': 'eye',
+  'Tai Mui Hong': 'ear-hearing',
+  'Co Xuong Khop': 'bone',
+  'Rang Ham Mat': 'tooth',
+  'Phu san': 'human-pregnant',
 };
 
 const SPECIALTY_COLORS: Record<string, string> = {
@@ -27,51 +45,15 @@ const SPECIALTY_COLORS: Record<string, string> = {
   'Da lieu': systemColors.pink,
   'Nhi khoa': systemColors.teal,
   'Mat': systemColors.indigo,
+  'Tai Mui Hong': systemColors.green,
+  'Co Xuong Khop': systemColors.yellow,
+  'Rang Ham Mat': systemColors.blue,
+  'Phu san': '#E91E63',
 };
 
-interface QuickAction {
-  title: string;
-  subtitle: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  color: string;
-  bgColor: string;
-  route: string;
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  {
-    title: 'Book Appointment',
-    subtitle: 'Find a doctor',
-    icon: 'calendar-plus',
-    color: systemColors.green,
-    bgColor: '#E8F9ED',
-    route: '/booking',
-  },
-  {
-    title: 'My Appointments',
-    subtitle: 'Upcoming visits',
-    icon: 'clipboard-list',
-    color: systemColors.orange,
-    bgColor: '#FFF3E0',
-    route: '/appointments',
-  },
-  {
-    title: 'AI Health Chat',
-    subtitle: 'Ask anything',
-    icon: 'robot',
-    color: systemColors.indigo,
-    bgColor: '#EDE7F6',
-    route: '/chat',
-  },
-  {
-    title: 'Health Tracking',
-    subtitle: 'Your vitals',
-    icon: 'heart-pulse',
-    color: systemColors.red,
-    bgColor: '#FFEBEE',
-    route: '/health',
-  },
-];
+// ---------------------------------------------------------------------------
+// FadeInView
+// ---------------------------------------------------------------------------
 
 function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -101,87 +83,378 @@ function FadeInView({ delay = 0, children }: { delay?: number; children: React.R
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getCountdownLabel(dateStr: string, startTime: string): string {
+  const now = new Date();
+  // Build target date from slot date + startTime (HH:mm)
+  const target = new Date(dateStr);
+  if (startTime) {
+    const [hh, mm] = startTime.split(':');
+    target.setHours(Number(hh), Number(mm), 0, 0);
+  }
+
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs < 0) return 'Now';
+
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays === 0 && diffHours < 1) return `In ${diffMin} min`;
+  if (diffDays === 0) return `Today ${startTime}`;
+  if (diffDays === 1) return `Tomorrow ${startTime}`;
+  return `In ${diffDays} days`;
+}
+
+function formatTime(t?: string): string {
+  if (!t) return '';
+  return t.slice(0, 5); // HH:mm
+}
+
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// HomeScreen
+// ---------------------------------------------------------------------------
+
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const user = useAuthStore((state) => state.user);
-  const [search, setSearch] = useState('');
-  const { doctors, isLoading } = useDoctors(search);
+  const user = useAuthStore((s) => s.user);
+  const { doctors, isLoading: doctorsLoading } = useDoctors('');
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  })();
+  const [upcomingAppointment, setUpcomingAppointment] = useState<Appointment | null>(null);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHomeData = useCallback(async () => {
+    try {
+      const [
+        confirmedRes,
+        pendingRes,
+        specialtiesRes,
+        completedRes,
+        notifsRes,
+      ] = await Promise.allSettled([
+        api.get('/appointments/me', {
+          params: { status: 'CONFIRMED', limit: 1, sort: 'date', order: 'asc' },
+        }),
+        api.get('/appointments/me', {
+          params: { status: 'PENDING', limit: 1, sort: 'date', order: 'asc' },
+        }),
+        api.get('/specialties'),
+        api.get('/appointments/me', {
+          params: { status: 'COMPLETED', limit: 1 },
+        }),
+        api.get('/notifications/me', {
+          params: { limit: 1, isRead: false },
+        }),
+      ]);
+
+      // Upcoming appointment: prefer CONFIRMED, fall back to PENDING
+      let upcoming: Appointment | null = null;
+      if (confirmedRes.status === 'fulfilled') {
+        const { data } = extractPaginatedData<Appointment[]>(confirmedRes.value);
+        if (data.length > 0) upcoming = data[0];
+      }
+      if (!upcoming && pendingRes.status === 'fulfilled') {
+        const { data } = extractPaginatedData<Appointment[]>(pendingRes.value);
+        if (data.length > 0) upcoming = data[0];
+      }
+      setUpcomingAppointment(upcoming);
+
+      // Specialties
+      if (specialtiesRes.status === 'fulfilled') {
+        const specData = extractData<Specialty[]>(specialtiesRes.value);
+        setSpecialties(specData);
+      }
+
+      // Upcoming count (confirmed count from meta)
+      let uCount = 0;
+      if (confirmedRes.status === 'fulfilled') {
+        uCount += confirmedRes.value.data.meta?.total ?? 0;
+      }
+      if (pendingRes.status === 'fulfilled') {
+        uCount += pendingRes.value.data.meta?.total ?? 0;
+      }
+      setUpcomingCount(uCount);
+
+      // Completed count
+      if (completedRes.status === 'fulfilled') {
+        setCompletedCount(completedRes.value.data.meta?.total ?? 0);
+      }
+
+      // Unread notifications
+      if (notifsRes.status === 'fulfilled') {
+        setUnreadNotifs(notifsRes.value.data.meta?.total ?? 0);
+      }
+    } catch {
+      // Silently handle — partial data is fine
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchHomeData();
+  }, [fetchHomeData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchHomeData();
+    setRefreshing(false);
+  }, [fetchHomeData]);
+
+  const greeting = getGreeting();
+  const topDoctors = doctors.slice(0, 5);
+
+  // -----------------------------------------------------------------------
+  // Render helpers
+  // -----------------------------------------------------------------------
+
+  const renderHeroAppointment = () => {
+    if (loading) {
+      return (
+        <GlassCard style={styles.appointmentCard}>
+          <View style={styles.appointmentLoading}>
+            <LottieView
+              source={require('../../assets/animations/loading.json')}
+              autoPlay
+              loop
+              style={{ width: 60, height: 60 }}
+            />
+          </View>
+        </GlassCard>
+      );
+    }
+
+    if (!upcomingAppointment) {
+      return (
+        <Pressable onPress={() => router.push('/booking' as never)}>
+          <GlassCard style={styles.appointmentCard}>
+            <View style={styles.ctaRow}>
+              <View style={styles.ctaIconCircle}>
+                <MaterialCommunityIcons
+                  name="calendar-plus"
+                  size={28}
+                  color="#fff"
+                />
+              </View>
+              <View style={styles.ctaText}>
+                <Text style={styles.ctaTitle}>Book your first appointment</Text>
+                <Text style={styles.ctaSubtitle}>
+                  Find a doctor and schedule a visit
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={systemColors.gray3}
+              />
+            </View>
+          </GlassCard>
+        </Pressable>
+      );
+    }
+
+    const appt = upcomingAppointment;
+    const doctorName = appt.doctor?.name ?? 'Doctor';
+    const specialtyName = appt.doctor?.specialty?.name ?? '';
+    const slotDate = appt.timeSlot?.date ?? appt.createdAt;
+    const slotStart = formatTime(appt.timeSlot?.startTime);
+    const slotEnd = formatTime(appt.timeSlot?.endTime);
+    const countdown = getCountdownLabel(slotDate, slotStart);
+    const iconColor = SPECIALTY_COLORS[specialtyName] ?? systemColors.blue;
+
+    return (
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: '/appointments/[id]',
+            params: { id: appt.id },
+          } as never)
+        }
+      >
+        <GlassCard style={styles.appointmentCard}>
+          <View style={styles.appointmentHeader}>
+            <Text style={styles.appointmentLabel}>Next Appointment</Text>
+            <View style={[styles.countdownBadge, { backgroundColor: `${iconColor}18` }]}>
+              <MaterialCommunityIcons name="clock-outline" size={13} color={iconColor} />
+              <Text style={[styles.countdownText, { color: iconColor }]}>
+                {countdown}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.appointmentBody}>
+            <View style={[styles.doctorAvatarSmall, { backgroundColor: `${iconColor}18` }]}>
+              <MaterialCommunityIcons
+                name={SPECIALTY_ICONS[specialtyName] ?? 'medical-bag'}
+                size={24}
+                color={iconColor}
+              />
+            </View>
+            <View style={styles.appointmentInfo}>
+              <Text style={styles.appointmentDoctor} numberOfLines={1}>
+                {doctorName}
+              </Text>
+              <Text style={styles.appointmentSpecialty} numberOfLines={1}>
+                {specialtyName}
+              </Text>
+              <View style={styles.appointmentTimeRow}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={13}
+                  color={systemColors.gray}
+                />
+                <Text style={styles.appointmentTimeText}>
+                  {formatDate(slotDate)}
+                  {slotStart ? `  ${slotStart}` : ''}
+                  {slotEnd ? ` - ${slotEnd}` : ''}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </GlassCard>
+      </Pressable>
+    );
+  };
+
+  const renderSpecialtyItem = ({ item }: { item: Specialty }) => {
+    const iconName = SPECIALTY_ICONS[item.name] ?? 'medical-bag';
+    const color = SPECIALTY_COLORS[item.name] ?? systemColors.blue;
+
+    return (
+      <Pressable
+        style={styles.specialtyItem}
+        onPress={() =>
+          router.push({
+            pathname: '/booking',
+            params: { specialtyId: item.id },
+          } as never)
+        }
+      >
+        <View style={[styles.specialtyIconCircle, { backgroundColor: `${color}18` }]}>
+          <MaterialCommunityIcons name={iconName} size={26} color={color} />
+        </View>
+        <Text style={styles.specialtyName} numberOfLines={2}>
+          {item.name}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  // -----------------------------------------------------------------------
+  // Main render
+  // -----------------------------------------------------------------------
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* Gradient header with greeting — no Lottie */}
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+      }
+    >
+      {/* Gradient Header */}
       <LinearGradient
         colors={['#007AFF', '#0051D5']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.hero, { paddingTop: insets.top + 16 }]}
       >
-        <Text style={styles.greeting}>{greeting} 👋</Text>
-        <Text style={styles.heroName}>{user?.name ?? 'User'}</Text>
-        <Text style={styles.heroSub}>How are you feeling today?</Text>
+        <FadeInView delay={0}>
+          <Text style={styles.greeting}>{greeting}</Text>
+          <Text style={styles.heroName}>{user?.name ?? 'User'}</Text>
+          <Text style={styles.heroSub}>How are you feeling today?</Text>
+        </FadeInView>
       </LinearGradient>
 
-      {/* Search bar — floating, white bg, prominent shadow */}
+      {/* Hero: Next Appointment Card */}
       <FadeInView delay={100}>
-        <View style={styles.searchWrap}>
-          <Searchbar
-            placeholder="Search doctors or specialties..."
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchBar}
-            inputStyle={styles.searchInput}
-            iconColor={systemColors.gray}
-          />
+        <View style={styles.heroCardWrap}>
+          {renderHeroAppointment()}
         </View>
       </FadeInView>
 
-      {/* Quick actions 2x2 grid */}
-      <FadeInView delay={200}>
-        <View style={styles.quickGrid}>
-          {QUICK_ACTIONS.map((action) => (
-            <Pressable
-              key={action.route}
-              style={styles.quickCell}
-              onPress={() => router.push(action.route as never)}
-            >
-              <GlassCard style={styles.quickCard}>
-                <View style={[styles.quickIconCircle, { backgroundColor: action.bgColor }]}>
-                  <MaterialCommunityIcons
-                    name={action.icon}
-                    size={28}
-                    color={action.color}
-                  />
-                </View>
-                <Text style={styles.quickTitle} numberOfLines={1}>
-                  {action.title}
-                </Text>
-                <Text style={styles.quickSubtitle} numberOfLines={1}>
-                  {action.subtitle}
-                </Text>
-              </GlassCard>
-            </Pressable>
-          ))}
+      {/* Specialties Horizontal Scroll */}
+      {specialties.length > 0 && (
+        <FadeInView delay={200}>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>Specialties</Text>
+          </View>
+          <FlatList
+            horizontal
+            data={specialties}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSpecialtyItem}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.specialtiesList}
+          />
+        </FadeInView>
+      )}
+
+      {/* Quick Stats Row */}
+      <FadeInView delay={300}>
+        <View style={styles.statsRow}>
+          <GlassCard style={styles.statCard}>
+            <View style={[styles.statIconCircle, { backgroundColor: '#007AFF18' }]}>
+              <MaterialCommunityIcons name="calendar-clock" size={20} color={systemColors.blue} />
+            </View>
+            <Text style={styles.statValue}>{upcomingCount}</Text>
+            <Text style={styles.statLabel}>Upcoming</Text>
+          </GlassCard>
+
+          <GlassCard style={styles.statCard}>
+            <View style={[styles.statIconCircle, { backgroundColor: '#34C75918' }]}>
+              <MaterialCommunityIcons name="check-circle" size={20} color={systemColors.green} />
+            </View>
+            <Text style={styles.statValue}>{completedCount}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </GlassCard>
+
+          <GlassCard style={styles.statCard}>
+            <View style={[styles.statIconCircle, { backgroundColor: '#FF950018' }]}>
+              <MaterialCommunityIcons name="bell-badge" size={20} color={systemColors.orange} />
+            </View>
+            <Text style={styles.statValue}>{unreadNotifs}</Text>
+            <Text style={styles.statLabel}>Notifications</Text>
+          </GlassCard>
         </View>
       </FadeInView>
 
       {/* Top Doctors */}
-      <FadeInView delay={300}>
+      <FadeInView delay={400}>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Doctors</Text>
             <Pressable onPress={() => router.push('/doctors' as never)}>
-              <Text style={styles.seeAll}>See all ›</Text>
+              <Text style={styles.seeAll}>See all</Text>
             </Pressable>
           </View>
 
-          {isLoading ? (
+          {doctorsLoading ? (
             <View style={styles.loadingWrap}>
               <LottieView
                 source={require('../../assets/animations/loading.json')}
@@ -191,14 +464,14 @@ export function HomeScreen() {
               />
             </View>
           ) : (
-            doctors.map((doctor, index) => {
+            topDoctors.map((doctor, index) => {
               const specialtyName = doctor.specialty?.name ?? '';
               const iconName = SPECIALTY_ICONS[specialtyName] ?? 'medical-bag';
               const iconColor = SPECIALTY_COLORS[specialtyName] ?? theme.colors.primary;
               const iconBg = `${iconColor}18`;
 
               return (
-                <FadeInView key={doctor.id} delay={400 + index * 80}>
+                <FadeInView key={doctor.id} delay={500 + index * 80}>
                   <Pressable
                     onPress={() =>
                       router.push({
@@ -209,7 +482,6 @@ export function HomeScreen() {
                   >
                     <GlassCard style={styles.doctorCard}>
                       <View style={styles.doctorRow}>
-                        {/* Colored specialty circle */}
                         <View style={[styles.doctorAvatar, { backgroundColor: iconBg }]}>
                           <MaterialCommunityIcons
                             name={iconName}
@@ -218,14 +490,12 @@ export function HomeScreen() {
                           />
                         </View>
 
-                        {/* Doctor info */}
                         <View style={styles.doctorInfo}>
                           <Text style={styles.doctorName} numberOfLines={1}>
                             {doctor.name}
                           </Text>
                           <Text style={styles.doctorMeta} numberOfLines={1}>
                             {specialtyName}
-                            {doctor.clinic ? ` \u2022 ${doctor.clinic.name}` : ''}
                           </Text>
                           <View style={styles.doctorStats}>
                             <MaterialCommunityIcons
@@ -243,7 +513,6 @@ export function HomeScreen() {
                           </View>
                         </View>
 
-                        {/* Fee + chevron */}
                         <View style={styles.doctorRight}>
                           <Text style={styles.feeText}>
                             {doctor.consultationFee.toLocaleString()}d
@@ -267,19 +536,23 @@ export function HomeScreen() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   content: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
 
   /* -- Header -- */
   hero: {
-    paddingBottom: 32,
-    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 16,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
@@ -299,57 +572,163 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
 
-  /* -- Search -- */
-  searchWrap: {
+  /* -- Hero Appointment Card -- */
+  heroCardWrap: {
     marginTop: -20,
     marginHorizontal: 16,
   },
-  searchBar: {
+  appointmentCard: {
     borderRadius: 16,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  searchInput: {
-    fontSize: 15,
+  appointmentLoading: {
+    alignItems: 'center',
+    paddingVertical: 8,
   },
-
-  /* -- Quick actions 2x2 -- */
-  quickGrid: {
+  appointmentHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: 16,
-    marginTop: 24,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  appointmentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: systemColors.gray,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  countdownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  countdownText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  appointmentBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  quickCell: {
-    width: '48%',
-    flexGrow: 1,
-  },
-  quickCard: {
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    minHeight: 80,
-  },
-  quickIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  doctorAvatarSmall: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
-  quickTitle: {
+  appointmentInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  appointmentDoctor: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+  },
+  appointmentSpecialty: {
     fontSize: 14,
+    color: systemColors.gray,
+  },
+  appointmentTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  appointmentTimeText: {
+    fontSize: 13,
+    color: systemColors.gray,
+  },
+
+  /* -- CTA (no appointment) -- */
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ctaIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: systemColors.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaText: {
+    flex: 1,
+  },
+  ctaTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: theme.colors.onSurface,
     marginBottom: 2,
   },
-  quickSubtitle: {
+  ctaSubtitle: {
+    fontSize: 14,
+    color: systemColors.gray,
+  },
+
+  /* -- Specialties -- */
+  specialtiesList: {
+    paddingHorizontal: 16,
+    gap: 16,
+    paddingBottom: 4,
+  },
+  specialtyItem: {
+    alignItems: 'center',
+    width: 72,
+  },
+  specialtyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  specialtyName: {
+    fontSize: 12,
+    color: theme.colors.onSurface,
+    textAlign: 'center',
+    lineHeight: 15,
+  },
+
+  /* -- Quick Stats -- */
+  statsRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+  statIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+    marginBottom: 2,
+  },
+  statLabel: {
     fontSize: 12,
     color: systemColors.gray,
   },
