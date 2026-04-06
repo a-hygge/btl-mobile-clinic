@@ -189,7 +189,7 @@ export function ChatScreen() {
     ]);
   }, []);
 
-  const quickPrompts = ['Headache', 'Stomach pain', 'Chest pain', 'Fever'];
+  const quickPrompts = ['Headache', 'Stomach pain', 'Fever', 'Back pain', 'Cough'];
 
   return (
     <View style={styles.container}>
@@ -360,30 +360,30 @@ const styles = StyleSheet.create({
   },
   promptChip: {
     backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
   promptText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   chatArea: {
     flex: 1,
   },
   messageList: {
     padding: 16,
-    paddingBottom: 8,
+    paddingBottom: 24,
     gap: 8,
   },
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    maxWidth: '85%',
+    maxWidth: '90%',
   },
   bubbleRowLeft: {
     alignSelf: 'flex-start',
