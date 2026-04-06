@@ -52,6 +52,7 @@ export default function AppLayout() {
       <NativeTabs.Trigger name="notifications" hidden />
       <NativeTabs.Trigger name="appointment-detail" hidden />
       <NativeTabs.Trigger name="review" hidden />
+      <NativeTabs.Trigger name="edit-profile" hidden />
     </NativeTabs>
   );
 }

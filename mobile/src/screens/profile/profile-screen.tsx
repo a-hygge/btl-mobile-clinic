@@ -112,6 +112,7 @@ export function ProfileScreen() {
             title="Edit Profile"
             left={(props) => <List.Icon {...props} icon="account-edit" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/edit-profile')}
           />
           <Divider />
           <List.Item
