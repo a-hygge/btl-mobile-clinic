@@ -1,13 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button, Snackbar, Text } from 'react-native-paper';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Button, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { theme, systemColors } from '../../constants/theme';
+import type { Appointment } from '../../types';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const STATUS_CONFIG: Record<
   string,
@@ -19,15 +32,38 @@ const STATUS_CONFIG: Record<
   CANCELED: { color: systemColors.red, icon: 'close-circle-outline', label: 'Canceled' },
 };
 
-type FilterStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
+function formatDate(value?: string): string {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
 
-const FILTER_OPTIONS: { key: FilterStatus; label: string }[] = [
-  { key: 'ALL', label: 'All' },
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'CONFIRMED', label: 'Confirmed' },
-  { key: 'COMPLETED', label: 'Completed' },
-  { key: 'CANCELED', label: 'Canceled' },
-];
+function getCountdown(dateStr?: string, timeStr?: string): string {
+  if (!dateStr || !timeStr) return '';
+  const apptDate = new Date(`${dateStr}T${timeStr}`);
+  const now = new Date();
+  const diffMs = apptDate.getTime() - now.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays < 0) return '';
+  if (diffDays === 0) return `Today at ${timeStr}`;
+  if (diffDays === 1) return `Tomorrow at ${timeStr}`;
+  return `In ${diffDays} days`;
+}
+
+function isUpcoming(appointment: Appointment): boolean {
+  return appointment.status === 'PENDING' || appointment.status === 'CONFIRMED';
+}
+
+function isPast(appointment: Appointment): boolean {
+  return appointment.status === 'COMPLETED' || appointment.status === 'CANCELED';
+}
+
+// ---------------------------------------------------------------------------
+// FadeInView
+// ---------------------------------------------------------------------------
 
 function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -47,79 +83,11 @@ function FadeInView({ delay = 0, children }: { delay?: number; children: React.R
   );
 }
 
-function formatDate(value?: string) {
-  if (!value) return '';
-  return new Date(value).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
 // ---------------------------------------------------------------------------
-// Filter pill component
+// Status Badge
 // ---------------------------------------------------------------------------
 
-interface FilterPillProps {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  color?: string;
-}
-
-function FilterPill({ label, selected, onPress, color }: FilterPillProps) {
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={[
-        filterStyles.pill,
-        selected && {
-          backgroundColor: color ?? systemColors.blue,
-          borderColor: color ?? systemColors.blue,
-        },
-      ]}
-    >
-      <Text
-        style={[filterStyles.pillText, selected && filterStyles.pillTextActive]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-const filterStyles = StyleSheet.create({
-  pill: {
-    height: 36,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: systemColors.gray4,
-  },
-  pillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.onSurface,
-  },
-  pillTextActive: {
-    color: '#fff',
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Status badge component
-// ---------------------------------------------------------------------------
-
-interface StatusBadgeProps {
-  status: string;
-}
-
-function StatusBadge({ status }: StatusBadgeProps) {
+function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.PENDING;
   return (
     <View style={[badgeStyles.badge, { backgroundColor: cfg.color + '18' }]}>
@@ -145,231 +113,256 @@ const badgeStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
-// Main screen
+// Tab Switcher
 // ---------------------------------------------------------------------------
 
-export function AppointmentsScreen() {
-  const insets = useSafeAreaInsets();
-  const { appointments, isLoading, error, reload, cancelById } = useMyAppointments();
-  const [notice, setNotice] = useState('');
-  const [filter, setFilter] = useState<FilterStatus>('ALL');
+type TabKey = 'upcoming' | 'past';
 
-  const filtered =
-    filter === 'ALL' ? appointments : appointments.filter((a) => a.status === filter);
+interface TabSwitcherProps {
+  activeTab: TabKey;
+  onTabChange: (tab: TabKey) => void;
+  upcomingCount: number;
+  pastCount: number;
+}
 
-  async function handleCancel(id: string) {
-    try {
-      await cancelById(id);
-      setNotice('Appointment canceled.');
-    } catch {
-      setNotice('Could not cancel appointment.');
-    }
-  }
-
+function TabSwitcher({ activeTab, onTabChange, upcomingCount, pastCount }: TabSwitcherProps) {
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* Compact hero header */}
-      <LinearGradient
-        colors={[systemColors.orange, '#C93400']}
-        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+    <View style={tabStyles.container}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => onTabChange('upcoming')}
+        style={[tabStyles.tab, activeTab === 'upcoming' && tabStyles.tabActive]}
       >
-        <Text style={styles.heroTitle}>My Appointments</Text>
-        <Text style={styles.heroSub}>
-          {appointments.length} total
-          {' \u2022 '}
-          {appointments.filter((a) => a.status === 'PENDING' || a.status === 'CONFIRMED').length}
-          {' upcoming'}
+        <Text
+          style={[tabStyles.tabText, activeTab === 'upcoming' && tabStyles.tabTextActive]}
+        >
+          Upcoming
         </Text>
-      </LinearGradient>
-
-      {/* Filter chips — horizontal scroll, pill-shaped */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {FILTER_OPTIONS.map((opt) => (
-          <FilterPill
-            key={opt.key}
-            label={opt.label}
-            selected={filter === opt.key}
-            onPress={() => setFilter(opt.key)}
-            color={
-              opt.key === 'ALL'
-                ? systemColors.blue
-                : STATUS_CONFIG[opt.key]?.color
-            }
-          />
-        ))}
-      </ScrollView>
-
-      {/* Content */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <LottieView
-            source={require('../../assets/animations/loading.json')}
-            autoPlay
-            loop
-            style={styles.loadingLottie}
-          />
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <MaterialCommunityIcons
-            name="calendar-blank-outline"
-            size={48}
-            color={systemColors.gray3}
-          />
-          <Text style={styles.emptyTitle}>No appointments found</Text>
-          <Text style={styles.emptyCaption}>
-            {filter === 'ALL'
-              ? 'Book your first appointment to get started.'
-              : 'No appointments match this filter.'}
-          </Text>
-          <Button
-            mode="contained"
-            onPress={() => void reload()}
-            buttonColor={systemColors.blue}
-            textColor="#fff"
-            style={styles.refreshBtn}
+        {upcomingCount > 0 && (
+          <View
+            style={[
+              tabStyles.countBadge,
+              {
+                backgroundColor:
+                  activeTab === 'upcoming' ? '#fff' : systemColors.blue + '18',
+              },
+            ]}
           >
-            Refresh
-          </Button>
-        </View>
-      ) : (
-        <View style={styles.cardList}>
-          {filtered.map((appt, i) => (
-            <FadeInView key={appt.id} delay={i * 60}>
-              <GlassCard style={styles.card} glassStyle="regular">
-                <View style={styles.cardInner}>
-                  {/* Top row: doctor name + status badge */}
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.cardNameCol}>
-                      <Text style={styles.doctorName} numberOfLines={1}>
-                        {appt.doctor?.name ?? 'Doctor'}
-                      </Text>
-                      <Text style={styles.specialtyText} numberOfLines={1}>
-                        {appt.doctor?.specialty?.name ?? 'Specialty'}
-                      </Text>
-                    </View>
-                    <StatusBadge status={appt.status} />
-                  </View>
-
-                  {/* Detail rows */}
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailRow}>
-                      <MaterialCommunityIcons
-                        name="calendar"
-                        size={16}
-                        color={systemColors.orange}
-                      />
-                      <Text style={styles.detailText}>
-                        {formatDate(appt.timeSlot?.date)}
-                        {' \u2022 '}
-                        {appt.timeSlot?.startTime} - {appt.timeSlot?.endTime}
-                      </Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <MaterialCommunityIcons
-                        name="cash"
-                        size={16}
-                        color={systemColors.green}
-                      />
-                      <Text style={styles.detailText}>
-                        {appt.totalAmount.toLocaleString()} VND
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Cancel button */}
-                  {(appt.status === 'PENDING' || appt.status === 'CONFIRMED') && (
-                    <Button
-                      mode="outlined"
-                      compact
-                      onPress={() => void handleCancel(appt.id)}
-                      textColor={systemColors.red}
-                      style={styles.cancelBtn}
-                      labelStyle={styles.cancelLabel}
-                    >
-                      Cancel appointment
-                    </Button>
-                  )}
-                </View>
-              </GlassCard>
-            </FadeInView>
-          ))}
-        </View>
-      )}
-
-      <Snackbar visible={Boolean(error || notice)} onDismiss={() => setNotice('')} duration={3000}>
-        {notice || error}
-      </Snackbar>
-    </ScrollView>
+            <Text
+              style={[
+                tabStyles.countText,
+                {
+                  color:
+                    activeTab === 'upcoming' ? systemColors.blue : systemColors.blue,
+                },
+              ]}
+            >
+              {upcomingCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => onTabChange('past')}
+        style={[tabStyles.tab, activeTab === 'past' && tabStyles.tabActive]}
+      >
+        <Text
+          style={[tabStyles.tabText, activeTab === 'past' && tabStyles.tabTextActive]}
+        >
+          Past
+        </Text>
+        {pastCount > 0 && (
+          <View
+            style={[
+              tabStyles.countBadge,
+              {
+                backgroundColor:
+                  activeTab === 'past' ? '#fff' : systemColors.gray + '18',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                tabStyles.countText,
+                {
+                  color:
+                    activeTab === 'past' ? systemColors.blue : systemColors.gray,
+                },
+              ]}
+            >
+              {pastCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles = StyleSheet.create({
-  scroll: {
+const tabStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 6,
+    backgroundColor: systemColors.gray5,
+    borderRadius: 14,
+    padding: 4,
+  },
+  tab: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 11,
   },
-  content: {
-    paddingBottom: 100,
+  tabActive: {
+    backgroundColor: systemColors.blue,
+    shadowColor: systemColors.blue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  hero: {
-    paddingBottom: 18,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    gap: 2,
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: systemColors.gray,
   },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+  tabTextActive: {
     color: '#fff',
   },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  filterScroll: {
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  center: {
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
-    paddingVertical: 56,
-    paddingHorizontal: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
   },
-  loadingLottie: {
-    width: 100,
-    height: 100,
+  countText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginTop: 12,
-  },
-  emptyCaption: {
-    fontSize: 14,
-    color: systemColors.gray,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  refreshBtn: {
-    marginTop: 16,
-    borderRadius: 12,
-  },
-  cardList: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
+});
+
+// ---------------------------------------------------------------------------
+// Appointment Card
+// ---------------------------------------------------------------------------
+
+interface AppointmentCardProps {
+  appointment: Appointment;
+  showCountdown?: boolean;
+  delay?: number;
+}
+
+function AppointmentCard({ appointment, showCountdown, delay = 0 }: AppointmentCardProps) {
+  const countdown = showCountdown
+    ? getCountdown(appointment.timeSlot?.date, appointment.timeSlot?.startTime)
+    : '';
+
+  return (
+    <FadeInView delay={delay}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() =>
+          router.push({
+            pathname: '/appointment-detail',
+            params: { id: appointment.id },
+          })
+        }
+      >
+        <GlassCard style={cardStyles.card} glassStyle="regular">
+          <View style={cardStyles.inner}>
+            {/* Top row: doctor name + status badge */}
+            <View style={cardStyles.topRow}>
+              <View style={cardStyles.nameCol}>
+                <Text style={cardStyles.doctorName} numberOfLines={1}>
+                  {appointment.doctor?.name ?? 'Doctor'}
+                </Text>
+                <Text style={cardStyles.specialtyText} numberOfLines={1}>
+                  {appointment.doctor?.specialty?.name ?? 'Specialty'}
+                </Text>
+              </View>
+              <StatusBadge status={appointment.status} />
+            </View>
+
+            {/* Date & time row */}
+            <View style={cardStyles.detailSection}>
+              <View style={cardStyles.detailRow}>
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={16}
+                  color={systemColors.orange}
+                />
+                <Text style={cardStyles.detailText}>
+                  {formatDate(appointment.timeSlot?.date)}
+                  {' \u2022 '}
+                  {appointment.timeSlot?.startTime} - {appointment.timeSlot?.endTime}
+                </Text>
+              </View>
+
+              {/* Countdown for upcoming */}
+              {showCountdown && countdown ? (
+                <View style={cardStyles.detailRow}>
+                  <MaterialCommunityIcons
+                    name="timer-sand"
+                    size={16}
+                    color={systemColors.blue}
+                  />
+                  <Text style={[cardStyles.detailText, { color: systemColors.blue }]}>
+                    {countdown}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Amount */}
+              <View style={cardStyles.detailRow}>
+                <MaterialCommunityIcons
+                  name="cash"
+                  size={16}
+                  color={systemColors.green}
+                />
+                <Text style={cardStyles.detailText}>
+                  {appointment.totalAmount.toLocaleString()} VND
+                </Text>
+              </View>
+            </View>
+
+            {/* Review indicator for past */}
+            {appointment.status === 'COMPLETED' && appointment.review && (
+              <View style={cardStyles.reviewRow}>
+                <MaterialCommunityIcons
+                  name="star"
+                  size={14}
+                  color={systemColors.yellow}
+                />
+                <Text style={cardStyles.reviewText}>
+                  Reviewed ({appointment.review.rating}/5)
+                </Text>
+              </View>
+            )}
+
+            {/* Chevron hint */}
+            <View style={cardStyles.chevronRow}>
+              <Text style={cardStyles.viewDetailText}>View details</Text>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={18}
+                color={systemColors.gray3}
+              />
+            </View>
+          </View>
+        </GlassCard>
+      </TouchableOpacity>
+    </FadeInView>
+  );
+}
+
+const cardStyles = StyleSheet.create({
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -377,16 +370,16 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  cardInner: {
+  inner: {
     gap: 12,
   },
-  cardTopRow: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
   },
-  cardNameCol: {
+  nameCol: {
     flex: 1,
     gap: 2,
   },
@@ -411,12 +404,229 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.onSurface,
   },
-  cancelBtn: {
-    alignSelf: 'flex-end',
-    borderColor: systemColors.red + '40',
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewText: {
+    fontSize: 13,
+    color: systemColors.yellow,
+    fontWeight: '600',
+  },
+  chevronRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 2,
+  },
+  viewDetailText: {
+    fontSize: 13,
+    color: systemColors.gray3,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Empty State
+// ---------------------------------------------------------------------------
+
+interface EmptyStateProps {
+  tab: TabKey;
+}
+
+function EmptyState({ tab }: EmptyStateProps) {
+  return (
+    <View style={emptyStyles.container}>
+      <MaterialCommunityIcons
+        name={tab === 'upcoming' ? 'calendar-blank-outline' : 'history'}
+        size={48}
+        color={systemColors.gray3}
+      />
+      <Text style={emptyStyles.title}>
+        {tab === 'upcoming' ? 'No upcoming appointments' : 'No past appointments'}
+      </Text>
+      <Text style={emptyStyles.caption}>
+        {tab === 'upcoming'
+          ? 'Book an appointment to get started.'
+          : 'Your completed and canceled appointments will appear here.'}
+      </Text>
+      {tab === 'upcoming' && (
+        <Button
+          mode="contained"
+          onPress={() => router.push('/booking')}
+          buttonColor={systemColors.blue}
+          textColor="#fff"
+          icon="calendar-plus"
+          style={emptyStyles.bookBtn}
+        >
+          Book Now
+        </Button>
+      )}
+    </View>
+  );
+}
+
+const emptyStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    paddingVertical: 56,
+    paddingHorizontal: 32,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.onSurface,
+    marginTop: 12,
+  },
+  caption: {
+    fontSize: 14,
+    color: systemColors.gray,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  bookBtn: {
+    marginTop: 16,
     borderRadius: 12,
   },
-  cancelLabel: {
-    fontSize: 13,
+});
+
+// ---------------------------------------------------------------------------
+// Main Screen
+// ---------------------------------------------------------------------------
+
+export function AppointmentsScreen() {
+  const insets = useSafeAreaInsets();
+  const { appointments, isLoading, reload } = useMyAppointments();
+  const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const upcomingAppointments = appointments
+    .filter(isUpcoming)
+    .sort((a, b) => {
+      const dateA = a.timeSlot?.date ?? '';
+      const dateB = b.timeSlot?.date ?? '';
+      const timeA = a.timeSlot?.startTime ?? '';
+      const timeB = b.timeSlot?.startTime ?? '';
+      return `${dateA}${timeA}`.localeCompare(`${dateB}${timeB}`);
+    });
+
+  const pastAppointments = appointments
+    .filter(isPast)
+    .sort((a, b) => {
+      const dateA = a.timeSlot?.date ?? '';
+      const dateB = b.timeSlot?.date ?? '';
+      const timeA = a.timeSlot?.startTime ?? '';
+      const timeB = b.timeSlot?.startTime ?? '';
+      return `${dateB}${timeB}`.localeCompare(`${dateA}${timeA}`);
+    });
+
+  const displayedAppointments =
+    activeTab === 'upcoming' ? upcomingAppointments : pastAppointments;
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await reload();
+    setRefreshing(false);
+  }, [reload]);
+
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
+      {/* Header */}
+      <LinearGradient
+        colors={[systemColors.orange, '#C93400']}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+      >
+        <Text style={styles.heroTitle}>My Appointments</Text>
+        <Text style={styles.heroSub}>
+          {appointments.length} total
+          {' \u2022 '}
+          {upcomingAppointments.length} upcoming
+        </Text>
+      </LinearGradient>
+
+      {/* Tab Switcher */}
+      <TabSwitcher
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        upcomingCount={upcomingAppointments.length}
+        pastCount={pastAppointments.length}
+      />
+
+      {/* Content */}
+      {isLoading ? (
+        <View style={styles.center}>
+          <LottieView
+            source={require('../../assets/animations/loading.json')}
+            autoPlay
+            loop
+            style={styles.loadingLottie}
+          />
+        </View>
+      ) : displayedAppointments.length === 0 ? (
+        <EmptyState tab={activeTab} />
+      ) : (
+        <View style={styles.cardList}>
+          {displayedAppointments.map((appt, i) => (
+            <AppointmentCard
+              key={appt.id}
+              appointment={appt}
+              showCountdown={activeTab === 'upcoming'}
+              delay={i * 60}
+            />
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    paddingBottom: 120,
+  },
+  hero: {
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    gap: 2,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  heroSub: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  center: {
+    alignItems: 'center',
+    paddingVertical: 56,
+    paddingHorizontal: 32,
+  },
+  loadingLottie: {
+    width: 100,
+    height: 100,
+  },
+  cardList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
   },
 });
