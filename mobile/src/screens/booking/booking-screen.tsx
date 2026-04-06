@@ -50,8 +50,8 @@ const STAGGER_DELAY = 120;
 const PULSE_DURATION = 1200;
 const PROGRESS_ANIM_DURATION = 350;
 
-const PRIMARY = '#2196F3';
-const SECONDARY = '#4CAF50';
+const PRIMARY = '#007AFF';
+const SECONDARY = '#34C759';
 
 // ---------------------------------------------------------------------------
 // Animated step-card hook — fade-in + slide-up
@@ -625,7 +625,7 @@ export function BookingScreen() {
         {/* Step 5: Notes + Confirm */}
         {showStep5 && (
           <Animated.View style={step5Anim}>
-            <GlassCard style={styles.card} glassStyle="regular" tintColor="#2196F3">
+            <GlassCard style={styles.card} glassStyle="regular" tintColor="#007AFF">
               <View style={styles.cardContent}>
                 <View style={styles.stepHeader}>
                   <MaterialCommunityIcons name="check-decagram" size={20} color={SECONDARY} />

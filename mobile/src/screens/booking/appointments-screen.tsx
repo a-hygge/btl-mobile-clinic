@@ -6,13 +6,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { theme } from '../../constants/theme';
+import { theme, systemColors } from '../../constants/theme';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }> = {
-  PENDING: { color: '#FF9800', icon: 'clock-outline', label: 'Pending' },
-  CONFIRMED: { color: '#2196F3', icon: 'check-circle-outline', label: 'Confirmed' },
-  COMPLETED: { color: '#4CAF50', icon: 'check-decagram', label: 'Completed' },
-  CANCELED: { color: '#F44336', icon: 'close-circle-outline', label: 'Canceled' },
+  PENDING: { color: '#FF9500', icon: 'clock-outline', label: 'Pending' },
+  CONFIRMED: { color: '#007AFF', icon: 'check-circle-outline', label: 'Confirmed' },
+  COMPLETED: { color: '#34C759', icon: 'check-decagram', label: 'Completed' },
+  CANCELED: { color: '#FF3B30', icon: 'close-circle-outline', label: 'Canceled' },
 };
 
 type FilterStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
@@ -65,7 +65,7 @@ export function AppointmentsScreen() {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <LinearGradient
-        colors={['#FF9800', '#F57C00']}
+        colors={['#FF9500', '#C93400']}
         style={styles.hero}
       >
         <Text variant="headlineMedium" style={styles.heroTitle}>
@@ -142,14 +142,14 @@ export function AppointmentsScreen() {
                   </View>
 
                   <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="calendar" size={16} color="#757575" />
+                    <MaterialCommunityIcons name="calendar" size={16} color={systemColors.gray} />
                     <Text variant="bodyMedium" style={styles.meta}>
                       {formatDate(appt.timeSlot?.date)} • {appt.timeSlot?.startTime} - {appt.timeSlot?.endTime}
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="cash" size={16} color="#757575" />
+                    <MaterialCommunityIcons name="cash" size={16} color={systemColors.gray} />
                     <Text variant="bodyMedium" style={styles.meta}>
                       {appt.totalAmount.toLocaleString()} VND
                     </Text>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   emptyText: {
-    color: '#757575',
+    color: systemColors.gray,
     marginTop: 8,
   },
   card: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   meta: {
-    color: '#757575',
+    color: systemColors.gray,
   },
   statusBadge: {
     flexDirection: 'row',
