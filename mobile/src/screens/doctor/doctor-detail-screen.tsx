@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -225,7 +226,8 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
   const reviews = doctor.totalReviews ?? 0;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScreenBackground>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
       {/* ---- Gradient header ---- */}
       <AnimatedSection index={0}>
         <LinearGradient
@@ -351,6 +353,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
         </LinearGradient>
       </AnimatedSection>
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
@@ -361,7 +364,6 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     paddingBottom: 40,

@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
   ocrPrescription,
@@ -150,6 +151,7 @@ export function OcrScreen() {
   }, []);
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Gradient Header */}
@@ -395,13 +397,13 @@ export function OcrScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingBottom: 40,

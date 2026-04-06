@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
 import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { api, extractPaginatedData } from '../../services/api';
 import type { Appointment } from '../../types';
 
@@ -321,6 +322,7 @@ export function DoctorHomeScreen() {
   };
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
@@ -457,6 +459,7 @@ export function DoctorHomeScreen() {
         )}
       </ScrollView>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -467,7 +470,6 @@ export function DoctorHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scroll: {
     flex: 1,

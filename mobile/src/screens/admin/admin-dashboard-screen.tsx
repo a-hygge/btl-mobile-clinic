@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { theme, systemColors } from '../../constants/theme';
 import {
   fetchDashboard,
@@ -144,8 +145,9 @@ export function AdminDashboardScreen() {
   }
 
   return (
+    <ScreenBackground>
     <ScrollView
-      style={styles.scroll}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
@@ -325,6 +327,7 @@ export function AdminDashboardScreen() {
         </View>
       </View>
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
@@ -333,7 +336,6 @@ export function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     paddingBottom: 40,

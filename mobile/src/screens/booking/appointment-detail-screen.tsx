@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { theme, systemColors } from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import { cancelAppointment } from '../../services/appointments.service';
@@ -312,6 +313,7 @@ export function AppointmentDetailScreen({
     appointment.status === 'COMPLETED' && !review;
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
@@ -719,6 +721,7 @@ export function AppointmentDetailScreen({
         {notice}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -729,7 +732,6 @@ export function AppointmentDetailScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scroll: {
     flex: 1,

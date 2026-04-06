@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Button, RadioButton, Snackbar, Text, TextInput } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { router, useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -724,6 +725,7 @@ export function BookingScreen() {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       <ScrollView
         ref={scrollRef}
@@ -1091,6 +1093,7 @@ export function BookingScreen() {
         {notice}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -1101,7 +1104,6 @@ export function BookingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   centered: {
     alignItems: 'center',

@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Button, Chip, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -169,6 +170,7 @@ export function PaymentHistoryScreen() {
   }, [loadPayments]);
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       {/* Header */}
       <LinearGradient
@@ -212,6 +214,7 @@ export function PaymentHistoryScreen() {
         }
       />
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -222,7 +225,6 @@ export function PaymentHistoryScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     paddingTop: 60,

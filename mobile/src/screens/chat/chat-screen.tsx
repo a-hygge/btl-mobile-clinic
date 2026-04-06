@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
 import { theme, systemColors } from '../../constants/theme';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import {
   sendChatMessage,
   getSessionMessages,
@@ -192,6 +193,7 @@ export function ChatScreen() {
   const quickPrompts = ['Headache', 'Stomach pain', 'Fever', 'Back pain', 'Cough'];
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
@@ -298,13 +300,13 @@ export function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
     </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     paddingBottom: 12,

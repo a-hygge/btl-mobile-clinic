@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
@@ -148,6 +149,7 @@ export function NotificationScreen() {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -255,13 +257,13 @@ export function NotificationScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingBottom: 40,

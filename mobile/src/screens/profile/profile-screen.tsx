@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Avatar, Button, Divider, List, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
@@ -24,6 +25,7 @@ export function ProfileScreen() {
     .toUpperCase();
 
   return (
+    <ScreenBackground>
     <ScrollView contentContainerStyle={styles.content}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Avatar.Text size={80} label={initials} style={styles.avatar} />
@@ -139,13 +141,13 @@ export function ProfileScreen() {
         Logout
       </Button>
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 120,
-    backgroundColor: theme.colors.background,
   },
   header: {
     alignItems: 'center',

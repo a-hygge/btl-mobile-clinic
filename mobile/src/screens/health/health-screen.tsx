@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
   getMyMetrics,
@@ -190,6 +191,7 @@ export function HealthScreen() {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -491,13 +493,13 @@ export function HealthScreen() {
         </View>
       </Modal>
     </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingBottom: 40,

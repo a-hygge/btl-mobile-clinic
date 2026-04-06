@@ -14,6 +14,7 @@ import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { api, extractData } from '../../services/api';
 
 // ---------------------------------------------------------------------------
@@ -203,6 +204,7 @@ export function DoctorScheduleScreen() {
   // -----------------------------------------------------------------------
 
   return (
+    <ScreenBackground>
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
@@ -414,6 +416,7 @@ export function DoctorScheduleScreen() {
         {snackbar.message}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -424,7 +427,6 @@ export function DoctorScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scroll: {
     flex: 1,

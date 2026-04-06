@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Button, Snackbar, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { router, useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -202,6 +203,7 @@ export function PaymentScreen() {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -361,6 +363,7 @@ export function PaymentScreen() {
         {notice}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -417,7 +420,6 @@ function SuccessOverlay({ onFinish }: { onFinish: () => void }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     paddingBottom: 40,

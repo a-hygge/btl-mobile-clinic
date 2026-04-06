@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { theme, systemColors } from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import type { Appointment } from '../../types';
@@ -143,6 +144,7 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Gradient Header */}
@@ -265,6 +267,7 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
         {snackbar.message}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -275,7 +278,6 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingBottom: 120,

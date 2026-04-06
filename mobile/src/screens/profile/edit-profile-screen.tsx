@@ -22,6 +22,7 @@ import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { theme, systemColors } from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
@@ -163,6 +164,7 @@ export function EditProfileScreen() {
   }
 
   return (
+    <ScreenBackground>
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Gradient Header */}
@@ -320,6 +322,7 @@ export function EditProfileScreen() {
         {snackbar.message}
       </Snackbar>
     </View>
+    </ScreenBackground>
   );
 }
 
@@ -330,7 +333,6 @@ export function EditProfileScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingBottom: 120,

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { theme, systemColors } from '../../constants/theme';
 import type { Appointment } from '../../types';
 
@@ -530,8 +531,9 @@ export function AppointmentsScreen() {
   }, [reload]);
 
   return (
+    <ScreenBackground>
     <ScrollView
-      style={styles.scroll}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -584,6 +586,7 @@ export function AppointmentsScreen() {
         </View>
       )}
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
@@ -594,7 +597,6 @@ export function AppointmentsScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     paddingBottom: 120,

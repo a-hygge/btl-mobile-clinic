@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { api, extractData, extractPaginatedData } from '../../services/api';
 import type { Appointment, Specialty } from '../../types';
 
@@ -370,8 +371,9 @@ export function HomeScreen() {
   // -----------------------------------------------------------------------
 
   return (
+    <ScreenBackground>
     <ScrollView
-      style={styles.scroll}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
@@ -533,6 +535,7 @@ export function HomeScreen() {
         </View>
       </FadeInView>
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
@@ -543,7 +546,6 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     paddingBottom: 120,
