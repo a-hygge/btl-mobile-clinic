@@ -10,7 +10,7 @@ export const theme = {
     secondaryContainer: '#C8E6C9',
     error: '#F44336',
     errorContainer: '#FFCDD2',
-    background: '#FAFAFA',
+    background: '#F0F0F5',
     surface: '#FFFFFF',
     surfaceVariant: '#F5F5F5',
     outline: '#E0E0E0',

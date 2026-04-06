@@ -18,6 +18,9 @@ try {
   // isLiquidGlassAvailable may not exist at module init time
 }
 
+// eslint-disable-next-line no-console
+console.log('[GlassCard] isLiquidGlassAvailable:', USE_NATIVE_GLASS, 'Platform:', Platform.OS, Platform.Version);
+
 const IS_IOS = Platform.OS === 'ios';
 
 export function GlassCard({
@@ -63,9 +66,7 @@ export function GlassCard({
 
 const styles = StyleSheet.create({
   glass: {
-    borderRadius: 20,
     padding: 16,
-    overflow: 'hidden',
   },
   blurOuter: {
     borderRadius: 20,
