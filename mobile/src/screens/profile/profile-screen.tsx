@@ -2,10 +2,12 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Avatar, Button, Divider, List, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
 import { theme } from '../../constants/theme';
 
 export function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
@@ -23,7 +25,7 @@ export function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Avatar.Text size={80} label={initials} style={styles.avatar} />
         <Text variant="headlineSmall" style={styles.name}>
           {user?.name ?? 'User'}
@@ -146,7 +148,6 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 60,
     paddingBottom: 24,
     backgroundColor: theme.colors.primary,
     borderBottomLeftRadius: 32,

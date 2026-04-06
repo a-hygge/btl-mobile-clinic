@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
 import { theme } from '../../constants/theme';
 
@@ -29,6 +30,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const login = useAuthStore((state) => state.login);
 
   const [email, setEmail] = useState('patient1@gmail.com');
@@ -144,7 +146,7 @@ export function LoginScreen() {
             colors={['#007AFF', '#0051D5']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.gradient}
+            style={[styles.gradient, { paddingTop: insets.top + 16 }]}
           >
             <View style={styles.lottieWrapper}>
               <LottieView
@@ -270,7 +272,6 @@ const styles = StyleSheet.create({
   },
   gradient: {
     width: SCREEN_WIDTH,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 40,
     alignItems: 'center',
     borderBottomLeftRadius: 32,

@@ -4,6 +4,7 @@ import { Button, Snackbar, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { theme, systemColors } from '../../constants/theme';
@@ -148,6 +149,7 @@ const badgeStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 
 export function AppointmentsScreen() {
+  const insets = useSafeAreaInsets();
   const { appointments, isLoading, error, reload, cancelById } = useMyAppointments();
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('ALL');
@@ -169,7 +171,7 @@ export function AppointmentsScreen() {
       {/* Compact hero header */}
       <LinearGradient
         colors={[systemColors.orange, '#C93400']}
-        style={styles.hero}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
       >
         <Text style={styles.heroTitle}>My Appointments</Text>
         <Text style={styles.heroSub}>
@@ -319,7 +321,6 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   hero: {
-    paddingTop: 52,
     paddingBottom: 18,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,

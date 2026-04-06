@@ -22,6 +22,7 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
@@ -97,6 +98,7 @@ function FadeInView({ delay = 0, children }: { delay?: number; children: React.R
 }
 
 export function HealthScreen() {
+  const insets = useSafeAreaInsets();
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
   const [tips, setTips] = useState<HealthTip[]>([]);
@@ -198,7 +200,7 @@ export function HealthScreen() {
           colors={[systemColors.blue, '#5856D6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.header}
+          style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
           <View style={styles.headerContent}>
             <MaterialCommunityIcons name="heart-pulse" size={32} color="#fff" />
@@ -508,7 +510,6 @@ const styles = StyleSheet.create({
   },
   // Header
   header: {
-    paddingTop: 60,
     paddingBottom: 32,
     paddingHorizontal: spacing.lg,
     borderBottomLeftRadius: 32,

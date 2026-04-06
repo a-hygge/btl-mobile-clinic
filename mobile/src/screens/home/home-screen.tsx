@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme, systemColors } from '../../constants/theme';
@@ -101,6 +102,7 @@ function FadeInView({ delay = 0, children }: { delay?: number; children: React.R
 }
 
 export function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const [search, setSearch] = useState('');
   const { doctors, isLoading } = useDoctors(search);
@@ -119,7 +121,7 @@ export function HomeScreen() {
         colors={['#007AFF', '#0051D5']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.hero}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
       >
         <Text style={styles.greeting}>{greeting} 👋</Text>
         <Text style={styles.heroName}>{user?.name ?? 'User'}</Text>
@@ -276,7 +278,6 @@ const styles = StyleSheet.create({
 
   /* -- Header -- */
   hero: {
-    paddingTop: 60,
     paddingBottom: 32,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,

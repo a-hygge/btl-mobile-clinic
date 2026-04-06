@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -13,6 +14,8 @@ import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme, systemColors } from '../../constants/theme';
 import { getSpecialties, getClinics } from '../../services/specialties.service';
 import {
@@ -597,6 +600,8 @@ const summaryStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 
 export function BookingScreen() {
+  const insets = useSafeAreaInsets();
+
   // --- State (unchanged) ---------------------------------------------------
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
@@ -605,6 +610,8 @@ export function BookingScreen() {
   const [selectedClinic, setSelectedClinic] = useState<string>('');
 
   const [date, setDate] = useState(getTodayDate());
+  const [dateObj, setDateObj] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedTime, setSelectedTime] = useState('');
 
@@ -682,6 +689,16 @@ export function BookingScreen() {
     }
   }
 
+  // --- Date picker handler --------------------------------------------------
+  function onDateChange(_event: unknown, selectedDate?: Date) {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDateObj(selectedDate);
+      const formatted = selectedDate.toISOString().slice(0, 10);
+      setDate(formatted);
+    }
+  }
+
   // --- Derived values ------------------------------------------------------
   const selectedSpecObj = specialties.find((s) => s.id === selectedSpecialty);
   const selectedClinicObj = clinics.find((c) => c.id === selectedClinic);
@@ -710,7 +727,7 @@ export function BookingScreen() {
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -821,23 +838,33 @@ export function BookingScreen() {
                   </View>
                   <Text style={styles.stepTitle}>Select date</Text>
                 </View>
-                <View style={styles.dateCard}>
+                <Pressable
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.dateButton}
+                >
                   <MaterialCommunityIcons
                     name="calendar-month"
                     size={22}
                     color={systemColors.orange}
                   />
-                  <TextInput
-                    mode="outlined"
-                    label="Date (YYYY-MM-DD)"
-                    value={date}
-                    onChangeText={setDate}
-                    outlineColor={systemColors.gray4}
-                    activeOutlineColor={systemColors.blue}
-                    style={styles.dateInput}
-                    dense
+                  <Text style={styles.dateText}>
+                    {date || 'Select date'}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={18}
+                    color={systemColors.gray}
                   />
-                </View>
+                </Pressable>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={dateObj}
+                    mode="date"
+                    display="inline"
+                    minimumDate={new Date()}
+                    onChange={onDateChange}
+                  />
+                )}
               </View>
             </GlassCard>
           </Animated.View>
@@ -1003,7 +1030,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: H_MARGIN,
-    paddingTop: 20,
     paddingBottom: 100,
     gap: SECTION_GAP,
   },
@@ -1054,21 +1080,27 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 2,
   },
-  dateCard: {
+  dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#fff',
     borderRadius: 14,
-    paddingLeft: 14,
-    paddingRight: 4,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: systemColors.gray5,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: systemColors.gray4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  dateInput: {
+  dateText: {
     flex: 1,
-    backgroundColor: 'transparent',
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.onSurface,
   },
   loadingContainer: {
     alignItems: 'center',

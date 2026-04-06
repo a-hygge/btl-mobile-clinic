@@ -11,6 +11,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDoctorDetail } from '../../hooks/use-doctor-detail';
 import { theme } from '../../constants/theme';
 
@@ -174,6 +175,7 @@ function AnimatedSection({
 /* ------------------------------------------------------------------ */
 
 export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
+  const insets = useSafeAreaInsets();
   const { doctor, isLoading } = useDoctorDetail(doctorId);
 
   if (isLoading) {
@@ -230,7 +232,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
           colors={['#007AFF', '#0051D5']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.gradientHeader}
+          style={[styles.gradientHeader, { paddingTop: insets.top + 8 }]}
         >
           <View style={styles.backRow}>
             <Button
@@ -368,7 +370,6 @@ const styles = StyleSheet.create({
 
   /* Gradient header */
   gradientHeader: {
-    paddingTop: 8,
     paddingBottom: 28,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,

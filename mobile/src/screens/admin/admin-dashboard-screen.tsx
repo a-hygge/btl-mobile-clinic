@@ -13,6 +13,7 @@ import { Button, Divider, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { theme, systemColors } from '../../constants/theme';
 import {
@@ -59,6 +60,7 @@ function StatCard({
 // ── Main Screen ────────────────────────────────────────────
 
 export function AdminDashboardScreen() {
+  const insets = useSafeAreaInsets();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<AdminDoctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,7 +154,7 @@ export function AdminDashboardScreen() {
         colors={['#5856D6', '#3634A3']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.hero}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
       >
         <Text variant="headlineMedium" style={styles.heroTitle}>
           Admin Dashboard
@@ -343,7 +345,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   hero: {
-    paddingTop: 60,
     paddingBottom: 32,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,
