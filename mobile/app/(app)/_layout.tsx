@@ -45,6 +45,7 @@ export default function AppLayout() {
       <NativeTabs.Trigger name="doctors/[id]" hidden />
       <NativeTabs.Trigger name="chat-history" hidden />
       <NativeTabs.Trigger name="health" hidden />
+      <NativeTabs.Trigger name="admin" hidden />
     </NativeTabs>
   );
 }

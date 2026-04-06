@@ -71,6 +71,26 @@ export function ProfileScreen() {
           />
           <Divider />
           <List.Item
+            title="Payment History"
+            description="View your payments"
+            left={(props) => <List.Icon {...props} icon="credit-card-clock-outline" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/payment-history')}
+          />
+          <Divider />
+          {user?.role === 'ADMIN' && (
+            <>
+              <List.Item
+                title="Admin Dashboard"
+                description="Manage platform"
+                left={(props) => <List.Icon {...props} icon="shield-crown" />}
+                right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => router.push('/admin')}
+              />
+              <Divider />
+            </>
+          )}
+          <List.Item
             title="Edit Profile"
             left={(props) => <List.Icon {...props} icon="account-edit" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
