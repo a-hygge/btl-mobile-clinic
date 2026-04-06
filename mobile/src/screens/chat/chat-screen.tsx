@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { Text } from 'react-native-paper';
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, SystemMessage, Composer } from 'react-native-gifted-chat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,49 +22,95 @@ import {
   type ChatMessageItem,
 } from '../../services/chat.service';
 
-const AI_USER = {
-  _id: 'ai-assistant',
-  name: 'AI Assistant',
-};
-
-const DISCLAIMER: IMessage = {
-  _id: 'system-disclaimer',
-  text: 'I\'m your AI health assistant. I can help assess symptoms and suggest which specialist to visit. Note: This is not a medical diagnosis.',
-  createdAt: new Date(),
-  user: AI_USER,
-  system: true,
-};
-
-// Tab bar height (NativeTabs ~49px + home indicator)
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 64;
 
-function mapToGiftedMessage(msg: ChatMessageItem): IMessage {
+interface Message {
+  id: string;
+  text: string;
+  isUser: boolean;
+  isSystem?: boolean;
+  createdAt: Date;
+}
+
+function toMessage(msg: ChatMessageItem): Message {
   return {
-    _id: msg.id,
+    id: msg.id,
     text: msg.content,
+    isUser: msg.role === 'USER',
     createdAt: new Date(msg.createdAt),
-    user: msg.role === 'USER' ? { _id: 'current-user' } : AI_USER,
   };
+}
+
+function RelativeTime({ date }: { date: Date }) {
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
+  let label = 'just now';
+  if (diff >= 1 && diff < 60) label = `${diff}m ago`;
+  else if (diff >= 60 && diff < 1440) label = `${Math.floor(diff / 60)}h ago`;
+  else if (diff >= 1440) label = date.toLocaleDateString();
+  return <Text style={styles.time}>{label}</Text>;
+}
+
+function ChatBubble({ item }: { item: Message }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(item.isUser ? 20 : -20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  if (item.isSystem) {
+    return (
+      <Animated.View style={[styles.systemBubble, { opacity: fadeAnim }]}>
+        <MaterialCommunityIcons name="information-outline" size={14} color={systemColors.gray} />
+        <Text style={styles.systemText}>{item.text}</Text>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      style={[
+        styles.bubbleRow,
+        item.isUser ? styles.bubbleRowRight : styles.bubbleRowLeft,
+        { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
+      ]}
+    >
+      {!item.isUser && (
+        <View style={styles.aiAvatar}>
+          <MaterialCommunityIcons name="robot-happy-outline" size={16} color={systemColors.blue} />
+        </View>
+      )}
+      <View style={[styles.bubble, item.isUser ? styles.userBubble : styles.aiBubble]}>
+        <Text style={[styles.bubbleText, item.isUser && styles.userBubbleText]}>
+          {item.text}
+        </Text>
+        <RelativeTime date={item.createdAt} />
+      </View>
+    </Animated.View>
+  );
 }
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ sessionId?: string }>();
-  const [messages, setMessages] = useState<IMessage[]>([DISCLAIMER]);
+  const flatListRef = useRef<FlatList>(null);
+  const [inputText, setInputText] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'disclaimer',
+      text: 'I\'m your AI health assistant. I can help assess symptoms and suggest specialists. This is not a medical diagnosis.',
+      isUser: false,
+      isSystem: true,
+      createdAt: new Date(),
+    },
+  ]);
   const [sessionId, setSessionId] = useState<string | undefined>(params.sessionId);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Fade in animation
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
-
-  // Load existing session
   useEffect(() => {
     if (params.sessionId) {
       void loadSession(params.sessionId);
@@ -67,58 +121,78 @@ export function ChatScreen() {
     try {
       const data = await getSessionMessages(id);
       setSessionId(id);
-      const mapped = data.messages.map(mapToGiftedMessage).reverse();
-      setMessages([...mapped, { ...DISCLAIMER, createdAt: new Date(data.session.createdAt) }]);
+      setMessages(data.messages.map(toMessage));
     } catch {
-      // stay on empty chat
+      // stay on empty
     }
   };
 
-  const handleSend = useCallback(
-    async (newMessages: IMessage[] = []) => {
-      const userMessage = newMessages[0];
-      if (!userMessage) return;
+  const scrollToEnd = () => {
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  };
 
-      Keyboard.dismiss();
-      setMessages((prev) => GiftedChat.append(prev, newMessages));
-      setIsTyping(true);
+  const handleSend = useCallback(async (text?: string) => {
+    const msg = (text ?? inputText).trim();
+    if (!msg || isTyping) return;
 
-      try {
-        const response = await sendChatMessage(userMessage.text, sessionId);
-        if (!sessionId) setSessionId(response.sessionId);
+    setInputText('');
+    const userMsg: Message = {
+      id: `user-${Date.now()}`,
+      text: msg,
+      isUser: true,
+      createdAt: new Date(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    scrollToEnd();
+    setIsTyping(true);
 
-        const aiMsg: IMessage = {
-          _id: response.aiMessage.id,
+    try {
+      const response = await sendChatMessage(msg, sessionId);
+      if (!sessionId) setSessionId(response.sessionId);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: response.aiMessage.id,
           text: response.aiMessage.content,
+          isUser: false,
           createdAt: new Date(response.aiMessage.createdAt),
-          user: AI_USER,
-        };
-        setMessages((prev) => GiftedChat.append(prev, [aiMsg]));
-      } catch {
-        setMessages((prev) =>
-          GiftedChat.append(prev, [
-            {
-              _id: `error-${Date.now()}`,
-              text: 'Sorry, something went wrong. Please try again.',
-              createdAt: new Date(),
-              user: AI_USER,
-            },
-          ])
-        );
-      } finally {
-        setIsTyping(false);
-      }
-    },
-    [sessionId]
-  );
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          text: 'Sorry, something went wrong. Please try again.',
+          isUser: false,
+          createdAt: new Date(),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+      scrollToEnd();
+    }
+  }, [inputText, sessionId, isTyping]);
 
   const handleNewChat = useCallback(() => {
     setSessionId(undefined);
-    setMessages([{ ...DISCLAIMER, createdAt: new Date() }]);
+    setInputText('');
+    setMessages([
+      {
+        id: 'disclaimer',
+        text: 'I\'m your AI health assistant. I can help assess symptoms and suggest specialists. This is not a medical diagnosis.',
+        isUser: false,
+        isSystem: true,
+        createdAt: new Date(),
+      },
+    ]);
   }, []);
 
+  const quickPrompts = ['Headache', 'Stomach pain', 'Chest pain', 'Fever'];
+
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
         colors={['#007AFF', '#0051D5']}
@@ -129,120 +203,101 @@ export function ChatScreen() {
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
-              <MaterialCommunityIcons name="robot-happy-outline" size={22} color="#fff" />
+              <MaterialCommunityIcons name="robot-happy-outline" size={20} color="#fff" />
             </View>
             <View>
-              <Text variant="titleMedium" style={styles.headerTitle}>
-                AI Health Assistant
-              </Text>
+              <Text variant="titleMedium" style={styles.headerTitle}>AI Health Assistant</Text>
               <View style={styles.onlineRow}>
                 <View style={styles.onlineDot} />
-                <Text variant="labelSmall" style={styles.onlineText}>
-                  Online
-                </Text>
+                <Text style={styles.onlineText}>Online</Text>
               </View>
             </View>
           </View>
           <View style={styles.headerActions}>
             <Pressable onPress={handleNewChat} hitSlop={12}>
-              <MaterialCommunityIcons name="chat-plus-outline" size={22} color="#fff" />
+              <MaterialCommunityIcons name="chat-plus-outline" size={20} color="#fff" />
             </Pressable>
             <Pressable onPress={() => router.push('/chat-history' as never)} hitSlop={12}>
-              <MaterialCommunityIcons name="history" size={22} color="#fff" />
+              <MaterialCommunityIcons name="history" size={20} color="#fff" />
             </Pressable>
           </View>
         </View>
 
         {/* Quick prompts */}
         <View style={styles.promptsRow}>
-          {['Headache', 'Stomach pain', 'Chest pain'].map((prompt) => (
+          {quickPrompts.map((p) => (
             <Pressable
-              key={prompt}
+              key={p}
               style={styles.promptChip}
-              onPress={() => void handleSend([{
-                _id: `quick-${Date.now()}`,
-                text: `I have ${prompt.toLowerCase()}`,
-                createdAt: new Date(),
-                user: { _id: 'current-user' },
-              }])}
+              onPress={() => void handleSend(`I have ${p.toLowerCase()}`)}
             >
-              <Text variant="labelSmall" style={styles.promptText}>{prompt}</Text>
+              <Text style={styles.promptText}>{p}</Text>
             </Pressable>
           ))}
         </View>
       </LinearGradient>
 
-      {/* Chat area */}
-      <View style={[styles.chatContainer, { marginBottom: TAB_BAR_HEIGHT }]}>
-        <GiftedChat
-          messages={messages}
-          onSend={handleSend}
-          user={{ _id: 'current-user' }}
-          isTyping={isTyping}
-          renderBubble={(props) => (
-            <Bubble
-              {...props}
-              wrapperStyle={{
-                left: styles.bubbleLeft,
-                right: styles.bubbleRight,
-              }}
-              textStyle={{
-                left: styles.bubbleTextLeft,
-                right: styles.bubbleTextRight,
-              }}
-            />
-          )}
-          renderInputToolbar={(props) => (
-            <InputToolbar
-              {...props}
-              containerStyle={styles.inputToolbar}
-              primaryStyle={styles.inputPrimary}
-            />
-          )}
-          renderComposer={(props) => (
-            <Composer
-              {...props}
-              textInputStyle={styles.composer}
-              placeholder="Ask about your symptoms..."
-              placeholderTextColor={systemColors.gray2}
-            />
-          )}
-          renderSend={(props) => (
-            <Send {...props} containerStyle={styles.sendWrap}>
-              <LinearGradient
-                colors={['#007AFF', '#0051D5']}
-                style={styles.sendBtn}
-              >
-                <MaterialCommunityIcons name="send" size={18} color="#fff" />
-              </LinearGradient>
-            </Send>
-          )}
-          renderSystemMessage={(props) => (
-            <SystemMessage
-              {...props}
-              textStyle={styles.sysText}
-              containerStyle={styles.sysContainer}
-            />
-          )}
-          renderChatFooter={() =>
-            isTyping ? (
-              <View style={styles.typingWrap}>
-                <LottieView
-                  source={require('../../assets/animations/loading.json')}
-                  autoPlay
-                  loop
-                  style={{ width: 40, height: 40 }}
-                />
-                <Text variant="bodySmall" style={styles.typingText}>AI is thinking...</Text>
-              </View>
-            ) : null
-          }
-          alwaysShowSend
-          minInputToolbarHeight={56}
-          bottomOffset={0}
+      {/* Messages */}
+      <KeyboardAvoidingView
+        style={styles.chatArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ChatBubble item={item} />}
+          contentContainerStyle={styles.messageList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          showsVerticalScrollIndicator={false}
         />
-      </View>
-    </Animated.View>
+
+        {/* Typing indicator */}
+        {isTyping && (
+          <View style={styles.typingRow}>
+            <LottieView
+              source={require('../../assets/animations/loading.json')}
+              autoPlay
+              loop
+              style={{ width: 32, height: 32 }}
+            />
+            <Text style={styles.typingText}>AI is thinking...</Text>
+          </View>
+        )}
+
+        {/* Input bar */}
+        <View style={[styles.inputBar, { marginBottom: TAB_BAR_HEIGHT }]}>
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Describe your symptoms..."
+            placeholderTextColor={systemColors.gray2}
+            multiline
+            maxLength={1000}
+            returnKeyType="send"
+            onSubmitEditing={() => void handleSend()}
+            blurOnSubmit={false}
+          />
+          <Pressable
+            onPress={() => void handleSend()}
+            disabled={!inputText.trim() || isTyping}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              (!inputText.trim() || isTyping) && styles.sendBtnDisabled,
+              pressed && styles.sendBtnPressed,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="send"
+              size={18}
+              color={inputText.trim() && !isTyping ? '#fff' : systemColors.gray3}
+            />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -266,9 +321,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -282,7 +337,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 1,
   },
   onlineDot: {
     width: 6,
@@ -302,25 +356,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 10,
+    flexWrap: 'wrap',
   },
   promptChip: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   promptText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '500',
   },
-  chatContainer: {
+  chatArea: {
     flex: 1,
   },
-  bubbleLeft: {
-    backgroundColor: '#fff',
+  messageList: {
+    padding: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    maxWidth: '85%',
+  },
+  bubbleRowLeft: {
+    alignSelf: 'flex-start',
+  },
+  bubbleRowRight: {
+    alignSelf: 'flex-end',
+  },
+  aiAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#D6EAFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  bubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 18,
+    maxWidth: '100%',
+  },
+  userBubble: {
+    backgroundColor: systemColors.blue,
+    borderBottomRightRadius: 4,
+  },
+  aiBubble: {
+    backgroundColor: '#fff',
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -328,78 +419,81 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  bubbleRight: {
-    backgroundColor: systemColors.blue,
-    borderRadius: 18,
-    borderBottomRightRadius: 4,
-  },
-  bubbleTextLeft: {
+  bubbleText: {
+    fontSize: 15,
+    lineHeight: 21,
     color: theme.colors.onSurface,
-    fontSize: 15,
-    lineHeight: 21,
   },
-  bubbleTextRight: {
+  userBubbleText: {
     color: '#fff',
-    fontSize: 15,
-    lineHeight: 21,
   },
-  inputToolbar: {
-    borderTopWidth: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+  time: {
+    fontSize: 10,
+    color: systemColors.gray2,
+    marginTop: 4,
+    alignSelf: 'flex-end',
   },
-  inputPrimary: {
+  systemBubble: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: systemColors.gray6,
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    marginBottom: 4,
+  },
+  systemText: {
+    fontSize: 12,
+    color: systemColors.gray,
+    lineHeight: 18,
+    flex: 1,
+  },
+  typingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 4,
   },
-  composer: {
+  typingText: {
+    fontSize: 12,
+    color: systemColors.gray,
+  },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: systemColors.gray5,
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
     fontSize: 15,
     lineHeight: 20,
     color: theme.colors.onSurface,
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
     backgroundColor: systemColors.gray6,
     borderRadius: 22,
-    marginRight: 8,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
     maxHeight: 100,
-  },
-  sendWrap: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 2,
   },
   sendBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: systemColors.blue,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
-  sysText: {
-    fontSize: 12,
-    color: systemColors.gray,
-    textAlign: 'center',
-    lineHeight: 18,
+  sendBtnDisabled: {
+    backgroundColor: systemColors.gray5,
   },
-  sysContainer: {
-    marginBottom: 8,
-    marginHorizontal: 24,
-  },
-  typingWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    gap: 4,
-  },
-  typingText: {
-    color: systemColors.gray,
-    fontSize: 12,
+  sendBtnPressed: {
+    opacity: 0.7,
   },
 });
