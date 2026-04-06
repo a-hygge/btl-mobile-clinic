@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
-import { theme } from '../../constants/theme';
+import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
 
 const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -63,7 +63,7 @@ export function HomeScreen() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       {/* Hero gradient header */}
       <LinearGradient
-        colors={['#2196F3', '#1565C0']}
+        colors={['#007AFF', '#0051D5']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
@@ -106,9 +106,9 @@ export function HomeScreen() {
       <FadeInView delay={200}>
         <View style={styles.quickActions}>
           <Pressable style={styles.actionCard} onPress={() => router.push('/booking')}>
-            <GlassCard style={styles.actionGlass} tintColor="#4CAF50" interactive>
+            <GlassCard style={styles.actionGlass} tintColor={systemColors.green} interactive>
               <LinearGradient
-                colors={['#4CAF50', '#388E3C']}
+                colors={['#34C759', '#248A3D']}
                 style={styles.actionGradient}
               >
                 <MaterialCommunityIcons name="calendar-plus" size={28} color="#fff" />
@@ -120,9 +120,9 @@ export function HomeScreen() {
           </Pressable>
 
           <Pressable style={styles.actionCard} onPress={() => router.push('/appointments')}>
-            <GlassCard style={styles.actionGlass} tintColor="#FF9800" interactive>
+            <GlassCard style={styles.actionGlass} tintColor={systemColors.orange} interactive>
               <LinearGradient
-                colors={['#FF9800', '#F57C00']}
+                colors={['#FF9500', '#C93400']}
                 style={styles.actionGradient}
               >
                 <MaterialCommunityIcons name="clipboard-list" size={28} color="#fff" />
@@ -134,9 +134,9 @@ export function HomeScreen() {
           </Pressable>
 
           <Pressable style={styles.actionCard} onPress={() => router.push('/profile')}>
-            <GlassCard style={styles.actionGlass} tintColor="#9C27B0" interactive>
+            <GlassCard style={styles.actionGlass} tintColor={systemColors.indigo} interactive>
               <LinearGradient
-                colors={['#9C27B0', '#7B1FA2']}
+                colors={['#5856D6', '#3634A3']}
                 style={styles.actionGradient}
               >
                 <MaterialCommunityIcons name="account-heart" size={28} color="#fff" />
@@ -204,7 +204,7 @@ export function HomeScreen() {
                             {doctor.clinic ? ` • ${doctor.clinic.name}` : ''}
                           </Text>
                           <View style={styles.doctorStats}>
-                            <MaterialCommunityIcons name="star" size={14} color="#FF9800" />
+                            <MaterialCommunityIcons name="star" size={14} color={systemColors.orange} />
                             <Text variant="bodySmall" style={styles.rating}>
                               {(doctor.averageRating ?? 0).toFixed(1)}
                             </Text>
@@ -216,7 +216,7 @@ export function HomeScreen() {
                             </Text>
                           </View>
                         </View>
-                        <MaterialCommunityIcons name="chevron-right" size={24} color="#BDBDBD" />
+                        <MaterialCommunityIcons name="chevron-right" size={24} color={systemColors.gray3} />
                       </View>
                     </GlassCard>
                   </Pressable>
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#D6EAFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   doctorMeta: {
-    color: '#757575',
+    color: systemColors.gray,
   },
   doctorStats: {
     flexDirection: 'row',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   rating: {
     fontWeight: '600',
-    color: '#FF9800',
+    color: systemColors.orange,
   },
   fee: {
     color: theme.colors.primary,
