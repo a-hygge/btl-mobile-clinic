@@ -141,7 +141,7 @@ export function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: 40,
+    paddingBottom: 120,
     backgroundColor: theme.colors.background,
   },
   header: {
