@@ -19,26 +19,26 @@ interface StatusConfig {
 
 const STATUS_MAP: Record<AppointmentStatus, StatusConfig> = {
   PENDING: {
-    color: '#FF9800',
+    color: '#FF9500',
     background: '#FFF3E0',
     icon: 'clock-outline',
     label: 'Pending',
   },
   CONFIRMED: {
-    color: '#2196F3',
-    background: '#E3F2FD',
+    color: '#007AFF',
+    background: '#D6EAFF',
     icon: 'check-circle-outline',
     label: 'Confirmed',
   },
   COMPLETED: {
-    color: '#4CAF50',
-    background: '#E8F5E9',
+    color: '#34C759',
+    background: '#D4F5DD',
     icon: 'check-decagram',
     label: 'Completed',
   },
   CANCELED: {
-    color: '#F44336',
-    background: '#FFEBEE',
+    color: '#FF3B30',
+    background: '#FFD6D4',
     icon: 'close-circle-outline',
     label: 'Canceled',
   },

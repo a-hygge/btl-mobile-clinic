@@ -53,7 +53,7 @@ export function LoadingScreen() {
 
   return (
     <LinearGradient
-      colors={['#E3F2FD', '#BBDEFB', '#E3F2FD']}
+      colors={['#D6EAFF', '#B3D7FF', '#D6EAFF']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: '#90CAF9',
+    backgroundColor: '#99C8FF',
     opacity: 0.35,
   },
   lottieWrapper: {
@@ -123,11 +123,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '700',
-    color: '#1565C0',
+    color: '#0051D5',
     marginTop: 4,
   },
   subtitle: {
-    color: '#1976D2',
+    color: '#007AFF',
     fontWeight: '500',
   },
 });
