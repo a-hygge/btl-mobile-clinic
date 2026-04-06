@@ -46,6 +46,10 @@ export default function AppLayout() {
       <NativeTabs.Trigger name="chat-history" hidden />
       <NativeTabs.Trigger name="health" hidden />
       <NativeTabs.Trigger name="admin" hidden />
+      <NativeTabs.Trigger name="payment" hidden />
+      <NativeTabs.Trigger name="payment-history" hidden />
+      <NativeTabs.Trigger name="ocr" hidden />
+      <NativeTabs.Trigger name="notifications" hidden />
     </NativeTabs>
   );
 }

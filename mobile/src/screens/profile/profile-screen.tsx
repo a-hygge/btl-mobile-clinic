@@ -71,6 +71,22 @@ export function ProfileScreen() {
           />
           <Divider />
           <List.Item
+            title="Scan Prescription"
+            description="OCR medicine extraction"
+            left={(props) => <List.Icon {...props} icon="camera-document" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/ocr')}
+          />
+          <Divider />
+          <List.Item
+            title="Notifications"
+            description="View your notifications"
+            left={(props) => <List.Icon {...props} icon="bell-outline" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/notifications')}
+          />
+          <Divider />
+          <List.Item
             title="Payment History"
             description="View your payments"
             left={(props) => <List.Icon {...props} icon="credit-card-clock-outline" />}
