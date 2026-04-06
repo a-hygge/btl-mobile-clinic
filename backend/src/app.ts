@@ -11,6 +11,8 @@ import { reviewsRouter } from './modules/reviews/review.routes';
 import { schedulesRouter } from './modules/schedules/schedule.routes';
 import { specialtyRouter } from './modules/specialties/specialty.routes';
 import { usersRoutes } from './modules/users/users.routes';
+import { aiRoutes } from './modules/ai/ai.routes';
+import { healthMetricsRouter } from './modules/health/health.routes';
 
 const app = express();
 
@@ -32,13 +34,13 @@ app.use('/api/v1/specialties', specialtyRouter);
 app.use('/api/v1/appointments', appointmentsRouter);
 app.use('/api/v1/schedules', schedulesRouter);
 app.use('/api/v1/reviews', reviewsRouter);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/health-metrics', healthMetricsRouter);
 
 // API Routes - remaining modules will be mounted incrementally
 // app.use('/api/v1/payments', paymentRoutes);
-// app.use('/api/v1/health-metrics', healthRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
 // app.use('/api/v1/prescriptions', prescriptionRoutes);
-// app.use('/api/v1/ai', aiRoutes);
 // app.use('/api/v1/admin', adminRoutes);
 
 // Error handler (must be last)

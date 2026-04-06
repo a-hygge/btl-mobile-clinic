@@ -32,12 +32,19 @@ export default function AppLayout() {
         <Label>Appointments</Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="chat">
+        <Icon sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }} />
+        <Label>AI Chat</Label>
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: 'person', selected: 'person.fill' }} />
         <Label>Profile</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="doctors/[id]" hidden />
+      <NativeTabs.Trigger name="chat-history" hidden />
+      <NativeTabs.Trigger name="health" hidden />
     </NativeTabs>
   );
 }
