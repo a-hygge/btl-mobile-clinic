@@ -50,6 +50,8 @@ export default function AppLayout() {
       <NativeTabs.Trigger name="payment-history" hidden />
       <NativeTabs.Trigger name="ocr" hidden />
       <NativeTabs.Trigger name="notifications" hidden />
+      <NativeTabs.Trigger name="appointment-detail" hidden />
+      <NativeTabs.Trigger name="review" hidden />
     </NativeTabs>
   );
 }
