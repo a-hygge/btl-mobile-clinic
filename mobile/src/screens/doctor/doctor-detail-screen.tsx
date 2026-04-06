@@ -117,11 +117,11 @@ function StarRating({ rating, reviewCount }: { rating: number; reviewCount: numb
   return (
     <View style={styles.starsRow}>
       {Array.from({ length: fullStars }).map((_, i) => (
-        <MaterialCommunityIcons key={`full-${i}`} name="star" size={18} color="#FFC107" />
+        <MaterialCommunityIcons key={`full-${i}`} name="star" size={18} color="#FF9500" />
       ))}
-      {halfStar && <MaterialCommunityIcons name="star-half-full" size={18} color="#FFC107" />}
+      {halfStar && <MaterialCommunityIcons name="star-half-full" size={18} color="#FF9500" />}
       {Array.from({ length: emptyStars }).map((_, i) => (
-        <MaterialCommunityIcons key={`empty-${i}`} name="star-outline" size={18} color="#FFC107" />
+        <MaterialCommunityIcons key={`empty-${i}`} name="star-outline" size={18} color="#FF9500" />
       ))}
       <Text variant="bodySmall" style={styles.reviewText}>
         {rating.toFixed(1)} ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
@@ -227,7 +227,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
       {/* ---- Gradient header ---- */}
       <AnimatedSection index={0}>
         <LinearGradient
-          colors={['#2196F3', '#1565C0']}
+          colors={['#007AFF', '#0051D5']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientHeader}
@@ -331,7 +331,7 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
       {/* ---- Book button ---- */}
       <AnimatedSection index={4}>
         <LinearGradient
-          colors={['#2196F3', '#1976D2']}
+          colors={['#007AFF', '#0051D5']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.bookGradient}
