@@ -17,6 +17,7 @@ import { adminRouter } from './modules/admin/admin.routes';
 import { paymentRoutes } from './modules/payments/payment.routes';
 import { prescriptionRoutes } from './modules/prescriptions/prescription.routes';
 import { notificationRoutes } from './modules/notifications/notification.routes';
+import { NotificationScheduler } from './modules/notifications/notification.scheduler';
 
 const app = express();
 
@@ -56,6 +57,8 @@ async function main() {
   try {
     await prisma.$connect();
     console.log('Database connected');
+
+    NotificationScheduler.start();
 
     app.listen(env.PORT, () => {
       console.log(`Server running on http://localhost:${env.PORT}`);
