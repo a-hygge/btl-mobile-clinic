@@ -40,6 +40,6 @@ export function ScreenContainer({
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1 },
-  content: { paddingBottom: 120 },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingBottom: 120, backgroundColor: 'transparent' },
 });

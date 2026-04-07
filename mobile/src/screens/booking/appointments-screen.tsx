@@ -16,6 +16,7 @@ import {
   GradientHeader,
   ScreenContainer,
   StatusBadge,
+  TabSwitcher,
 } from '../../components/shared';
 import { formatDate, getCountdown } from '../../utils/format';
 import { theme, systemColors } from '../../constants/theme';
@@ -38,137 +39,6 @@ function isPast(appointment: Appointment): boolean {
 // ---------------------------------------------------------------------------
 
 type TabKey = 'upcoming' | 'past';
-
-interface TabSwitcherProps {
-  activeTab: TabKey;
-  onTabChange: (tab: TabKey) => void;
-  upcomingCount: number;
-  pastCount: number;
-}
-
-function TabSwitcher({ activeTab, onTabChange, upcomingCount, pastCount }: TabSwitcherProps) {
-  return (
-    <View style={tabStyles.container}>
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => onTabChange('upcoming')}
-        style={[tabStyles.tab, activeTab === 'upcoming' && tabStyles.tabActive]}
-      >
-        <Text
-          style={[tabStyles.tabText, activeTab === 'upcoming' && tabStyles.tabTextActive]}
-        >
-          Upcoming
-        </Text>
-        {upcomingCount > 0 && (
-          <View
-            style={[
-              tabStyles.countBadge,
-              {
-                backgroundColor:
-                  activeTab === 'upcoming' ? '#fff' : systemColors.blue + '18',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                tabStyles.countText,
-                {
-                  color:
-                    activeTab === 'upcoming' ? systemColors.blue : systemColors.blue,
-                },
-              ]}
-            >
-              {upcomingCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => onTabChange('past')}
-        style={[tabStyles.tab, activeTab === 'past' && tabStyles.tabActive]}
-      >
-        <Text
-          style={[tabStyles.tabText, activeTab === 'past' && tabStyles.tabTextActive]}
-        >
-          Past
-        </Text>
-        {pastCount > 0 && (
-          <View
-            style={[
-              tabStyles.countBadge,
-              {
-                backgroundColor:
-                  activeTab === 'past' ? '#fff' : systemColors.gray + '18',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                tabStyles.countText,
-                {
-                  color:
-                    activeTab === 'past' ? systemColors.blue : systemColors.gray,
-                },
-              ]}
-            >
-              {pastCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const tabStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 6,
-    backgroundColor: systemColors.gray5,
-    borderRadius: 14,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 11,
-  },
-  tabActive: {
-    backgroundColor: systemColors.blue,
-    shadowColor: systemColors.blue,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: systemColors.gray,
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  countBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  countText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
 
 // ---------------------------------------------------------------------------
 // Appointment Card
@@ -400,11 +270,13 @@ export function AppointmentsScreen() {
       />
 
       {/* Tab Switcher */}
-      <TabSwitcher
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        upcomingCount={upcomingAppointments.length}
-        pastCount={pastAppointments.length}
+      <TabSwitcher<TabKey>
+        tabs={[
+          { value: 'upcoming', label: 'Upcoming', badge: upcomingAppointments.length || undefined },
+          { value: 'past', label: 'Past', badge: pastAppointments.length || undefined },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
       />
 
       {/* Content */}

@@ -4,3 +4,4 @@ export { SectionTitle } from './SectionTitle';
 export { ScreenContainer } from './ScreenContainer';
 export { StatusBadge } from './StatusBadge';
 export { EmptyState } from './EmptyState';
+export { TabSwitcher, type TabItem } from './TabSwitcher';
