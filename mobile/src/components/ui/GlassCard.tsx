@@ -1,43 +1,23 @@
 /**
  * GlassCard - iOS 26 Liquid Glass with native GlassView
- *
- * Based on a working production implementation:
- * - Uses 'clear' glass style by default (more transparent, more visible)
- * - borderRadius + overflow: 'hidden' for proper clipping
- * - Conditional require to gracefully handle missing module
  */
 import React from 'react';
 import { Platform, StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
-// Conditionally import GlassView for iOS 26+
-let GlassView: React.ComponentType<{
-  style?: object;
-  glassEffectStyle?: 'clear' | 'regular';
-  tintColor?: string;
-  isInteractive?: boolean;
-  children?: React.ReactNode;
-}> | null = null;
-
-let isLiquidGlassAvailableFn: (() => boolean) | null = null;
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const glassEffect = require('expo-glass-effect');
-  GlassView = glassEffect.GlassView;
-  isLiquidGlassAvailableFn = glassEffect.isLiquidGlassAvailable;
-} catch {
-  // expo-glass-effect not available
-}
-
-function useNativeGlass(): boolean {
+const CAN_USE_GLASS = (() => {
   if (Platform.OS !== 'ios') return false;
-  if (!GlassView || !isLiquidGlassAvailableFn) return false;
   try {
-    return isLiquidGlassAvailableFn();
-  } catch {
+    const ok = isLiquidGlassAvailable();
+    // eslint-disable-next-line no-console
+    console.log('[GlassCard] isLiquidGlassAvailable:', ok, 'GlassView:', typeof GlassView);
+    return ok;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.log('[GlassCard] isLiquidGlassAvailable threw:', e);
     return false;
   }
-}
+})();
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -57,10 +37,7 @@ export function GlassCard({
   tintColor,
   interactive = false,
 }: GlassCardProps) {
-  const canUseNativeGlass = useNativeGlass();
-
-  // Native iOS 26+ Liquid Glass
-  if (canUseNativeGlass && GlassView) {
+  if (CAN_USE_GLASS) {
     return (
       <GlassView
         style={[styles.glass, style]}
@@ -73,7 +50,6 @@ export function GlassCard({
     );
   }
 
-  // Fallback for Android / older iOS
   return (
     <View style={[styles.fallback, style]}>
       {children}
