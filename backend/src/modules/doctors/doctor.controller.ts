@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { sendSuccess } from '@utils/api-response';
 import { paginationSchema } from '@utils/pagination';
-import { getDoctorById, listDoctorSlots, listDoctors } from './doctor.service';
+import { getDoctorById, getDoctorReviews, listDoctorSlots, listDoctors } from './doctor.service';
 
 const listQuerySchema = paginationSchema.extend({
   q: z.string().trim().optional(),
@@ -17,6 +17,11 @@ const paramsSchema = z.object({
 
 const slotsQuerySchema = z.object({
   date: z.string().trim().optional(),
+});
+
+const reviewsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 export async function getDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -45,6 +50,26 @@ export async function getDoctorSlots(req: Request, res: Response, next: NextFunc
     const query = slotsQuerySchema.parse(req.query);
     const slots = await listDoctorSlots({ id, date: query.date });
     sendSuccess(res, slots);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDoctorReviewsList(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = paramsSchema.parse(req.params);
+    const query = reviewsQuerySchema.parse(req.query);
+    const result = await getDoctorReviews(id, query);
+    sendSuccess(
+      res,
+      { items: result.items, stats: result.stats },
+      200,
+      result.meta
+    );
   } catch (error) {
     next(error);
   }

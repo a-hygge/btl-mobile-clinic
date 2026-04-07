@@ -1,6 +1,6 @@
 import { prisma } from '@config/database';
 import { AppError } from '@utils/app-error';
-import { getSkipTake, paginationSchema, type PaginationQuery } from '@utils/pagination';
+import { getPaginationMeta, getSkipTake, paginationSchema, type PaginationQuery } from '@utils/pagination';
 import { mapDoctorToDetailDto, mapDoctorToListItemDto, mapTimeSlotToDto, type DoctorDetailDto, type DoctorListItemDto, type DoctorSlotDto } from './doctor.dto';
 
 export interface ListDoctorsInput extends PaginationQuery {
@@ -182,4 +182,114 @@ export async function listDoctorSlots(input: ListDoctorSlotsInput): Promise<Doct
   });
 
   return slots.map(mapTimeSlotToDto);
+}
+
+export interface DoctorReviewDto {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  patient: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+}
+
+export interface DoctorRatingStats {
+  averageRating: number;
+  totalReviews: number;
+  distribution: Record<1 | 2 | 3 | 4 | 5, number>;
+}
+
+export interface ListDoctorReviewsResult {
+  items: DoctorReviewDto[];
+  stats: DoctorRatingStats;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function getDoctorRatingStats(doctorId: string): Promise<DoctorRatingStats> {
+  const [groups, aggregate] = await Promise.all([
+    prisma.review.groupBy({
+      by: ['rating'],
+      where: { doctorId },
+      _count: { rating: true },
+    }),
+    prisma.review.aggregate({
+      where: { doctorId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
+  ]);
+
+  const distribution: Record<1 | 2 | 3 | 4 | 5, number> = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  for (const group of groups) {
+    const rating = group.rating as 1 | 2 | 3 | 4 | 5;
+    if (rating >= 1 && rating <= 5) {
+      distribution[rating] = group._count.rating;
+    }
+  }
+
+  return {
+    averageRating: Number(aggregate._avg.rating ?? 0),
+    totalReviews: aggregate._count.rating,
+    distribution,
+  };
+}
+
+export async function getDoctorReviews(
+  doctorId: string,
+  query: { page: number; limit: number }
+): Promise<ListDoctorReviewsResult> {
+  const doctor = await prisma.doctor.findFirst({
+    where: { id: doctorId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (!doctor) {
+    throw AppError.notFound('Doctor not found');
+  }
+
+  const where = { doctorId };
+
+  const [items, total, stats] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      include: {
+        patient: { select: { id: true, name: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      ...getSkipTake(query.page, query.limit),
+    }),
+    prisma.review.count({ where }),
+    getDoctorRatingStats(doctorId),
+  ]);
+
+  return {
+    items: items.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt.toISOString(),
+      patient: {
+        id: review.patient.id,
+        name: review.patient.name,
+        avatarUrl: review.patient.avatarUrl,
+      },
+    })),
+    stats,
+    meta: getPaginationMeta(query.page, query.limit, total),
+  };
 }
