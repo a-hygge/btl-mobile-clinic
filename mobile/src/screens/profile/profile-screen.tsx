@@ -67,6 +67,14 @@ export function ProfileScreen() {
       <GlassCard style={styles.card}>
         <View>
           <List.Item
+            title="Medical History"
+            description="Your completed visits"
+            left={(props) => <List.Icon {...props} icon="history" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => router.push('/medical-history')}
+          />
+          <Divider />
+          <List.Item
             title="Health Tracking"
             description="Monitor your vitals"
             left={(props) => <List.Icon {...props} icon="heart-pulse" />}

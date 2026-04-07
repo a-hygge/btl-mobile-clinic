@@ -404,12 +404,45 @@ export function HomeScreen() {
         </View>
       </FadeInView>
 
+      {/* Find a doctor CTA */}
+      <FadeInView delay={350}>
+        <View style={styles.findDoctorWrap}>
+          <Pressable onPress={() => router.push('/doctor-search' as never)}>
+            <LinearGradient
+              colors={['#007AFF', '#5856D6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.findDoctorCard}
+            >
+              <View style={styles.findDoctorIcon}>
+                <MaterialCommunityIcons
+                  name="doctor"
+                  size={24}
+                  color="#fff"
+                />
+              </View>
+              <View style={styles.findDoctorText}>
+                <Text style={styles.findDoctorTitle}>Find a doctor</Text>
+                <Text style={styles.findDoctorSubtitle}>
+                  Search by name, specialty, or rating
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name="magnify"
+                size={22}
+                color="rgba(255,255,255,0.9)"
+              />
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </FadeInView>
+
       {/* Top Doctors */}
       <FadeInView delay={400}>
         <View style={{ marginTop: 24 }}>
           <SectionTitle
             title="Top Doctors"
-            action={{ label: 'See all', onPress: () => router.push('/doctors' as never) }}
+            action={{ label: 'See all', onPress: () => router.push('/doctor-search' as never) }}
           />
         </View>
         <View style={styles.section}>
@@ -689,6 +722,41 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: systemColors.gray,
+  },
+
+  /* -- Find a doctor CTA -- */
+  findDoctorWrap: {
+    marginTop: 24,
+    marginHorizontal: 16,
+  },
+  findDoctorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+  },
+  findDoctorIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  findDoctorText: {
+    flex: 1,
+  },
+  findDoctorTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  findDoctorSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
   },
 
   /* -- Sections -- */

@@ -42,6 +42,7 @@ export default function AppLayout() {
         <Label>Profile</Label>
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="doctor-search" hidden />
       <NativeTabs.Trigger name="doctor-home" hidden />
       <NativeTabs.Trigger name="doctor-schedule" hidden />
       <NativeTabs.Trigger name="doctors/[id]" hidden />
@@ -55,6 +56,8 @@ export default function AppLayout() {
       <NativeTabs.Trigger name="appointment-detail" hidden />
       <NativeTabs.Trigger name="review" hidden />
       <NativeTabs.Trigger name="edit-profile" hidden />
+      <NativeTabs.Trigger name="reschedule" hidden />
+      <NativeTabs.Trigger name="medical-history" hidden />
     </NativeTabs>
   );
 }
