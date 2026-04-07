@@ -53,3 +53,11 @@ export async function cancelAppointment(id: string): Promise<Appointment> {
   const response = await api.put(`/appointments/${id}/cancel`);
   return extractData<Appointment>(response);
 }
+
+export async function rescheduleAppointment(
+  id: string,
+  input: { date: string; startTime: string }
+): Promise<Appointment> {
+  const response = await api.put(`/appointments/${id}/reschedule`, input);
+  return extractData<Appointment>(response);
+}

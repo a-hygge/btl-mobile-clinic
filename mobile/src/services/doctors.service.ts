@@ -55,3 +55,33 @@ export async function getDoctorSlots(id: string, date?: string): Promise<DoctorS
   });
   return extractData<DoctorSlot[]>(response);
 }
+
+export interface DoctorReviewItem {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  patient: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+}
+
+export interface DoctorRatingStats {
+  averageRating: number;
+  totalReviews: number;
+  distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
+}
+
+export interface DoctorReviewsPayload {
+  items: DoctorReviewItem[];
+  stats: DoctorRatingStats;
+}
+
+export async function getDoctorReviews(id: string, page = 1) {
+  const response = await api.get(`/doctors/${id}/reviews`, {
+    params: { page, limit: 10 },
+  });
+  return extractPaginatedData<DoctorReviewsPayload>(response);
+}
