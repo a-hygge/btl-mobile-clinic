@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Animated,
   Dimensions,
   Modal,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -15,16 +13,13 @@ import {
   Button,
   Chip,
   FAB,
-  IconButton,
   Text,
   TextInput,
 } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
   getMyMetrics,
@@ -70,27 +65,7 @@ const TIP_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = 
   sleep: 'sleep',
 };
 
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 500,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [delay, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
 export function HealthScreen() {
-  const insets = useSafeAreaInsets();
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
   const [tips, setTips] = useState<HealthTip[]>([]);
@@ -182,29 +157,14 @@ export function HealthScreen() {
   }
 
   return (
-    <ScreenBackground>
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={[systemColors.blue, '#5856D6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 16 }]}
-        >
-          <View style={styles.headerContent}>
-            <MaterialCommunityIcons name="heart-pulse" size={32} color="#fff" />
-            <Text variant="headlineMedium" style={styles.headerTitle}>
-              My Health
-            </Text>
-            <Text variant="bodyMedium" style={styles.headerSubtitle}>
-              Track your vitals and stay healthy
-            </Text>
-          </View>
-        </LinearGradient>
+    <>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
+      {/* Gradient Header */}
+      <GradientHeader
+        title="My Health"
+        subtitle="Track your vitals and stay healthy"
+        colors={[systemColors.blue, '#5856D6']}
+      />
 
         {/* Quick Stats */}
         <FadeInView delay={100}>
@@ -380,8 +340,7 @@ export function HealthScreen() {
           </FadeInView>
         )}
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+    </ScreenContainer>
 
       {/* Floating Action Button */}
       <FAB
@@ -483,41 +442,16 @@ export function HealthScreen() {
           </View>
         </View>
       </Modal>
-    </View>
-    </ScreenBackground>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.background,
-  },
-  // Header
-  header: {
-    paddingBottom: 32,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerContent: {
-    gap: 4,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
   },
   // Quick Stats
   statsRow: {

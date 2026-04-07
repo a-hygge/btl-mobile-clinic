@@ -1,58 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-  Animated,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button, Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import {
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  ScreenContainer,
+  StatusBadge,
+} from '../../components/shared';
+import { formatDate, getCountdown } from '../../utils/format';
 import { theme, systemColors } from '../../constants/theme';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const STATUS_CONFIG: Record<
-  string,
-  { color: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }
-> = {
-  PENDING: { color: systemColors.orange, icon: 'clock-outline', label: 'Pending' },
-  CONFIRMED: { color: systemColors.blue, icon: 'check-circle-outline', label: 'Confirmed' },
-  COMPLETED: { color: systemColors.green, icon: 'check-decagram', label: 'Completed' },
-  CANCELED: { color: systemColors.red, icon: 'close-circle-outline', label: 'Canceled' },
-};
-
-function formatDate(value?: string): string {
-  if (!value) return '';
-  return new Date(value).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
-function getCountdown(dateStr?: string, timeStr?: string): string {
-  if (!dateStr || !timeStr) return '';
-  const apptDate = new Date(`${dateStr}T${timeStr}`);
-  const now = new Date();
-  const diffMs = apptDate.getTime() - now.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays < 0) return '';
-  if (diffDays === 0) return `Today at ${timeStr}`;
-  if (diffDays === 1) return `Tomorrow at ${timeStr}`;
-  return `In ${diffDays} days`;
-}
 
 function isUpcoming(appointment: Appointment): boolean {
   return appointment.status === 'PENDING' || appointment.status === 'CONFIRMED';
@@ -61,58 +32,6 @@ function isUpcoming(appointment: Appointment): boolean {
 function isPast(appointment: Appointment): boolean {
   return appointment.status === 'COMPLETED' || appointment.status === 'CANCELED';
 }
-
-// ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const translateY = useRef(new Animated.Value(16)).current;
-
-  useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 400,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [delay, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Status Badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.PENDING;
-  return (
-    <View style={[badgeStyles.badge, { backgroundColor: cfg.color + '18' }]}>
-      <MaterialCommunityIcons name={cfg.icon} size={14} color={cfg.color} />
-      <Text style={[badgeStyles.text, { color: cfg.color }]}>{cfg.label}</Text>
-    </View>
-  );
-}
-
-const badgeStyles = StyleSheet.create({
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  text: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
 
 // ---------------------------------------------------------------------------
 // Tab Switcher
@@ -262,9 +181,10 @@ interface AppointmentCardProps {
 }
 
 function AppointmentCard({ appointment, showCountdown, delay = 0 }: AppointmentCardProps) {
-  const countdown = showCountdown
-    ? getCountdown(appointment.timeSlot?.date, appointment.timeSlot?.startTime)
-    : '';
+  const slotDate = appointment.timeSlot?.date;
+  const slotStart = appointment.timeSlot?.startTime;
+  const countdown =
+    showCountdown && slotDate && slotStart ? getCountdown(slotDate, slotStart) : '';
 
   return (
     <FadeInView delay={delay}>
@@ -429,75 +349,10 @@ const cardStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------------
-// Empty State
-// ---------------------------------------------------------------------------
-
-interface EmptyStateProps {
-  tab: TabKey;
-}
-
-function EmptyState({ tab }: EmptyStateProps) {
-  return (
-    <View style={emptyStyles.container}>
-      <MaterialCommunityIcons
-        name={tab === 'upcoming' ? 'calendar-blank-outline' : 'history'}
-        size={48}
-        color={systemColors.gray3}
-      />
-      <Text style={emptyStyles.title}>
-        {tab === 'upcoming' ? 'No upcoming appointments' : 'No past appointments'}
-      </Text>
-      <Text style={emptyStyles.caption}>
-        {tab === 'upcoming'
-          ? 'Book an appointment to get started.'
-          : 'Your completed and canceled appointments will appear here.'}
-      </Text>
-      {tab === 'upcoming' && (
-        <Button
-          mode="contained"
-          onPress={() => router.push('/booking')}
-          buttonColor={systemColors.blue}
-          textColor="#fff"
-          icon="calendar-plus"
-          style={emptyStyles.bookBtn}
-        >
-          Book Now
-        </Button>
-      )}
-    </View>
-  );
-}
-
-const emptyStyles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingVertical: 56,
-    paddingHorizontal: 32,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginTop: 12,
-  },
-  caption: {
-    fontSize: 14,
-    color: systemColors.gray,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  bookBtn: {
-    marginTop: 16,
-    borderRadius: 12,
-  },
-});
-
-// ---------------------------------------------------------------------------
 // Main Screen
 // ---------------------------------------------------------------------------
 
 export function AppointmentsScreen() {
-  const insets = useSafeAreaInsets();
   const { appointments, isLoading, reload } = useMyAppointments();
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
@@ -532,27 +387,17 @@ export function AppointmentsScreen() {
   }, [reload]);
 
   return (
-    <ScreenBackground>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={styles.content}
+    <ScreenContainer
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
     >
       {/* Header */}
-      <LinearGradient
+      <GradientHeader
+        title="My Appointments"
+        subtitle={`${appointments.length} total \u2022 ${upcomingAppointments.length} upcoming`}
         colors={[systemColors.orange, '#C93400']}
-        style={[styles.hero, { paddingTop: insets.top + 16 }]}
-      >
-        <Text style={styles.heroTitle}>My Appointments</Text>
-        <Text style={styles.heroSub}>
-          {appointments.length} total
-          {' \u2022 '}
-          {upcomingAppointments.length} upcoming
-        </Text>
-      </LinearGradient>
+      />
 
       {/* Tab Switcher */}
       <TabSwitcher
@@ -573,7 +418,22 @@ export function AppointmentsScreen() {
           />
         </View>
       ) : displayedAppointments.length === 0 ? (
-        <EmptyState tab={activeTab} />
+        <EmptyState
+          icon={activeTab === 'upcoming' ? 'calendar-blank-outline' : 'history'}
+          title={
+            activeTab === 'upcoming' ? 'No upcoming appointments' : 'No past appointments'
+          }
+          message={
+            activeTab === 'upcoming'
+              ? 'Book an appointment to get started.'
+              : 'Your completed and canceled appointments will appear here.'
+          }
+          action={
+            activeTab === 'upcoming'
+              ? { label: 'Book Now', onPress: () => router.push('/booking') }
+              : undefined
+          }
+        />
       ) : (
         <View style={styles.cardList}>
           {displayedAppointments.map((appt, i) => (
@@ -586,8 +446,7 @@ export function AppointmentsScreen() {
           ))}
         </View>
       )}
-    </ScrollView>
-    </ScreenBackground>
+    </ScreenContainer>
   );
 }
 
@@ -596,28 +455,6 @@ export function AppointmentsScreen() {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 120,
-  },
-  hero: {
-    paddingBottom: 18,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    gap: 2,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
   center: {
     alignItems: 'center',
     paddingVertical: 56,

@@ -1,21 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Image,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Button, Snackbar, Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
 import { theme, systemColors } from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import { cancelAppointment } from '../../services/appointments.service';
@@ -87,35 +83,6 @@ function formatShortDate(value?: string): string {
     month: 'short',
     year: 'numeric',
   });
-}
-
-// ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({
-  delay = 0,
-  children,
-}: {
-  delay?: number;
-  children: React.ReactNode;
-}) {
-  const translateY = useRef(new Animated.Value(16)).current;
-
-  useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 400,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [delay, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -304,37 +271,26 @@ export function AppointmentDetailScreen({
     appointment.status === 'COMPLETED' && !review;
 
   return (
-    <ScreenBackground>
-    <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+    <>
+    <ScreenContainer
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <GradientHeader
+        title="Appointment Details"
+        colors={[systemColors.blue, '#0055CC']}
+        leftSlot={
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={28} color="#fff" />
+          </TouchableOpacity>
         }
-      >
-        {/* Header */}
-        <LinearGradient
-          colors={[systemColors.blue, '#0055CC']}
-          style={[styles.header, { paddingTop: insets.top + 8 }]}
-        >
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backBtn}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name="chevron-left"
-                size={28}
-                color="#fff"
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Appointment Details</Text>
-            <View style={styles.backBtn} />
-          </View>
-        </LinearGradient>
+      />
 
         {/* Status Banner */}
         <FadeInView delay={0}>
@@ -702,8 +658,7 @@ export function AppointmentDetailScreen({
             </View>
           </FadeInView>
         </View>
-      </ScrollView>
-
+      </ScreenContainer>
       <Snackbar
         visible={Boolean(notice)}
         onDismiss={() => setNotice('')}
@@ -711,8 +666,7 @@ export function AppointmentDetailScreen({
       >
         {notice}
       </Snackbar>
-    </View>
-    </ScreenBackground>
+    </>
   );
 }
 
@@ -721,15 +675,6 @@ export function AppointmentDetailScreen({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 120,
-  },
   loadingContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -742,26 +687,12 @@ const styles = StyleSheet.create({
     color: systemColors.gray,
     marginTop: 12,
   },
-  header: {
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
   },
   statusBanner: {
     flexDirection: 'row',

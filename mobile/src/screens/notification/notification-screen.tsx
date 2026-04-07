@@ -1,21 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import {
-  ActivityIndicator,
-  Button,
-  Text,
-} from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Button, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { EmptyState } from '../../components/ui/EmptyState';
+import {
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  ScreenContainer,
+} from '../../components/shared';
 import { systemColors, spacing, theme } from '../../constants/theme';
 import {
   getMyNotifications,
@@ -24,25 +17,6 @@ import {
   type Notification,
   type NotificationType,
 } from '../../services/notification.service';
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 500,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [delay, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
 
 const NOTIFICATION_ICONS: Record<NotificationType, keyof typeof MaterialCommunityIcons.glyphMap> = {
   APPOINTMENT_REMINDER: 'calendar-clock',
@@ -140,52 +114,38 @@ export function NotificationScreen() {
   }
 
   return (
-    <ScreenBackground>
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={['#FF9500', '#C93400']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <View style={styles.headerRow}>
-            <View style={styles.headerTextContainer}>
-              <MaterialCommunityIcons name="bell" size={32} color="#fff" />
-              <Text variant="headlineMedium" style={styles.headerTitle}>
-                Notifications
-              </Text>
-              {unreadCount > 0 && (
-                <Text variant="bodyMedium" style={styles.headerSubtitle}>
-                  {unreadCount} unread
-                </Text>
-              )}
-            </View>
-            {unreadCount > 0 && (
-              <Button
-                mode="contained"
-                onPress={handleMarkAllAsRead}
-                loading={markingAll}
-                disabled={markingAll}
-                compact
-                style={styles.markAllBtn}
-                buttonColor="rgba(255,255,255,0.25)"
-                textColor="#fff"
-              >
-                Read All
-              </Button>
-            )}
-          </View>
-        </LinearGradient>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
+      {/* Gradient Header */}
+      <GradientHeader
+        title="Notifications"
+        subtitle={unreadCount > 0 ? `${unreadCount} unread` : undefined}
+        colors={['#FF9500', '#C93400']}
+        rightSlot={
+          unreadCount > 0 ? (
+            <Button
+              mode="contained"
+              onPress={handleMarkAllAsRead}
+              loading={markingAll}
+              disabled={markingAll}
+              compact
+              style={styles.markAllBtn}
+              buttonColor="rgba(255,255,255,0.25)"
+              textColor="#fff"
+            >
+              Read All
+            </Button>
+          ) : undefined
+        }
+      />
 
-        {/* Notification List */}
-        {notifications.length === 0 ? (
-          <EmptyState message="No notifications yet. You'll see updates about appointments, reminders, and more here." />
-        ) : (
+      {/* Notification List */}
+      {notifications.length === 0 ? (
+        <EmptyState
+          icon="bell-off-outline"
+          title="No notifications"
+          message="You'll see updates about appointments, reminders, and more here."
+        />
+      ) : (
           <View style={styles.listContainer}>
             {notifications.map((notification, index) => (
               <FadeInView key={notification.id} delay={index * 60}>
@@ -245,51 +205,16 @@ export function NotificationScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-    </View>
-    </ScreenBackground>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-    flexGrow: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.background,
-  },
-  // Header
-  header: {
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  headerTextContainer: {
-    gap: 4,
-    flex: 1,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
   },
   markAllBtn: {
     borderRadius: 20,

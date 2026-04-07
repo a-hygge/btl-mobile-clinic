@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Animated,
   FlatList,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -18,7 +15,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { useDoctors } from '../../hooks/use-doctors';
 import { theme, systemColors } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { FadeInView, ScreenContainer, SectionTitle } from '../../components/shared';
 import { api, extractData, extractPaginatedData } from '../../services/api';
 import type { Appointment, Specialty } from '../../types';
 
@@ -51,29 +48,6 @@ const SPECIALTY_COLORS: Record<string, string> = {
   'Rang Ham Mat': systemColors.blue,
   'Phu san': '#E91E63',
 };
-
-// ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 500,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [delay, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -362,14 +336,7 @@ export function HomeScreen() {
   // -----------------------------------------------------------------------
 
   return (
-    <ScreenBackground>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
-      }
-    >
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       {/* Gradient Header */}
       <LinearGradient
         colors={['#007AFF', '#0051D5']}
@@ -439,14 +406,13 @@ export function HomeScreen() {
 
       {/* Top Doctors */}
       <FadeInView delay={400}>
+        <View style={{ marginTop: 24 }}>
+          <SectionTitle
+            title="Top Doctors"
+            action={{ label: 'See all', onPress: () => router.push('/doctors' as never) }}
+          />
+        </View>
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Doctors</Text>
-            <Pressable onPress={() => router.push('/doctors' as never)}>
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
-          </View>
-
           {doctorsLoading ? (
             <View style={styles.loadingWrap}>
               <LottieView
@@ -525,8 +491,7 @@ export function HomeScreen() {
           )}
         </View>
       </FadeInView>
-    </ScrollView>
-    </ScreenBackground>
+    </ScreenContainer>
   );
 }
 

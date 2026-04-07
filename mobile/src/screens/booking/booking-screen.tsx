@@ -12,6 +12,7 @@ import {
 import { Button, RadioButton, Snackbar, Text, TextInput } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { getErrorMessage } from '../../utils/format';
 import { router, useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -43,14 +44,6 @@ function formatDate(dateStr: string): string {
     month: 'long',
     day: 'numeric',
   });
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const resp = (error as { response?: { data?: { error?: { message?: string } } } }).response;
-    return resp?.data?.error?.message ?? 'Something went wrong.';
-  }
-  return 'Something went wrong.';
 }
 
 // ---------------------------------------------------------------------------

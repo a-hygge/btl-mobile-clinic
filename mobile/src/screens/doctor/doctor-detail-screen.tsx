@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { FadeInView, ScreenContainer } from '../../components/shared';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -133,36 +133,6 @@ function StarRating({ rating, reviewCount }: { rating: number; reviewCount: numb
 }
 
 /* ------------------------------------------------------------------ */
-/*  Animated section wrapper                                          */
-/* ------------------------------------------------------------------ */
-
-function AnimatedSection({
-  index,
-  children,
-}: {
-  index: number;
-  children: React.ReactNode;
-}) {
-  const translateY = useRef(new Animated.Value(24)).current;
-
-  useEffect(() => {
-    const delay = index * STAGGER_DELAY;
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 450,
-      delay,
-      useNativeDriver: true,
-    }).start();
-  }, [index, translateY]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Main screen                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -217,10 +187,9 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
   const reviews = doctor.totalReviews ?? 0;
 
   return (
-    <ScreenBackground>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+    <ScreenContainer contentStyle={styles.content}>
       {/* ---- Gradient header ---- */}
-      <AnimatedSection index={0}>
+      <FadeInView delay={0 * STAGGER_DELAY} duration={450} distance={24}>
         <LinearGradient
           colors={['#007AFF', '#0051D5']}
           start={{ x: 0, y: 0 }}
@@ -263,19 +232,19 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             </View>
           </View>
         </LinearGradient>
-      </AnimatedSection>
+      </FadeInView>
 
       {/* ---- Rating ---- */}
-      <AnimatedSection index={1}>
+      <FadeInView delay={1 * STAGGER_DELAY} duration={450} distance={24}>
         <GlassCard style={styles.card}>
           <View style={styles.cardContent}>
             <StarRating rating={rating} reviewCount={reviews} />
           </View>
         </GlassCard>
-      </AnimatedSection>
+      </FadeInView>
 
       {/* ---- About ---- */}
-      <AnimatedSection index={2}>
+      <FadeInView delay={2 * STAGGER_DELAY} duration={450} distance={24}>
         <GlassCard style={styles.card}>
           <View style={styles.cardContent}>
             <View style={styles.sectionTitleRow}>
@@ -291,11 +260,11 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             </Text>
           </View>
         </GlassCard>
-      </AnimatedSection>
+      </FadeInView>
 
       {/* ---- Services ---- */}
       {doctor.doctorServices && doctor.doctorServices.length > 0 && (
-        <AnimatedSection index={3}>
+        <FadeInView delay={3 * STAGGER_DELAY} duration={450} distance={24}>
           <GlassCard style={styles.card}>
             <View style={styles.cardContent}>
               <View style={styles.sectionTitleRow}>
@@ -320,11 +289,11 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
               ))}
             </View>
           </GlassCard>
-        </AnimatedSection>
+        </FadeInView>
       )}
 
       {/* ---- Book button ---- */}
-      <AnimatedSection index={4}>
+      <FadeInView delay={4 * STAGGER_DELAY} duration={450} distance={24}>
         <LinearGradient
           colors={['#007AFF', '#0051D5']}
           start={{ x: 0, y: 0 }}
@@ -342,9 +311,8 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
             Book this specialty
           </Button>
         </LinearGradient>
-      </AnimatedSection>
-    </ScrollView>
-    </ScreenBackground>
+      </FadeInView>
+    </ScreenContainer>
   );
 }
 
