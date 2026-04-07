@@ -71,28 +71,19 @@ const TIP_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = 
 };
 
 function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: 500,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, [delay, translateY]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <Animated.View style={{ transform: [{ translateY }] }}>
       {children}
     </Animated.View>
   );

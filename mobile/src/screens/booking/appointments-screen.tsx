@@ -67,18 +67,19 @@ function isPast(appointment: Appointment): boolean {
 // ---------------------------------------------------------------------------
 
 function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 400, delay, useNativeDriver: true }),
-    ]).start();
-  }, [delay, opacity, translateY]);
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: 400,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, [delay, translateY]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <Animated.View style={{ transform: [{ translateY }] }}>
       {children}
     </Animated.View>
   );

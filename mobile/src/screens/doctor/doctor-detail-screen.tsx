@@ -143,29 +143,20 @@ function AnimatedSection({
   index: number;
   children: React.ReactNode;
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(24)).current;
 
   useEffect(() => {
     const delay = index * STAGGER_DELAY;
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 450,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 450,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [index, opacity, translateY]);
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: 450,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, [index, translateY]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <Animated.View style={{ transform: [{ translateY }] }}>
       {children}
     </Animated.View>
   );

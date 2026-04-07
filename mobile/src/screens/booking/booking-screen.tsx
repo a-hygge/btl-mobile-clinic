@@ -110,36 +110,25 @@ interface FadeInViewProps {
 }
 
 function FadeInView({ visible, delay = 0, children }: FadeInViewProps) {
-  const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(SLIDE_DISTANCE)).current;
 
   useEffect(() => {
     if (visible) {
-      opacity.setValue(0);
       translateY.setValue(SLIDE_DISTANCE);
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: FADE_DURATION,
-          delay,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: FADE_DURATION,
-          delay,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: FADE_DURATION,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }
-  }, [visible, delay, opacity, translateY]);
+  }, [visible, delay, translateY]);
 
   if (!visible) return null;
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <Animated.View style={{ transform: [{ translateY }] }}>
       {children}
     </Animated.View>
   );
