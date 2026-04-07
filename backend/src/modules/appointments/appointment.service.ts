@@ -8,6 +8,7 @@ import {
   AvailableSlotDto,
   CreateAppointmentInput,
   AppointmentUserContext,
+  RescheduleAppointmentInput,
 } from './appointment.types';
 
 const appointmentInclude = {
@@ -477,6 +478,104 @@ export async function confirmAppointment(
   });
 
   return mapAppointment(confirmed);
+}
+
+/**
+ * Reschedule an appointment to a new date/time.
+ * Releases the old slot and locks a new one matching the original specialty/clinic.
+ */
+export async function rescheduleAppointment(
+  userId: string,
+  appointmentId: string,
+  input: RescheduleAppointmentInput
+): Promise<AppointmentDto> {
+  const original = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      doctor: { select: { specialtyId: true, clinicId: true } },
+      timeSlot: true,
+    },
+  });
+
+  if (!original) {
+    throw AppError.notFound('Appointment not found');
+  }
+
+  if (original.patientId !== userId) {
+    throw AppError.forbidden('You can only reschedule your own appointment');
+  }
+
+  if (
+    original.status !== AppointmentStatus.PENDING &&
+    original.status !== AppointmentStatus.CONFIRMED
+  ) {
+    throw AppError.conflict('Only pending or confirmed appointments can be rescheduled');
+  }
+
+  const dateFilter = new Date(input.date + 'T00:00:00.000Z');
+  if (Number.isNaN(dateFilter.getTime())) {
+    throw AppError.badRequest('Invalid date');
+  }
+
+  if (
+    original.timeSlot.date.toISOString().slice(0, 10) === input.date &&
+    original.timeSlot.startTime === input.startTime
+  ) {
+    throw AppError.badRequest('New time is identical to current time');
+  }
+
+  // Find an available slot matching the original specialty + clinic
+  const candidateSlot = await prisma.timeSlot.findFirst({
+    where: {
+      isBooked: false,
+      date: dateFilter,
+      startTime: input.startTime,
+      doctor: {
+        status: DoctorStatus.ACTIVE,
+        deletedAt: null,
+        specialtyId: original.doctor.specialtyId,
+        ...(original.doctor.clinicId ? { clinicId: original.doctor.clinicId } : {}),
+      },
+    },
+    orderBy: {
+      doctor: { appointments: { _count: 'asc' } },
+    },
+  });
+
+  if (!candidateSlot) {
+    throw AppError.conflict('No available doctor for the selected time');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Free old slot
+    await tx.timeSlot.updateMany({
+      where: { id: original.timeSlotId, isBooked: true },
+      data: { isBooked: false },
+    });
+
+    // Lock new slot
+    const locked = await tx.timeSlot.updateMany({
+      where: { id: candidateSlot.id, isBooked: false },
+      data: { isBooked: true },
+    });
+
+    if (locked.count === 0) {
+      throw AppError.conflict('Slot was just taken, please try again');
+    }
+
+    return tx.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        timeSlotId: candidateSlot.id,
+        doctorId: candidateSlot.doctorId,
+        // Reset to PENDING after reschedule
+        status: AppointmentStatus.PENDING,
+      },
+      include: appointmentInclude,
+    });
+  });
+
+  return mapAppointment(updated);
 }
 
 export async function completeAppointment(

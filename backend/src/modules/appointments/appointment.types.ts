@@ -1,5 +1,10 @@
 import { AppointmentStatus, Role } from '@prisma/client';
 
+export interface RescheduleAppointmentInput {
+  date: string;
+  startTime: string;
+}
+
 export interface CreateAppointmentInput {
   specialtyId: string;
   clinicId?: string;

@@ -29,3 +29,8 @@ export const appointmentActionSchema = z.object({
   diagnosis: z.string().trim().max(2000).optional(),
 });
 
+export const rescheduleSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+});
+

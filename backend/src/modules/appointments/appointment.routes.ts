@@ -9,6 +9,7 @@ import {
   getAppointmentByIdController,
   getAvailableSlotsController,
   getMyAppointmentsController,
+  rescheduleAppointmentController,
 } from './appointment.controller';
 
 const asyncHandler = (handler: RequestHandler): RequestHandler => {
@@ -37,6 +38,12 @@ appointmentsRouter.put(
   authenticate,
   authorize(Role.PATIENT, Role.ADMIN),
   asyncHandler(cancelAppointmentController)
+);
+appointmentsRouter.put(
+  '/:id/reschedule',
+  authenticate,
+  authorize(Role.PATIENT, Role.ADMIN),
+  asyncHandler(rescheduleAppointmentController)
 );
 appointmentsRouter.put(
   '/:id/confirm',

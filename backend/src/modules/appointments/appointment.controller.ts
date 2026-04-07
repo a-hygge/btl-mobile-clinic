@@ -7,6 +7,7 @@ import {
   availableSlotsQuerySchema,
   createAppointmentSchema,
   idParamSchema,
+  rescheduleSchema,
 } from './appointment.schemas';
 import {
   cancelAppointment,
@@ -16,6 +17,7 @@ import {
   getAppointmentById,
   getAvailableSlots,
   getMyAppointments,
+  rescheduleAppointment,
 } from './appointment.service';
 
 export async function getAvailableSlotsController(
@@ -121,6 +123,26 @@ export async function confirmAppointmentController(
 
     const params = idParamSchema.parse(req.params);
     const appointment = await confirmAppointment(user, params.id);
+    sendSuccess(res, appointment);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function rescheduleAppointmentController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw AppError.unauthorized();
+    }
+
+    const params = idParamSchema.parse(req.params);
+    const body = rescheduleSchema.parse(req.body);
+    const appointment = await rescheduleAppointment(user.userId, params.id, body);
     sendSuccess(res, appointment);
   } catch (error) {
     next(error);
