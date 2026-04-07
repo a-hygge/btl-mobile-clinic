@@ -624,6 +624,19 @@ export function AppointmentDetailScreen({
             <View style={styles.actionsSection}>
               {canCancel && (
                 <Button
+                  mode="contained"
+                  onPress={() => router.push(`/reschedule?id=${appointment.id}`)}
+                  buttonColor={systemColors.purple}
+                  textColor="#fff"
+                  icon="calendar-refresh-outline"
+                  style={styles.rescheduleBtn}
+                  contentStyle={styles.actionBtnContent}
+                >
+                  Reschedule
+                </Button>
+              )}
+              {canCancel && (
+                <Button
                   mode="outlined"
                   onPress={handleCancel}
                   loading={canceling}
@@ -859,6 +872,9 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     borderColor: systemColors.red + '40',
+    borderRadius: 14,
+  },
+  rescheduleBtn: {
     borderRadius: 14,
   },
   reviewBtn: {
