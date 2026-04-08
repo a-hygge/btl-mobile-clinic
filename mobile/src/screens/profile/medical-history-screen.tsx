@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -17,7 +17,12 @@ import {
   GradientHeader,
   ScreenContainer,
 } from '../../components/shared';
-import { systemColors, theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import { getMyAppointments } from '../../services/appointments.service';
 import type { Appointment } from '../../types';
 
@@ -33,10 +38,10 @@ interface FilterOption {
 }
 
 const FILTERS: FilterOption[] = [
-  { key: 'ALL', label: 'All' },
-  { key: 'LAST_30_DAYS', label: 'Last 30 days' },
-  { key: 'LAST_6_MONTHS', label: 'Last 6 months' },
-  { key: 'THIS_YEAR', label: 'This year' },
+  { key: 'ALL', label: 'Tất cả' },
+  { key: 'LAST_30_DAYS', label: '30 ngày qua' },
+  { key: 'LAST_6_MONTHS', label: '6 tháng qua' },
+  { key: 'THIS_YEAR', label: 'Năm nay' },
 ];
 
 function filterAppointments(items: Appointment[], filter: FilterKey): Appointment[] {
@@ -65,7 +70,7 @@ function filterAppointments(items: Appointment[], filter: FilterKey): Appointmen
 
 function formatShortDate(value?: string): string {
   if (!value) return '';
-  return new Date(value + 'T00:00:00').toLocaleDateString('en-GB', {
+  return new Date(value + 'T00:00:00').toLocaleDateString('vi-VN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -74,7 +79,7 @@ function formatShortDate(value?: string): string {
 
 function formatLongDate(value?: string): string {
   if (!value) return '';
-  return new Date(value + 'T00:00:00').toLocaleDateString('en-US', {
+  return new Date(value + 'T00:00:00').toLocaleDateString('vi-VN', {
     weekday: 'short',
     day: 'numeric',
     month: 'long',
@@ -98,11 +103,11 @@ interface FilterChipProps {
 }
 
 function FilterChip({ label, active, onPress }: FilterChipProps) {
-  const [scale] = useState(() => new Animated.Value(1));
+  const scale = useRef(new Animated.Value(1)).current;
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.85}
       onPress={onPress}
       onPressIn={() => {
         Animated.spring(scale, {
@@ -140,19 +145,19 @@ const chipStyles = StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+    borderRadius: figmaRadius.lg,
+    backgroundColor: figmaColors.surface,
     borderWidth: 1.5,
-    borderColor: systemColors.gray5,
+    borderColor: figmaColors.border,
   },
   chipActive: {
-    backgroundColor: systemColors.blue,
-    borderColor: systemColors.blue,
+    backgroundColor: figmaColors.primary,
+    borderColor: figmaColors.primary,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.base,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textSecondary,
   },
   chipTextActive: {
     color: '#fff',
@@ -174,47 +179,35 @@ function StatsCard({ total, topSpecialty, lastVisit }: StatsCardProps) {
     <GlassCard style={statsStyles.card} glassStyle="regular">
       <View style={statsStyles.row}>
         <View style={statsStyles.statBox}>
-          <View style={[statsStyles.iconCircle, { backgroundColor: systemColors.blue + '18' }]}>
-            <MaterialCommunityIcons
-              name="calendar-check"
-              size={20}
-              color={systemColors.blue}
-            />
+          <View style={[statsStyles.iconCircle, { backgroundColor: figmaColors.pastelBlue }]}>
+            <MaterialCommunityIcons name="calendar-check" size={20} color={figmaColors.primary} />
           </View>
           <Text style={statsStyles.value}>{total}</Text>
-          <Text style={statsStyles.label}>Total visits</Text>
+          <Text style={statsStyles.label}>Tổng số lần khám</Text>
         </View>
 
         <View style={statsStyles.divider} />
 
         <View style={statsStyles.statBox}>
-          <View style={[statsStyles.iconCircle, { backgroundColor: systemColors.purple + '18' }]}>
-            <MaterialCommunityIcons
-              name="heart-pulse"
-              size={20}
-              color={systemColors.purple}
-            />
+          <View style={[statsStyles.iconCircle, { backgroundColor: figmaColors.pastelPurple }]}>
+            <MaterialCommunityIcons name="heart-pulse" size={20} color="#8E24AA" />
           </View>
           <Text style={statsStyles.value} numberOfLines={1}>
             {topSpecialty || '-'}
           </Text>
-          <Text style={statsStyles.label}>Most visited</Text>
+          <Text style={statsStyles.label}>Khám nhiều nhất</Text>
         </View>
 
         <View style={statsStyles.divider} />
 
         <View style={statsStyles.statBox}>
-          <View style={[statsStyles.iconCircle, { backgroundColor: systemColors.orange + '18' }]}>
-            <MaterialCommunityIcons
-              name="clock-outline"
-              size={20}
-              color={systemColors.orange}
-            />
+          <View style={[statsStyles.iconCircle, { backgroundColor: figmaColors.pastelOrange }]}>
+            <MaterialCommunityIcons name="clock-outline" size={20} color="#F57C00" />
           </View>
           <Text style={statsStyles.value} numberOfLines={1}>
             {lastVisit || '-'}
           </Text>
-          <Text style={statsStyles.label}>Last visit</Text>
+          <Text style={statsStyles.label}>Lần gần nhất</Text>
         </View>
       </View>
     </GlassCard>
@@ -222,13 +215,7 @@ function StatsCard({ total, topSpecialty, lastVisit }: StatsCardProps) {
 }
 
 const statsStyles = StyleSheet.create({
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
+  card: {},
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -241,7 +228,7 @@ const statsStyles = StyleSheet.create({
   divider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
-    backgroundColor: systemColors.gray4,
+    backgroundColor: figmaColors.border,
     marginHorizontal: 4,
   },
   iconCircle: {
@@ -253,14 +240,15 @@ const statsStyles = StyleSheet.create({
     marginBottom: 4,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
     textAlign: 'center',
   },
   label: {
-    fontSize: 11,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.xs,
+    color: figmaColors.textSecondary,
+    textAlign: 'center',
   },
 });
 
@@ -275,19 +263,18 @@ interface TimelineItemProps {
 }
 
 function TimelineItem({ appointment, isFirst, isLast }: TimelineItemProps) {
-  const [scale] = useState(() => new Animated.Value(1));
+  const scale = useRef(new Animated.Value(1)).current;
   const doctor = appointment.doctor;
   const timeSlot = appointment.timeSlot;
-  const diagnosis = appointment.diagnosis ?? 'No diagnosis recorded';
+  const diagnosis = appointment.diagnosis ?? 'Chưa có chẩn đoán';
 
   return (
     <View style={timelineStyles.row}>
-      {/* Spine */}
       <View style={timelineStyles.spineCol}>
         <View
           style={[
             timelineStyles.line,
-            { backgroundColor: isFirst ? 'transparent' : systemColors.gray4 },
+            { backgroundColor: isFirst ? 'transparent' : figmaColors.border },
           ]}
         />
         <View style={timelineStyles.dotOuter}>
@@ -296,14 +283,13 @@ function TimelineItem({ appointment, isFirst, isLast }: TimelineItemProps) {
         <View
           style={[
             timelineStyles.line,
-            { backgroundColor: isLast ? 'transparent' : systemColors.gray4, flex: 1 },
+            { backgroundColor: isLast ? 'transparent' : figmaColors.border, flex: 1 },
           ]}
         />
       </View>
 
-      {/* Card */}
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         style={timelineStyles.cardWrap}
         onPress={() =>
           router.push({
@@ -336,13 +322,9 @@ function TimelineItem({ appointment, isFirst, isLast }: TimelineItemProps) {
                 {timeSlot?.startTime ? `  -  ${timeSlot.startTime}` : ''}
               </Text>
               <View style={timelineStyles.doctorRow}>
-                <MaterialCommunityIcons
-                  name="doctor"
-                  size={16}
-                  color={systemColors.blue}
-                />
+                <MaterialCommunityIcons name="doctor" size={16} color={figmaColors.primary} />
                 <Text style={timelineStyles.doctorName} numberOfLines={1}>
-                  {doctor?.name ?? 'Doctor'}
+                  {doctor?.name ?? 'Bác sĩ'}
                 </Text>
               </View>
               {doctor?.specialty?.name && (
@@ -378,7 +360,7 @@ const timelineStyles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: systemColors.blue + '24',
+    backgroundColor: figmaColors.pastelBlue,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -386,26 +368,20 @@ const timelineStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: systemColors.blue,
+    backgroundColor: figmaColors.primary,
   },
   cardWrap: {
     flex: 1,
     paddingBottom: 14,
   },
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
+  card: {},
   cardInner: {
     gap: 6,
   },
   dateText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -415,26 +391,26 @@ const timelineStyles = StyleSheet.create({
     gap: 6,
   },
   doctorName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
     flex: 1,
   },
   specialtyBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: systemColors.blue + '14',
+    backgroundColor: figmaColors.pastelBlue,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 10,
   },
   specialtyText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: systemColors.blue,
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.primary,
   },
   diagnosisText: {
-    fontSize: 13,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.base,
+    color: figmaColors.textSecondary,
     lineHeight: 18,
     marginTop: 2,
   },
@@ -457,7 +433,7 @@ export function MedicalHistoryScreen() {
       const sorted = [...result.data].sort((a, b) => timeOf(b) - timeOf(a));
       setAppointments(sorted);
     } catch {
-      setNotice('Could not load medical history.');
+      setNotice('Không thể tải lịch sử khám bệnh.');
     } finally {
       setLoading(false);
     }
@@ -507,9 +483,9 @@ export function MedicalHistoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <GradientHeader
-          title="Medical History"
-          subtitle="Your completed visits"
-          colors={[systemColors.teal, '#0E7C66']}
+          title="Lịch sử khám bệnh"
+          subtitle="Các lần khám đã hoàn thành"
+          colors={[figmaColors.primary, figmaColors.primaryDark]}
           leftSlot={
             <TouchableOpacity
               onPress={() => router.back()}
@@ -549,14 +525,14 @@ export function MedicalHistoryScreen() {
 
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color={systemColors.teal} />
+              <ActivityIndicator size="large" color={figmaColors.primary} />
             </View>
           ) : filtered.length === 0 ? (
             <FadeInView delay={160}>
               <EmptyState
                 icon="history"
-                title="No history yet"
-                message="Completed appointments will show up here."
+                title="Chưa có lịch sử khám bệnh"
+                message="Các lần khám đã hoàn thành sẽ hiển thị ở đây."
               />
             </FadeInView>
           ) : (
@@ -595,14 +571,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: {
-    paddingHorizontal: 16,
-    gap: 14,
-    marginTop: 16,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.lg,
   },
   chipsRow: {
-    gap: 8,
+    gap: figmaSpacing.sm,
     paddingVertical: 4,
-    paddingRight: 8,
+    paddingRight: figmaSpacing.sm,
   },
   loadingWrap: {
     paddingVertical: 48,

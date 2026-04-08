@@ -1,14 +1,18 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Avatar, Button, Divider, List, Text } from 'react-native-paper';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import { StyleSheet, View, Pressable } from 'react-native';
+import { Avatar, Text } from 'react-native-paper';
 import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassCard } from '../../components/ui/GlassCard';
+import {
+  FadeInView,
+  GradientHeader,
+  ListRow,
+  ScreenContainer,
+  SectionTitle,
+} from '../../components/shared';
 import { useAuthStore } from '../../store/auth.store';
-import { theme } from '../../constants/theme';
+import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
 
 export function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
@@ -25,176 +29,207 @@ export function ProfileScreen() {
     .toUpperCase();
 
   return (
-    <ScreenBackground>
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Avatar.Text size={80} label={initials} style={styles.avatar} />
-        <Text variant="headlineSmall" style={styles.name}>
-          {user?.name ?? 'User'}
-        </Text>
-        <Text variant="bodyMedium" style={styles.email}>
-          {user?.email}
-        </Text>
-        <View style={styles.roleBadge}>
-          <Text variant="labelSmall" style={styles.roleText}>
-            {user?.role}
-          </Text>
-        </View>
-      </View>
-
-      <GlassCard style={styles.card}>
-        <View>
-          <List.Item
-            title="Phone"
-            description={user?.phone ?? 'Not set'}
-            left={(props) => <List.Icon {...props} icon="phone" />}
-          />
-          <Divider />
-          <List.Item
-            title="Address"
-            description={user?.address ?? 'Not set'}
-            left={(props) => <List.Icon {...props} icon="map-marker" />}
-          />
-          <Divider />
-          <List.Item
-            title="Insurance ID"
-            description={user?.insuranceId ?? 'Not set'}
-            left={(props) => <List.Icon {...props} icon="card-account-details" />}
-          />
-        </View>
-      </GlassCard>
-
-      <GlassCard style={styles.card}>
-        <View>
-          <List.Item
-            title="Medical History"
-            description="Your completed visits"
-            left={(props) => <List.Icon {...props} icon="history" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/medical-history')}
-          />
-          <Divider />
-          <List.Item
-            title="Health Tracking"
-            description="Monitor your vitals"
-            left={(props) => <List.Icon {...props} icon="heart-pulse" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/health')}
-          />
-          <Divider />
-          <List.Item
-            title="Scan Prescription"
-            description="OCR medicine extraction"
-            left={(props) => <List.Icon {...props} icon="camera-document" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/ocr')}
-          />
-          <Divider />
-          <List.Item
-            title="Notifications"
-            description="View your notifications"
-            left={(props) => <List.Icon {...props} icon="bell-outline" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/notifications')}
-          />
-          <Divider />
-          <List.Item
-            title="Payment History"
-            description="View your payments"
-            left={(props) => <List.Icon {...props} icon="credit-card-clock-outline" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/payment-history')}
-          />
-          <Divider />
-          {user?.role === 'ADMIN' && (
-            <>
-              <List.Item
-                title="Admin Dashboard"
-                description="Manage platform"
-                left={(props) => <List.Icon {...props} icon="shield-crown" />}
-                right={(props) => <List.Icon {...props} icon="chevron-right" />}
-                onPress={() => router.push('/admin')}
-              />
-              <Divider />
-            </>
-          )}
-          <List.Item
-            title="Edit Profile"
-            left={(props) => <List.Icon {...props} icon="account-edit" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => router.push('/edit-profile')}
-          />
-          <Divider />
-          <List.Item
-            title="Change Password"
-            left={(props) => <List.Icon {...props} icon="lock-reset" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          />
-          <Divider />
-          <List.Item
-            title="Settings"
-            left={(props) => <List.Icon {...props} icon="cog" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          />
-        </View>
-      </GlassCard>
-
-      <Button
-        mode="outlined"
-        onPress={handleLogout}
-        icon="logout"
-        textColor={theme.colors.error}
-        style={styles.logoutBtn}
+    <ScreenContainer showsVerticalScrollIndicator={false}>
+      <GradientHeader
+        title="Cá nhân"
+        colors={[figmaColors.primary, figmaColors.primaryDark]}
       >
-        Logout
-      </Button>
-    </ScrollView>
-    </ScreenBackground>
+        <FadeInView delay={80}>
+          <View style={styles.profileBlock}>
+            <Avatar.Text size={80} label={initials} style={styles.avatar} labelStyle={styles.avatarLabel} />
+            <Text style={styles.name}>{user?.name ?? 'User'}</Text>
+            <Text style={styles.email}>{user?.email}</Text>
+            {user?.role ? (
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleText}>{user.role}</Text>
+              </View>
+            ) : null}
+          </View>
+        </FadeInView>
+      </GradientHeader>
+
+      <View style={styles.body}>
+        {/* Sức khỏe */}
+        <FadeInView delay={120}>
+          <SectionTitle title="Sức khỏe" />
+          <GlassCard style={styles.card}>
+            <ListRow
+              icon="❤️"
+              iconBgColor={figmaColors.pastelRed}
+              title="Theo dõi sức khỏe"
+              subtitle="Nhịp tim, huyết áp, chỉ số cơ thể"
+              onPress={() => router.push('/health')}
+            />
+            <View style={styles.divider} />
+            <ListRow
+              icon="📷"
+              iconBgColor={figmaColors.pastelOrange}
+              title="Quét đơn thuốc"
+              subtitle="Trích xuất thông tin thuốc từ ảnh"
+              onPress={() => router.push('/ocr')}
+            />
+            <View style={styles.divider} />
+            <ListRow
+              icon="📋"
+              iconBgColor={figmaColors.pastelTeal}
+              title="Lịch sử khám bệnh"
+              subtitle="Các lần khám đã hoàn thành"
+              onPress={() => router.push('/medical-history')}
+            />
+          </GlassCard>
+        </FadeInView>
+
+        {/* Tài khoản */}
+        <FadeInView delay={200}>
+          <SectionTitle title="Tài khoản" />
+          <GlassCard style={styles.card}>
+            <ListRow
+              icon="🔔"
+              iconBgColor={figmaColors.pastelPurple}
+              title="Thông báo"
+              subtitle="Nhắc hẹn, tin tức, cập nhật"
+              onPress={() => router.push('/notifications')}
+            />
+            <View style={styles.divider} />
+            <ListRow
+              icon="💳"
+              iconBgColor={figmaColors.pastelGreen}
+              title="Lịch sử thanh toán"
+              subtitle="Các hoá đơn đã thanh toán"
+              onPress={() => router.push('/payment-history')}
+            />
+            <View style={styles.divider} />
+            <ListRow
+              icon="👤"
+              iconBgColor={figmaColors.pastelBlue}
+              title="Chỉnh sửa hồ sơ"
+              subtitle="Thông tin cá nhân, ảnh đại diện"
+              onPress={() => router.push('/edit-profile')}
+            />
+            <View style={styles.divider} />
+            <ListRow
+              icon="🔒"
+              iconBgColor={figmaColors.pastelOrange}
+              title="Đổi mật khẩu"
+              subtitle="Bảo mật tài khoản"
+            />
+          </GlassCard>
+        </FadeInView>
+
+        {/* Hệ thống */}
+        <FadeInView delay={280}>
+          <SectionTitle title="Hệ thống" />
+          <GlassCard style={styles.card}>
+            <ListRow
+              icon="⚙️"
+              iconBgColor={figmaColors.surfaceMuted}
+              title="Cài đặt"
+              subtitle="Ngôn ngữ, giao diện, quyền riêng tư"
+            />
+            {user?.role === 'ADMIN' ? (
+              <>
+                <View style={styles.divider} />
+                <ListRow
+                  icon="🛡️"
+                  iconBgColor={figmaColors.pastelPurple}
+                  title="Trang quản trị"
+                  subtitle="Quản lý hệ thống"
+                  onPress={() => router.push('/admin')}
+                />
+              </>
+            ) : null}
+          </GlassCard>
+        </FadeInView>
+
+        {/* Đăng xuất */}
+        <FadeInView delay={360}>
+          <GlassCard style={[styles.card, styles.logoutCard]}>
+            <Pressable onPress={handleLogout} style={styles.logoutRow}>
+              <View style={[styles.logoutIcon, { backgroundColor: figmaColors.errorBg }]}>
+                <Text style={styles.logoutIconText}>🚪</Text>
+              </View>
+              <Text style={styles.logoutText}>Đăng xuất</Text>
+            </Pressable>
+          </GlassCard>
+        </FadeInView>
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 120,
-  },
-  header: {
+  profileBlock: {
     alignItems: 'center',
-    paddingBottom: 24,
-    backgroundColor: theme.colors.primary,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    marginTop: figmaSpacing.lg,
     gap: 6,
   },
   avatar: {
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
+  avatarLabel: {
+    color: '#fff',
+    fontWeight: figmaFonts.weights.bold,
+  },
   name: {
     color: '#fff',
-    fontWeight: '700',
+    fontSize: figmaFonts.sizes['2xl'],
+    fontWeight: figmaFonts.weights.bold,
     marginTop: 8,
   },
   email: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: figmaFonts.sizes.md,
   },
   roleBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
+    paddingHorizontal: figmaSpacing.md,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
     marginTop: 4,
   },
   roleText: {
     color: '#fff',
-    fontWeight: '600',
+    fontSize: figmaFonts.sizes.xs,
+    fontWeight: figmaFonts.weights.semibold,
+  },
+  body: {
+    marginTop: figmaSpacing.xl,
+    gap: figmaSpacing.lg,
+    paddingBottom: figmaSpacing.xl,
   },
   card: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.xs,
+    paddingHorizontal: 0,
   },
-  logoutBtn: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderColor: theme.colors.error,
-    borderRadius: 12,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: figmaColors.border,
+    marginLeft: 68,
+  },
+  logoutCard: {
+    marginTop: figmaSpacing.sm,
+  },
+  logoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: figmaSpacing.lg,
+  },
+  logoutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: figmaRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutIconText: {
+    fontSize: 20,
+  },
+  logoutText: {
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.error,
   },
 });

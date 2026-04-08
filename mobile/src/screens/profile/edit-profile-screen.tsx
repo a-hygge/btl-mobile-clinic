@@ -1,12 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Avatar,
@@ -15,57 +8,23 @@ import {
   Text,
   TextInput,
 } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { theme, systemColors } from '../../constants/theme';
+import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import type { User } from '../../types';
 
-// ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// EditProfileScreen
-// ---------------------------------------------------------------------------
-
 export function EditProfileScreen() {
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -99,7 +58,6 @@ export function EditProfileScreen() {
       const asset = result.assets[0];
       setAvatarUri(asset.uri);
 
-      // Upload avatar
       try {
         const formData = new FormData();
         formData.append('avatar', {
@@ -111,8 +69,7 @@ export function EditProfileScreen() {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } catch {
-        // Keep the local URI even if upload fails
-        setSnackbar({ visible: true, message: 'Avatar upload failed. Will retry on save.' });
+        setSnackbar({ visible: true, message: 'Tải ảnh đại diện thất bại. Sẽ thử lại khi lưu.' });
       }
     }
   }
@@ -125,8 +82,8 @@ export function EditProfileScreen() {
   }
 
   function formatDisplayDate(date: Date | null): string {
-    if (!date) return 'Not set';
-    return date.toLocaleDateString('en-GB', {
+    if (!date) return 'Chưa thiết lập';
+    return date.toLocaleDateString('vi-VN', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -135,7 +92,7 @@ export function EditProfileScreen() {
 
   async function handleSave() {
     if (!name.trim()) {
-      setSnackbar({ visible: true, message: 'Name is required.' });
+      setSnackbar({ visible: true, message: 'Vui lòng nhập họ và tên.' });
       return;
     }
     try {
@@ -149,14 +106,14 @@ export function EditProfileScreen() {
       };
       const updated = extractData<User>(await api.put('/users/me', body));
       setUser(updated);
-      setSnackbar({ visible: true, message: 'Profile updated!' });
+      setSnackbar({ visible: true, message: 'Đã cập nhật hồ sơ!' });
       setTimeout(() => router.back(), 800);
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? ((err as { response?: { data?: { error?: { message?: string } } } })
-              .response?.data?.error?.message ?? 'Failed to save profile.')
-          : 'Failed to save profile.';
+              .response?.data?.error?.message ?? 'Không thể lưu hồ sơ.')
+          : 'Không thể lưu hồ sơ.';
       setSnackbar({ visible: true, message: msg });
     } finally {
       setSaving(false);
@@ -164,155 +121,143 @@ export function EditProfileScreen() {
   }
 
   return (
-    <ScreenBackground>
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={[systemColors.blue, systemColors.indigo]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 16 }]}
-        >
-          <View style={styles.headerRow}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+    <>
+      <ScreenContainer showsVerticalScrollIndicator={false}>
+        <GradientHeader
+          title="Chỉnh sửa hồ sơ"
+          colors={[figmaColors.primary, figmaColors.primaryDark]}
+          leftSlot={
+            <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
               <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
             </Pressable>
-            <Text variant="titleLarge" style={styles.headerTitle}>
-              Edit Profile
-            </Text>
-            <Pressable onPress={handleSave} hitSlop={12} disabled={saving}>
+          }
+          rightSlot={
+            <Pressable onPress={handleSave} hitSlop={12} disabled={saving} style={styles.headerBtn}>
               {saving ? (
                 <ActivityIndicator size={20} color="#fff" />
               ) : (
-                <MaterialCommunityIcons name="check" size={24} color="#fff" />
+                <Text style={styles.headerSave}>Lưu</Text>
               )}
             </Pressable>
-          </View>
-        </LinearGradient>
+          }
+        />
 
-        {/* Avatar Section */}
-        <FadeInView delay={100}>
+        {/* Avatar */}
+        <FadeInView delay={80}>
           <View style={styles.avatarSection}>
             {avatarUri ? (
               <Avatar.Image size={96} source={{ uri: avatarUri }} />
             ) : (
-              <Avatar.Text size={96} label={initials} style={styles.avatarPlaceholder} />
+              <Avatar.Text
+                size={96}
+                label={initials}
+                style={styles.avatarPlaceholder}
+                labelStyle={styles.avatarLabel}
+              />
             )}
             <Button
               mode="text"
               icon="camera"
               onPress={handlePickImage}
-              textColor={systemColors.blue}
+              textColor={figmaColors.primary}
               style={styles.changePhotoBtn}
+              labelStyle={styles.changePhotoLabel}
             >
-              Change Photo
+              Đổi ảnh đại diện
             </Button>
           </View>
         </FadeInView>
 
-        {/* Form Fields */}
-        <FadeInView delay={200}>
-          <GlassCard style={styles.card}>
-            <Text variant="titleSmall" style={styles.sectionLabel}>
-              Personal Information
-            </Text>
-            <TextInput
-              mode="outlined"
-              label="Name"
-              value={name}
-              onChangeText={setName}
-              left={<TextInput.Icon icon="account" />}
-              style={styles.input}
-              outlineStyle={styles.inputOutline}
-            />
-            <TextInput
-              mode="outlined"
-              label="Phone"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="numeric"
-              left={<TextInput.Icon icon="phone" />}
-              style={styles.input}
-              outlineStyle={styles.inputOutline}
-            />
-          </GlassCard>
-        </FadeInView>
-
-        <FadeInView delay={300}>
-          <GlassCard style={styles.card}>
-            <Text variant="titleSmall" style={styles.sectionLabel}>
-              Date of Birth
-            </Text>
-            <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateRow}>
-              <MaterialCommunityIcons
-                name="calendar"
-                size={20}
-                color={systemColors.blue}
+        <View style={styles.body}>
+          <FadeInView delay={160}>
+            <GlassCard style={styles.card}>
+              <Text style={styles.sectionLabel}>Thông tin cá nhân</Text>
+              <TextInput
+                mode="outlined"
+                label="Họ và tên"
+                value={name}
+                onChangeText={setName}
+                left={<TextInput.Icon icon="account" />}
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
               />
-              <Text variant="bodyLarge" style={styles.dateText}>
-                {formatDisplayDate(dateOfBirth)}
-              </Text>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={20}
-                color={systemColors.gray}
+              <TextInput
+                mode="outlined"
+                label="Số điện thoại"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="numeric"
+                left={<TextInput.Icon icon="phone" />}
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
               />
-            </Pressable>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth ?? new Date(2000, 0, 1)}
-                mode="date"
-                display="spinner"
-                maximumDate={new Date()}
-                onChange={handleDateChange}
+            </GlassCard>
+          </FadeInView>
+
+          <FadeInView delay={240}>
+            <GlassCard style={styles.card}>
+              <Text style={styles.sectionLabel}>Ngày sinh</Text>
+              <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateRow}>
+                <MaterialCommunityIcons name="calendar" size={20} color={figmaColors.primary} />
+                <Text style={styles.dateText}>{formatDisplayDate(dateOfBirth)}</Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={20}
+                  color={figmaColors.textMuted}
+                />
+              </Pressable>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={dateOfBirth ?? new Date(2000, 0, 1)}
+                  mode="date"
+                  display="spinner"
+                  maximumDate={new Date()}
+                  onChange={handleDateChange}
+                />
+              )}
+            </GlassCard>
+          </FadeInView>
+
+          <FadeInView delay={320}>
+            <GlassCard style={styles.card}>
+              <Text style={styles.sectionLabel}>Thông tin bổ sung</Text>
+              <TextInput
+                mode="outlined"
+                label="Địa chỉ"
+                value={address}
+                onChangeText={setAddress}
+                left={<TextInput.Icon icon="map-marker" />}
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
               />
-            )}
-          </GlassCard>
-        </FadeInView>
+              <TextInput
+                mode="outlined"
+                label="Mã bảo hiểm y tế"
+                value={insuranceId}
+                onChangeText={setInsuranceId}
+                left={<TextInput.Icon icon="card-account-details" />}
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
+              />
+            </GlassCard>
+          </FadeInView>
 
-        <FadeInView delay={400}>
-          <GlassCard style={styles.card}>
-            <Text variant="titleSmall" style={styles.sectionLabel}>
-              Additional Details
-            </Text>
-            <TextInput
-              mode="outlined"
-              label="Address"
-              value={address}
-              onChangeText={setAddress}
-              left={<TextInput.Icon icon="map-marker" />}
-              style={styles.input}
-              outlineStyle={styles.inputOutline}
-            />
-            <TextInput
-              mode="outlined"
-              label="Insurance ID"
-              value={insuranceId}
-              onChangeText={setInsuranceId}
-              left={<TextInput.Icon icon="card-account-details" />}
-              style={styles.input}
-              outlineStyle={styles.inputOutline}
-            />
-          </GlassCard>
-        </FadeInView>
-
-        {/* Save Button */}
-        <FadeInView delay={500}>
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            loading={saving}
-            disabled={saving}
-            icon="content-save"
-            style={styles.saveBtn}
-            contentStyle={styles.saveBtnContent}
-            labelStyle={styles.saveBtnLabel}
-          >
-            Save Changes
-          </Button>
-        </FadeInView>
-      </ScrollView>
+          <FadeInView delay={400}>
+            <Button
+              mode="contained"
+              onPress={handleSave}
+              loading={saving}
+              disabled={saving}
+              icon="content-save"
+              style={styles.saveBtn}
+              contentStyle={styles.saveBtnContent}
+              labelStyle={styles.saveBtnLabel}
+            >
+              Lưu thay đổi
+            </Button>
+          </FadeInView>
+        </View>
+      </ScreenContainer>
 
       <Snackbar
         visible={snackbar.visible}
@@ -321,86 +266,84 @@ export function EditProfileScreen() {
       >
         {snackbar.message}
       </Snackbar>
-    </View>
-    </ScreenBackground>
+    </>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerRow: {
-    flexDirection: 'row',
+  headerBtn: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  headerTitle: {
+  headerSave: {
     color: '#fff',
-    fontWeight: '700',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: 24,
-    gap: 8,
+    marginTop: figmaSpacing.xl,
+    gap: figmaSpacing.sm,
   },
   avatarPlaceholder: {
-    backgroundColor: 'rgba(0,122,255,0.15)',
+    backgroundColor: figmaColors.pastelBlue,
+  },
+  avatarLabel: {
+    color: figmaColors.primary,
+    fontWeight: figmaFonts.weights.bold,
   },
   changePhotoBtn: {
     marginTop: 4,
   },
+  changePhotoLabel: {
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
+  },
+  body: {
+    marginTop: figmaSpacing.lg,
+    gap: figmaSpacing.lg,
+  },
   card: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: figmaSpacing.lg,
   },
   sectionLabel: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginBottom: 12,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
+    marginBottom: figmaSpacing.md,
   },
   input: {
-    backgroundColor: theme.colors.surface,
-    marginBottom: 12,
+    backgroundColor: figmaColors.surface,
+    marginBottom: figmaSpacing.md,
   },
   inputOutline: {
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
+    gap: figmaSpacing.md,
+    paddingVertical: figmaSpacing.md,
     paddingHorizontal: 4,
   },
   dateText: {
     flex: 1,
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    color: figmaColors.textPrimary,
   },
   saveBtn: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 14,
-    backgroundColor: systemColors.blue,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.sm,
+    borderRadius: figmaRadius.lg,
+    backgroundColor: figmaColors.primary,
   },
   saveBtnContent: {
     paddingVertical: 6,
   },
   saveBtnLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
   },
 });
