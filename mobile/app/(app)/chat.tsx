@@ -1,22 +1,14 @@
-import { useEffect, useRef } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useAuthStore } from '../../src/store/auth.store';
 import { ChatScreen } from '../../src/screens/chat/chat-screen';
-import { getSessionMessages } from '../../src/services/chat.service';
+import { DoctorReviewsScreen } from '../../src/screens/doctor-portal/doctor-reviews-screen';
+import { ManageServicesScreen } from '../../src/screens/admin/manage-services-screen';
 
+/**
+ * Tab "Chat AI / Đánh giá / Dịch vụ" — different per role.
+ */
 export default function ChatRoute() {
-  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
-  const chatRef = useRef<{ loadSession: (id: string) => void }>(null);
-
-  // If navigated with a sessionId param, load that session
-  useEffect(() => {
-    if (sessionId) {
-      // Small delay to ensure the screen is mounted
-      const timer = setTimeout(() => {
-        chatRef.current?.loadSession(sessionId);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [sessionId]);
-
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'DOCTOR') return <DoctorReviewsScreen />;
+  if (role === 'ADMIN') return <ManageServicesScreen />;
   return <ChatScreen />;
 }
