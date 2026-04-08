@@ -13,7 +13,11 @@ export function SectionTitle({ title, action }: SectionTitleProps) {
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
       {action ? (
-        <Pressable onPress={action.onPress}>
+        <Pressable
+          onPress={action.onPress}
+          hitSlop={12}
+          style={({ pressed }) => pressed && { opacity: 0.6 }}
+        >
           <Text style={styles.action}>{action.label} ›</Text>
         </Pressable>
       ) : null}

@@ -2,8 +2,7 @@
  * ListRow - Generic list item with leading icon, title/subtitle, optional trailing
  * Matches Figma `div.list-item` pattern.
  */
-import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { figmaColors, figmaFonts, figmaRadius } from '../../constants/theme';
 
 interface ListRowProps {
@@ -27,36 +26,32 @@ export function ListRow({
   onPress,
   style,
 }: ListRowProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, friction: 8, tension: 200 }).start();
-  };
-  const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }).start();
-  };
-
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.row, style]}>
-        {icon ? (
-          <View style={[styles.iconBox, { backgroundColor: iconBgColor }]}>
-            <Text style={styles.icon}>{icon}</Text>
-          </View>
-        ) : null}
-        <View style={styles.content}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
-            </Text>
-          ) : null}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        style,
+        pressed && styles.pressed,
+      ]}
+    >
+      {icon ? (
+        <View style={[styles.iconBox, { backgroundColor: iconBgColor }]}>
+          <Text style={styles.icon}>{icon}</Text>
         </View>
-        {trailing ? <Text style={[styles.trailing, { color: trailingColor }]}>{trailing}</Text> : null}
-      </Pressable>
-    </Animated.View>
+      ) : null}
+      <View style={styles.content}>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {trailing ? <Text style={[styles.trailing, { color: trailingColor }]}>{trailing}</Text> : null}
+    </Pressable>
   );
 }
 
@@ -67,6 +62,10 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
+  },
+  pressed: {
+    opacity: 0.6,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   iconBox: {
     width: 40,

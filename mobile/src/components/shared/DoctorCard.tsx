@@ -2,8 +2,7 @@
  * DoctorCard - Doctor list card with avatar, info, stars, meta
  * Matches Figma `div.doctor-card` pattern.
  */
-import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GlassCard } from '../ui/GlassCard';
 import { figmaColors, figmaFonts, figmaRadius } from '../../constants/theme';
 
@@ -32,53 +31,48 @@ export function DoctorCard({
   avatarTextColor = figmaColors.primary,
   onPress,
 }: DoctorCardProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, friction: 8, tension: 200 }).start();
-  };
-  const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }).start();
-  };
-
   const initials = avatarText || name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
   const safeRating = typeof rating === 'number' ? rating : 0;
   const stars = '⭐'.repeat(Math.max(0, Math.min(5, Math.round(safeRating))));
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
-        <GlassCard style={styles.card}>
-          <View style={styles.row}>
-            <View style={[styles.avatar, { backgroundColor: avatarBgColor }]}>
-              <Text style={[styles.avatarText, { color: avatarTextColor }]}>{initials}</Text>
-            </View>
-            <View style={styles.info}>
-              <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              <Text style={styles.specialty} numberOfLines={1}>{specialty}</Text>
-              {(rating !== undefined || totalReviews !== undefined) && (
-                <View style={styles.metaRow}>
-                  <Text style={styles.stars}>{stars || '☆☆☆☆☆'}</Text>
-                  <Text style={styles.ratingText}>{safeRating.toFixed(1)}</Text>
-                </View>
-              )}
-              {patientCount !== undefined ? (
-                <Text style={styles.patientCount}>👥 {patientCount}+ bệnh nhân</Text>
-              ) : null}
-            </View>
-            {fee !== undefined ? (
-              <View style={styles.feeBox}>
-                <Text style={styles.feeText}>{fee.toLocaleString('vi-VN')}đ</Text>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <GlassCard style={styles.card}>
+        <View style={styles.row}>
+          <View style={[styles.avatar, { backgroundColor: avatarBgColor }]}>
+            <Text style={[styles.avatarText, { color: avatarTextColor }]}>{initials}</Text>
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <Text style={styles.specialty} numberOfLines={1}>{specialty}</Text>
+            {(rating !== undefined || totalReviews !== undefined) && (
+              <View style={styles.metaRow}>
+                <Text style={styles.stars}>{stars || '☆☆☆☆☆'}</Text>
+                <Text style={styles.ratingText}>{safeRating.toFixed(1)}</Text>
               </View>
+            )}
+            {patientCount !== undefined ? (
+              <Text style={styles.patientCount}>👥 {patientCount}+ bệnh nhân</Text>
             ) : null}
           </View>
-        </GlassCard>
-      </Pressable>
-    </Animated.View>
+          {fee !== undefined ? (
+            <View style={styles.feeBox}>
+              <Text style={styles.feeText}>{fee.toLocaleString('vi-VN')}đ</Text>
+            </View>
+          ) : null}
+        </View>
+      </GlassCard>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.7,
+  },
   card: {
     padding: 16,
   },

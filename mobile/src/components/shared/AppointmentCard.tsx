@@ -2,8 +2,7 @@
  * AppointmentCard - Appointment card with border-left + status chip + date/time row
  * Matches Figma `div.appt-card` pattern.
  */
-import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { figmaColors, figmaFonts, figmaRadius, figmaShadows } from '../../constants/theme';
 
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
@@ -47,21 +46,11 @@ export function AppointmentCard({
   avatarTextColor = figmaColors.primary,
   onPress,
 }: AppointmentCardProps) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, friction: 8, tension: 200 }).start();
-  };
-  const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }).start();
-  };
-
   const initials = avatarText || doctorName.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
   const statusCfg = STATUS_COLORS[status];
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
         <View style={[styles.card, { borderLeftColor: statusCfg.border }]}>
           <View style={styles.topRow}>
             <View style={styles.left}>
@@ -94,12 +83,14 @@ export function AppointmentCard({
             </View>
           </View>
         </View>
-      </Pressable>
-    </Animated.View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.7,
+  },
   card: {
     backgroundColor: figmaColors.surface,
     borderRadius: figmaRadius.lg,
