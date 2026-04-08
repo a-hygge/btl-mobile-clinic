@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -15,7 +14,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
-import { theme, systemColors } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import {
   sendChatMessage,
@@ -24,6 +28,11 @@ import {
 } from '../../services/chat.service';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 64;
+
+const DISCLAIMER_TEXT =
+  'Tôi là trợ lý AI sức khỏe. Tôi có thể hỗ trợ đánh giá triệu chứng và gợi ý chuyên khoa. Đây không phải chẩn đoán y khoa.';
+
+const QUICK_PROMPTS = ['Đau đầu', 'Đau bụng', 'Sốt', 'Đau lưng', 'Ho'] as const;
 
 interface Message {
   id: string;
@@ -45,44 +54,41 @@ function toMessage(msg: ChatMessageItem): Message {
 function RelativeTime({ date }: { date: Date }) {
   const now = new Date();
   const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
-  let label = 'just now';
-  if (diff >= 1 && diff < 60) label = `${diff}m ago`;
-  else if (diff >= 60 && diff < 1440) label = `${Math.floor(diff / 60)}h ago`;
-  else if (diff >= 1440) label = date.toLocaleDateString();
+  let label = 'vừa xong';
+  if (diff >= 1 && diff < 60) label = `${diff} phút trước`;
+  else if (diff >= 60 && diff < 1440) label = `${Math.floor(diff / 60)} giờ trước`;
+  else if (diff >= 1440) label = date.toLocaleDateString('vi-VN');
   return <Text style={styles.time}>{label}</Text>;
 }
 
 function ChatBubble({ item }: { item: Message }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(item.isUser ? 20 : -20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
   if (item.isSystem) {
     return (
-      <Animated.View style={[styles.systemBubble, { opacity: fadeAnim }]}>
-        <MaterialCommunityIcons name="information-outline" size={14} color={systemColors.gray} />
+      <View style={styles.systemBubble}>
+        <MaterialCommunityIcons
+          name="information-outline"
+          size={14}
+          color={figmaColors.textSecondary}
+        />
         <Text style={styles.systemText}>{item.text}</Text>
-      </Animated.View>
+      </View>
     );
   }
 
   return (
-    <Animated.View
+    <View
       style={[
         styles.bubbleRow,
         item.isUser ? styles.bubbleRowRight : styles.bubbleRowLeft,
-        { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
       ]}
     >
       {!item.isUser && (
         <View style={styles.aiAvatar}>
-          <MaterialCommunityIcons name="robot-happy-outline" size={16} color={systemColors.blue} />
+          <MaterialCommunityIcons
+            name="robot-happy-outline"
+            size={16}
+            color={figmaColors.primary}
+          />
         </View>
       )}
       <View style={[styles.bubble, item.isUser ? styles.userBubble : styles.aiBubble]}>
@@ -91,7 +97,7 @@ function ChatBubble({ item }: { item: Message }) {
         </Text>
         <RelativeTime date={item.createdAt} />
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -103,7 +109,7 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'disclaimer',
-      text: 'I\'m your AI health assistant. I can help assess symptoms and suggest specialists. This is not a medical diagnosis.',
+      text: DISCLAIMER_TEXT,
       isUser: false,
       isSystem: true,
       createdAt: new Date(),
@@ -132,49 +138,52 @@ export function ChatScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  const handleSend = useCallback(async (text?: string) => {
-    const msg = (text ?? inputText).trim();
-    if (!msg || isTyping) return;
+  const handleSend = useCallback(
+    async (text?: string) => {
+      const msg = (text ?? inputText).trim();
+      if (!msg || isTyping) return;
 
-    setInputText('');
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      text: msg,
-      isUser: true,
-      createdAt: new Date(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    scrollToEnd();
-    setIsTyping(true);
-
-    try {
-      const response = await sendChatMessage(msg, sessionId);
-      if (!sessionId) setSessionId(response.sessionId);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: response.aiMessage.id,
-          text: response.aiMessage.content,
-          isUser: false,
-          createdAt: new Date(response.aiMessage.createdAt),
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          text: 'Sorry, something went wrong. Please try again.',
-          isUser: false,
-          createdAt: new Date(),
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
+      setInputText('');
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        text: msg,
+        isUser: true,
+        createdAt: new Date(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
       scrollToEnd();
-    }
-  }, [inputText, sessionId, isTyping]);
+      setIsTyping(true);
+
+      try {
+        const response = await sendChatMessage(msg, sessionId);
+        if (!sessionId) setSessionId(response.sessionId);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: response.aiMessage.id,
+            text: response.aiMessage.content,
+            isUser: false,
+            createdAt: new Date(response.aiMessage.createdAt),
+          },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            text: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.',
+            isUser: false,
+            createdAt: new Date(),
+          },
+        ]);
+      } finally {
+        setIsTyping(false);
+        scrollToEnd();
+      }
+    },
+    [inputText, sessionId, isTyping]
+  );
 
   const handleNewChat = useCallback(() => {
     setSessionId(undefined);
@@ -182,7 +191,7 @@ export function ChatScreen() {
     setMessages([
       {
         id: 'disclaimer',
-        text: 'I\'m your AI health assistant. I can help assess symptoms and suggest specialists. This is not a medical diagnosis.',
+        text: DISCLAIMER_TEXT,
         isUser: false,
         isSystem: true,
         createdAt: new Date(),
@@ -190,116 +199,134 @@ export function ChatScreen() {
     ]);
   }, []);
 
-  const quickPrompts = ['Headache', 'Stomach pain', 'Fever', 'Back pain', 'Cough'];
-
   return (
     <ScreenBackground>
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#007AFF', '#0051D5']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatar}>
-              <MaterialCommunityIcons name="robot-happy-outline" size={20} color="#fff" />
-            </View>
-            <View>
-              <Text variant="titleMedium" style={styles.headerTitle}>AI Health Assistant</Text>
-              <View style={styles.onlineRow}>
-                <View style={styles.onlineDot} />
-                <Text style={styles.onlineText}>Online</Text>
+      <View style={styles.container}>
+        {/* Header */}
+        <LinearGradient
+          colors={[figmaColors.primary, figmaColors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.header, { paddingTop: insets.top + 12 }]}
+        >
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatar}>
+                <MaterialCommunityIcons
+                  name="robot-happy-outline"
+                  size={20}
+                  color="#fff"
+                />
+              </View>
+              <View>
+                <Text variant="titleMedium" style={styles.headerTitle}>
+                  Trợ lý AI
+                </Text>
+                <View style={styles.onlineRow}>
+                  <View style={styles.onlineDot} />
+                  <Text style={styles.onlineText}>Đang hoạt động</Text>
+                </View>
               </View>
             </View>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={handleNewChat}
+                hitSlop={12}
+                accessibilityLabel="Cuộc hội thoại mới"
+              >
+                <MaterialCommunityIcons
+                  name="chat-plus-outline"
+                  size={20}
+                  color="#fff"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/chat-history' as never)}
+                hitSlop={12}
+                accessibilityLabel="Lịch sử"
+              >
+                <MaterialCommunityIcons name="history" size={20} color="#fff" />
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.headerActions}>
-            <Pressable onPress={handleNewChat} hitSlop={12}>
-              <MaterialCommunityIcons name="chat-plus-outline" size={20} color="#fff" />
-            </Pressable>
-            <Pressable onPress={() => router.push('/chat-history' as never)} hitSlop={12}>
-              <MaterialCommunityIcons name="history" size={20} color="#fff" />
-            </Pressable>
+
+          {/* Quick prompts */}
+          <View style={styles.promptsRow}>
+            {QUICK_PROMPTS.map((p) => (
+              <Pressable
+                key={p}
+                style={styles.promptChip}
+                onPress={() => void handleSend(`Tôi bị ${p.toLowerCase()}`)}
+              >
+                <Text style={styles.promptText}>{p}</Text>
+              </Pressable>
+            ))}
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Quick prompts */}
-        <View style={styles.promptsRow}>
-          {quickPrompts.map((p) => (
-            <Pressable
-              key={p}
-              style={styles.promptChip}
-              onPress={() => void handleSend(`I have ${p.toLowerCase()}`)}
-            >
-              <Text style={styles.promptText}>{p}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </LinearGradient>
-
-      {/* Messages */}
-      <KeyboardAvoidingView
-        style={styles.chatArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ChatBubble item={item} />}
-          contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          showsVerticalScrollIndicator={false}
-        />
-
-        {/* Typing indicator */}
-        {isTyping && (
-          <View style={styles.typingRow}>
-            <LottieView
-              source={require('../../assets/animations/loading.json')}
-              autoPlay
-              loop
-              style={{ width: 32, height: 32 }}
-            />
-            <Text style={styles.typingText}>AI is thinking...</Text>
-          </View>
-        )}
-
-        {/* Input bar */}
-        <View style={[styles.inputBar, { marginBottom: TAB_BAR_HEIGHT }]}>
-          <TextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Describe your symptoms..."
-            placeholderTextColor={systemColors.gray2}
-            multiline
-            maxLength={1000}
-            returnKeyType="send"
-            onSubmitEditing={() => void handleSend()}
-            blurOnSubmit={false}
+        {/* Messages */}
+        <KeyboardAvoidingView
+          style={styles.chatArea}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
+        >
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <ChatBubble item={item} />}
+            contentContainerStyle={styles.messageList}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: false })
+            }
+            showsVerticalScrollIndicator={false}
           />
-          <Pressable
-            onPress={() => void handleSend()}
-            disabled={!inputText.trim() || isTyping}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              (!inputText.trim() || isTyping) && styles.sendBtnDisabled,
-              pressed && styles.sendBtnPressed,
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="send"
-              size={18}
-              color={inputText.trim() && !isTyping ? '#fff' : systemColors.gray3}
+
+          {/* Typing indicator */}
+          {isTyping && (
+            <View style={styles.typingRow}>
+              <LottieView
+                source={require('../../assets/animations/loading.json')}
+                autoPlay
+                loop
+                style={{ width: 32, height: 32 }}
+              />
+              <Text style={styles.typingText}>AI đang suy nghĩ...</Text>
+            </View>
+          )}
+
+          {/* Input bar */}
+          <View style={[styles.inputBar, { marginBottom: TAB_BAR_HEIGHT }]}>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Mô tả triệu chứng của bạn..."
+              placeholderTextColor={figmaColors.textMuted}
+              multiline
+              maxLength={1000}
+              returnKeyType="send"
+              onSubmitEditing={() => void handleSend()}
+              blurOnSubmit={false}
             />
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+            <Pressable
+              onPress={() => void handleSend()}
+              disabled={!inputText.trim() || isTyping}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                (!inputText.trim() || isTyping) && styles.sendBtnDisabled,
+                pressed && styles.sendBtnPressed,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="send"
+                size={18}
+                color={inputText.trim() && !isTyping ? '#fff' : figmaColors.textMuted}
+              />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </ScreenBackground>
   );
 }
@@ -309,8 +336,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: figmaSpacing.md,
+    paddingHorizontal: figmaSpacing.lg,
   },
   headerRow: {
     flexDirection: 'row',
@@ -333,7 +360,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: figmaFonts.sizes.lg,
   },
   onlineRow: {
     flexDirection: 'row',
@@ -344,11 +371,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#34C759',
+    backgroundColor: figmaColors.success,
   },
   onlineText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: figmaFonts.sizes.xs,
   },
   headerActions: {
     flexDirection: 'row',
@@ -364,22 +391,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: figmaRadius.pill,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
   promptText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: figmaFonts.sizes.base,
     fontWeight: '600',
   },
   chatArea: {
     flex: 1,
   },
   messageList: {
-    padding: 16,
-    paddingBottom: 24,
-    gap: 8,
+    padding: figmaSpacing.lg,
+    paddingBottom: figmaSpacing['2xl'],
+    gap: figmaSpacing.sm,
   },
   bubbleRow: {
     flexDirection: 'row',
@@ -397,7 +424,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#D6EAFF',
+    backgroundColor: figmaColors.pastelBlue,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -409,11 +436,11 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   userBubble: {
-    backgroundColor: systemColors.blue,
+    backgroundColor: figmaColors.primary,
     borderBottomRightRadius: 4,
   },
   aiBubble: {
-    backgroundColor: '#fff',
+    backgroundColor: figmaColors.surface,
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -422,16 +449,16 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   bubbleText: {
-    fontSize: 15,
+    fontSize: figmaFonts.sizes.md,
     lineHeight: 21,
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   userBubbleText: {
     color: '#fff',
   },
   time: {
     fontSize: 10,
-    color: systemColors.gray2,
+    color: figmaColors.textMuted,
     marginTop: 4,
     alignSelf: 'flex-end',
   },
@@ -439,46 +466,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
-    backgroundColor: systemColors.gray6,
-    padding: 12,
-    borderRadius: 12,
-    marginHorizontal: 8,
+    backgroundColor: figmaColors.surfaceMuted,
+    padding: figmaSpacing.md,
+    borderRadius: figmaRadius.md,
+    marginHorizontal: figmaSpacing.sm,
     marginBottom: 4,
   },
   systemText: {
-    fontSize: 12,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
     lineHeight: 18,
     flex: 1,
   },
   typingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: figmaSpacing.lg,
     gap: 4,
   },
   typingText: {
-    fontSize: 12,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
+    paddingHorizontal: figmaSpacing.md,
+    paddingVertical: figmaSpacing.sm,
+    backgroundColor: figmaColors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: systemColors.gray5,
+    borderTopColor: figmaColors.border,
     gap: 8,
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: figmaFonts.sizes.md,
     lineHeight: 20,
-    color: theme.colors.onSurface,
-    backgroundColor: systemColors.gray6,
+    color: figmaColors.textPrimary,
+    backgroundColor: figmaColors.surfaceMuted,
     borderRadius: 22,
-    paddingHorizontal: 16,
+    paddingHorizontal: figmaSpacing.lg,
     paddingTop: 10,
     paddingBottom: 10,
     maxHeight: 100,
@@ -487,13 +514,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: systemColors.blue,
+    backgroundColor: figmaColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   sendBtnDisabled: {
-    backgroundColor: systemColors.gray5,
+    backgroundColor: figmaColors.border,
   },
   sendBtnPressed: {
     opacity: 0.7,
