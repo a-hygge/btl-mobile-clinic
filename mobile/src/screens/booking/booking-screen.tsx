@@ -1022,7 +1022,7 @@ export function BookingScreen() {
               mode="text"
               onPress={() => {
                 setShowSuccess(false);
-                router.replace('/(tabs)/home' as never);
+                router.replace('/home');
               }}
               textColor={figmaColors.textSecondary}
               labelStyle={{ fontSize: 14 }}
