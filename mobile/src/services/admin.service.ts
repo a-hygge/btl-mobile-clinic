@@ -52,6 +52,11 @@ export async function rejectDoctorApi(id: string, reason: string) {
 
 // ── Clinics ────────────────────────────────────────────────
 
+export async function fetchAdminClinics(): Promise<Clinic[]> {
+  const res = await api.get('/admin/clinics');
+  return extractData<Clinic[]>(res);
+}
+
 export async function createClinicApi(data: Partial<Clinic>) {
   const res = await api.post('/admin/clinics', data);
   return extractData(res);
@@ -80,6 +85,11 @@ export async function updateSpecialtyApi(id: string, data: Partial<Specialty>) {
 }
 
 // ── Services ───────────────────────────────────────────────
+
+export async function fetchAdminServices(): Promise<Service[]> {
+  const res = await api.get('/admin/services');
+  return extractData<Service[]>(res);
+}
 
 export async function createServiceApi(data: Partial<Service>) {
   const res = await api.post('/admin/services', data);
