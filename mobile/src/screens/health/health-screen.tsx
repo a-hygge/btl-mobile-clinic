@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   Modal,
@@ -19,8 +19,15 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
-import { systemColors, spacing, theme } from '../../constants/theme';
+import {
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  MetricCard,
+  ScreenContainer,
+  SectionTitle,
+} from '../../components/shared';
+import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
 import {
   getMyMetrics,
   getMyAlerts,
@@ -34,12 +41,23 @@ import {
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const METRIC_CHIPS: Array<{ label: string; type: HealthMetricType }> = [
-  { label: 'Blood Pressure', type: 'BLOOD_PRESSURE_SYSTOLIC' },
-  { label: 'Weight', type: 'WEIGHT' },
-  { label: 'Heart Rate', type: 'HEART_RATE' },
-  { label: 'Blood Sugar', type: 'BLOOD_SUGAR' },
+type RangeKey = 'all' | '7d' | '30d' | '3m';
+
+const RANGE_CHIPS: Array<{ key: RangeKey; label: string }> = [
+  { key: 'all', label: 'Tất cả' },
+  { key: '7d', label: '7 ngày' },
+  { key: '30d', label: '30 ngày' },
+  { key: '3m', label: '3 tháng' },
 ];
+
+const METRIC_LABELS_VI: Record<HealthMetricType, string> = {
+  BLOOD_PRESSURE_SYSTOLIC: 'Huyết áp tâm thu',
+  BLOOD_PRESSURE_DIASTOLIC: 'Huyết áp tâm trương',
+  WEIGHT: 'Cân nặng',
+  HEIGHT: 'Chiều cao',
+  BLOOD_SUGAR: 'Đường huyết',
+  HEART_RATE: 'Nhịp tim',
+};
 
 const METRIC_UNITS: Record<HealthMetricType, string> = {
   BLOOD_PRESSURE_SYSTOLIC: 'mmHg',
@@ -50,11 +68,45 @@ const METRIC_UNITS: Record<HealthMetricType, string> = {
   HEART_RATE: 'bpm',
 };
 
+const METRIC_ICONS: Record<HealthMetricType, string> = {
+  BLOOD_PRESSURE_SYSTOLIC: '❤️',
+  BLOOD_PRESSURE_DIASTOLIC: '💗',
+  WEIGHT: '⚖️',
+  HEIGHT: '📏',
+  BLOOD_SUGAR: '🩸',
+  HEART_RATE: '💓',
+};
+
+const METRIC_ICON_BG: Record<HealthMetricType, string> = {
+  BLOOD_PRESSURE_SYSTOLIC: figmaColors.pastelRed,
+  BLOOD_PRESSURE_DIASTOLIC: figmaColors.pastelRed,
+  WEIGHT: figmaColors.pastelBlue,
+  HEIGHT: figmaColors.pastelTeal,
+  BLOOD_SUGAR: figmaColors.pastelOrange,
+  HEART_RATE: figmaColors.pastelPurple,
+};
+
+const CHART_METRICS: HealthMetricType[] = [
+  'BLOOD_PRESSURE_SYSTOLIC',
+  'BLOOD_PRESSURE_DIASTOLIC',
+  'WEIGHT',
+  'HEART_RATE',
+  'BLOOD_SUGAR',
+  'HEIGHT',
+];
+
 const SEVERITY_COLORS: Record<string, string> = {
-  LOW: systemColors.green,
-  MEDIUM: systemColors.orange,
-  HIGH: systemColors.red,
-  CRITICAL: systemColors.red,
+  LOW: figmaColors.success,
+  MEDIUM: figmaColors.warning,
+  HIGH: figmaColors.error,
+  CRITICAL: figmaColors.error,
+};
+
+const SEVERITY_LABELS: Record<string, string> = {
+  LOW: 'Bình thường',
+  MEDIUM: 'Trung bình',
+  HIGH: 'Cao',
+  CRITICAL: 'Nguy hiểm',
 };
 
 const TIP_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -65,11 +117,14 @@ const TIP_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = 
   sleep: 'sleep',
 };
 
+const HEADER_GRADIENT = [figmaColors.error, '#B71C1C'] as const;
+
 export function HealthScreen() {
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
   const [tips, setTips] = useState<HealthTip[]>([]);
   const [selectedType, setSelectedType] = useState<HealthMetricType>('BLOOD_PRESSURE_SYSTOLIC');
+  const [range, setRange] = useState<RangeKey>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -122,106 +177,113 @@ export function HealthScreen() {
     }
   };
 
+  // Filter by range
+  const filteredMetrics = useMemo(() => {
+    if (range === 'all') return metrics;
+    const now = Date.now();
+    const cutoff =
+      range === '7d'
+        ? now - 7 * 86400000
+        : range === '30d'
+        ? now - 30 * 86400000
+        : now - 90 * 86400000;
+    return metrics.filter((m) => new Date(m.recordedAt).getTime() >= cutoff);
+  }, [metrics, range]);
+
   // Prepare chart data
-  const chartMetrics = [...metrics].reverse().slice(-10);
+  const chartMetrics = [...filteredMetrics].reverse().slice(-10);
   const chartData = {
     labels: chartMetrics.map((m) => {
       const d = new Date(m.recordedAt);
-      return `${d.getMonth() + 1}/${d.getDate()}`;
+      return `${d.getDate()}/${d.getMonth() + 1}`;
     }),
     datasets: [
       {
         data: chartMetrics.length > 0 ? chartMetrics.map((m) => Number(m.value)) : [0],
-        color: () => systemColors.blue,
+        color: () => figmaColors.primary,
         strokeWidth: 2,
       },
     ],
   };
 
-  // Quick stats
-  const latestByType = (type: HealthMetricType) => {
-    // Search all metrics or fetch separately — for now use what we have
-    return metrics.find((m) => m.type === type) ?? null;
-  };
-
-  const latestBP = selectedType === 'BLOOD_PRESSURE_SYSTOLIC' ? metrics[0] : null;
-  const latestWeight = latestByType('WEIGHT');
-  const latestHR = latestByType('HEART_RATE');
+  const latest = filteredMetrics[0] ?? null;
 
   if (loading && metrics.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={systemColors.blue} />
+        <ActivityIndicator size="large" color={figmaColors.error} />
       </View>
     );
   }
 
   return (
     <>
-    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
-      {/* Gradient Header */}
-      <GradientHeader
-        title="My Health"
-        subtitle="Track your vitals and stay healthy"
-        colors={[systemColors.blue, '#5856D6']}
-      />
+      <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
+        <GradientHeader
+          title="Theo dõi sức khỏe"
+          subtitle="Chăm sóc sức khỏe của bạn"
+          colors={HEADER_GRADIENT}
+        />
 
-        {/* Quick Stats */}
+        {/* Metric summary cards */}
         <FadeInView delay={100}>
-          <View style={styles.statsRow}>
-            <GlassCard style={styles.statCard}>
-              <View style={styles.statInner}>
-                <MaterialCommunityIcons name="heart" size={22} color={systemColors.red} />
-                <Text variant="titleMedium" style={styles.statValue}>
-                  {latestBP ? Number(latestBP.value).toFixed(0) : '--'}
-                </Text>
-                <Text variant="labelSmall" style={styles.statLabel}>
-                  BP (sys)
-                </Text>
-              </View>
-            </GlassCard>
-            <GlassCard style={styles.statCard}>
-              <View style={styles.statInner}>
-                <MaterialCommunityIcons name="scale-bathroom" size={22} color={systemColors.blue} />
-                <Text variant="titleMedium" style={styles.statValue}>
-                  {latestWeight ? Number(latestWeight.value).toFixed(1) : '--'}
-                </Text>
-                <Text variant="labelSmall" style={styles.statLabel}>
-                  Weight (kg)
-                </Text>
-              </View>
-            </GlassCard>
-            <GlassCard style={styles.statCard}>
-              <View style={styles.statInner}>
-                <MaterialCommunityIcons name="pulse" size={22} color={systemColors.green} />
-                <Text variant="titleMedium" style={styles.statValue}>
-                  {latestHR ? Number(latestHR.value).toFixed(0) : '--'}
-                </Text>
-                <Text variant="labelSmall" style={styles.statLabel}>
-                  Heart Rate
-                </Text>
-              </View>
-            </GlassCard>
+          <View style={styles.sectionTop}>
+            <SectionTitle title="Chỉ số sức khỏe" />
+          </View>
+          <View style={styles.metricsGrid}>
+            <MetricCard
+              icon={METRIC_ICONS[selectedType]}
+              value={latest ? Number(latest.value).toFixed(selectedType === 'WEIGHT' ? 1 : 0) : '--'}
+              unit={METRIC_UNITS[selectedType]}
+              label={METRIC_LABELS_VI[selectedType]}
+              iconBgColor={METRIC_ICON_BG[selectedType]}
+              style={styles.metricCard}
+            />
+            <MetricCard
+              icon="📊"
+              value={filteredMetrics.length}
+              label="Số lần đo"
+              iconBgColor={figmaColors.pastelGreen}
+              style={styles.metricCard}
+            />
           </View>
         </FadeInView>
 
-        {/* Metric Type Selector */}
+        {/* Metric type selector */}
+        <FadeInView delay={150}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {CHART_METRICS.map((type) => (
+              <Chip
+                key={type}
+                selected={selectedType === type}
+                onPress={() => setSelectedType(type)}
+                style={[styles.chip, selectedType === type && styles.chipSelected]}
+                textStyle={selectedType === type ? styles.chipTextSelected : styles.chipText}
+              >
+                {METRIC_LABELS_VI[type]}
+              </Chip>
+            ))}
+          </ScrollView>
+        </FadeInView>
+
+        {/* Range filter chips */}
         <FadeInView delay={200}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipsContainer}
           >
-            {METRIC_CHIPS.map((chip) => (
+            {RANGE_CHIPS.map((chip) => (
               <Chip
-                key={chip.type}
-                selected={selectedType === chip.type}
-                onPress={() => setSelectedType(chip.type)}
-                style={[
-                  styles.chip,
-                  selectedType === chip.type && styles.chipSelected,
-                ]}
-                textStyle={selectedType === chip.type ? styles.chipTextSelected : styles.chipText}
+                key={chip.key}
+                selected={range === chip.key}
+                onPress={() => setRange(chip.key)}
+                style={[styles.chip, range === chip.key && styles.chipSelected]}
+                textStyle={range === chip.key ? styles.chipTextSelected : styles.chipText}
               >
                 {chip.label}
               </Chip>
@@ -231,53 +293,50 @@ export function HealthScreen() {
 
         {/* Chart */}
         <FadeInView delay={300}>
+          <View style={styles.sectionTop}>
+            <SectionTitle title="Biểu đồ theo dõi" />
+          </View>
           <GlassCard style={styles.chartCard}>
-            <View>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                {METRIC_CHIPS.find((c) => c.type === selectedType)?.label ?? 'Metric'} Trend
-              </Text>
-              {chartMetrics.length > 1 ? (
-                <LineChart
-                  data={chartData}
-                  width={SCREEN_WIDTH - 64}
-                  height={200}
-                  chartConfig={{
-                    backgroundColor: 'transparent',
-                    backgroundGradientFrom: '#fff',
-                    backgroundGradientTo: '#fff',
-                    decimalPlaces: 0,
-                    color: () => systemColors.blue,
-                    labelColor: () => systemColors.gray,
-                    propsForDots: {
-                      r: '4',
-                      strokeWidth: '2',
-                      stroke: systemColors.blue,
-                    },
-                    propsForBackgroundLines: {
-                      stroke: systemColors.gray5,
-                    },
-                  }}
-                  bezier
-                  style={styles.chart}
-                />
-              ) : (
-                <View style={styles.emptyChart}>
-                  <MaterialCommunityIcons name="chart-line" size={48} color={systemColors.gray3} />
-                  <Text variant="bodyMedium" style={styles.emptyText}>
-                    Add at least 2 readings to see trends
-                  </Text>
-                </View>
-              )}
-            </View>
+            {chartMetrics.length > 1 ? (
+              <LineChart
+                data={chartData}
+                width={SCREEN_WIDTH - 64}
+                height={200}
+                chartConfig={{
+                  backgroundColor: 'transparent',
+                  backgroundGradientFrom: figmaColors.surface,
+                  backgroundGradientTo: figmaColors.surface,
+                  decimalPlaces: 0,
+                  color: () => figmaColors.primary,
+                  labelColor: () => figmaColors.textSecondary,
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: figmaColors.primary,
+                  },
+                  propsForBackgroundLines: {
+                    stroke: figmaColors.border,
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
+            ) : (
+              <EmptyState
+                icon="chart-line"
+                title="Chưa có dữ liệu sức khỏe"
+                message="Hãy thêm chỉ số đầu tiên"
+              />
+            )}
           </GlassCard>
         </FadeInView>
 
-        {/* Health Alerts */}
+        {/* Alerts */}
         {alerts.length > 0 && (
           <FadeInView delay={400}>
-            <Text variant="titleMedium" style={styles.sectionHeader}>
-              Health Alerts
-            </Text>
+            <View style={styles.sectionTop}>
+              <SectionTitle title="Cảnh báo" />
+            </View>
             {alerts.slice(0, 5).map((alert) => (
               <GlassCard key={alert.id} style={styles.alertCard}>
                 <View style={styles.alertRow}>
@@ -292,7 +351,7 @@ export function HealthScreen() {
                         {alert.message}
                       </Text>
                       <Text variant="labelSmall" style={styles.alertDate}>
-                        {new Date(alert.createdAt).toLocaleDateString()}
+                        {new Date(alert.createdAt).toLocaleDateString('vi-VN')}
                       </Text>
                     </View>
                   </View>
@@ -302,7 +361,7 @@ export function HealthScreen() {
                       { backgroundColor: SEVERITY_COLORS[alert.severity] },
                     ]}
                   >
-                    {alert.severity}
+                    {SEVERITY_LABELS[alert.severity] ?? alert.severity}
                   </Badge>
                 </View>
               </GlassCard>
@@ -310,12 +369,15 @@ export function HealthScreen() {
           </FadeInView>
         )}
 
-        {/* AI Health Tips */}
+        {/* AI Tips */}
         {tips.length > 0 && (
           <FadeInView delay={500}>
-            <Text variant="titleMedium" style={styles.sectionHeader}>
-              AI Health Tips
-            </Text>
+            <View style={styles.sectionTop}>
+              <SectionTitle title="Gợi ý từ AI" />
+            </View>
+            <View style={styles.tipsHeaderWrap}>
+              <Text style={styles.tipsHeader}>Gợi ý chăm sóc sức khỏe</Text>
+            </View>
             {tips.map((tip, index) => (
               <GlassCard key={index} style={styles.tipCard}>
                 <View style={styles.tipRow}>
@@ -323,7 +385,7 @@ export function HealthScreen() {
                     <MaterialCommunityIcons
                       name={TIP_ICONS[tip.icon] ?? 'lightbulb-outline'}
                       size={28}
-                      color={systemColors.blue}
+                      color={figmaColors.primary}
                     />
                   </View>
                   <View style={styles.tipTextContainer}>
@@ -340,11 +402,29 @@ export function HealthScreen() {
           </FadeInView>
         )}
 
-    </ScreenContainer>
+        {/* Empty overall */}
+        {!loading && metrics.length === 0 && (
+          <FadeInView delay={200}>
+            <EmptyState
+              icon="heart-pulse"
+              title="Chưa có dữ liệu sức khỏe"
+              message="Hãy thêm chỉ số đầu tiên"
+              action={{
+                label: 'Thêm chỉ số mới',
+                onPress: () => {
+                  setInputType(selectedType);
+                  setModalVisible(true);
+                },
+              }}
+            />
+          </FadeInView>
+        )}
+      </ScreenContainer>
 
-      {/* Floating Action Button */}
+      {/* FAB */}
       <FAB
         icon="plus"
+        label="Thêm chỉ số mới"
         style={styles.fab}
         color="#fff"
         onPress={() => {
@@ -365,59 +445,38 @@ export function HealthScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <Text variant="titleLarge" style={styles.modalTitle}>
-              Add Reading
+              Thêm chỉ số sức khỏe
             </Text>
 
+            <Text style={styles.modalLabel}>Loại chỉ số</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.modalChips}
             >
-              {METRIC_CHIPS.map((chip) => (
+              {CHART_METRICS.map((type) => (
                 <Chip
-                  key={chip.type}
-                  selected={inputType === chip.type}
-                  onPress={() => setInputType(chip.type)}
-                  style={[styles.chip, inputType === chip.type && styles.chipSelected]}
-                  textStyle={inputType === chip.type ? styles.chipTextSelected : styles.chipText}
+                  key={type}
+                  selected={inputType === type}
+                  onPress={() => setInputType(type)}
+                  style={[styles.chip, inputType === type && styles.chipSelected]}
+                  textStyle={inputType === type ? styles.chipTextSelected : styles.chipText}
                 >
-                  {chip.label}
+                  {METRIC_LABELS_VI[type]}
                 </Chip>
               ))}
-              <Chip
-                selected={inputType === 'BLOOD_PRESSURE_DIASTOLIC'}
-                onPress={() => setInputType('BLOOD_PRESSURE_DIASTOLIC')}
-                style={[
-                  styles.chip,
-                  inputType === 'BLOOD_PRESSURE_DIASTOLIC' && styles.chipSelected,
-                ]}
-                textStyle={
-                  inputType === 'BLOOD_PRESSURE_DIASTOLIC'
-                    ? styles.chipTextSelected
-                    : styles.chipText
-                }
-              >
-                BP Diastolic
-              </Chip>
-              <Chip
-                selected={inputType === 'HEIGHT'}
-                onPress={() => setInputType('HEIGHT')}
-                style={[styles.chip, inputType === 'HEIGHT' && styles.chipSelected]}
-                textStyle={inputType === 'HEIGHT' ? styles.chipTextSelected : styles.chipText}
-              >
-                Height
-              </Chip>
             </ScrollView>
 
+            <Text style={styles.modalLabel}>Giá trị</Text>
             <TextInput
-              label={`Value (${METRIC_UNITS[inputType]})`}
+              label={`Giá trị (${METRIC_UNITS[inputType]})`}
               value={inputValue}
               onChangeText={setInputValue}
               keyboardType="decimal-pad"
               mode="outlined"
               style={styles.modalInput}
-              outlineColor={systemColors.gray4}
-              activeOutlineColor={systemColors.blue}
+              outlineColor={figmaColors.border}
+              activeOutlineColor={figmaColors.error}
             />
 
             <View style={styles.modalActions}>
@@ -425,8 +484,9 @@ export function HealthScreen() {
                 mode="outlined"
                 onPress={() => setModalVisible(false)}
                 style={styles.modalBtn}
+                textColor={figmaColors.textSecondary}
               >
-                Cancel
+                Hủy
               </Button>
               <Button
                 mode="contained"
@@ -434,9 +494,9 @@ export function HealthScreen() {
                 loading={submitting}
                 disabled={submitting || !inputValue}
                 style={styles.modalBtn}
-                buttonColor={systemColors.blue}
+                buttonColor={figmaColors.error}
               >
-                Save
+                Lưu
               </Button>
             </View>
           </View>
@@ -451,82 +511,49 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: figmaColors.background,
   },
-  // Quick Stats
-  statsRow: {
+  sectionTop: {
+    marginTop: figmaSpacing.lg,
+  },
+  metricsGrid: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    marginTop: -20,
-    gap: 8,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.md,
   },
-  statCard: {
+  metricCard: {
     flex: 1,
   },
-  statInner: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  statLabel: {
-    color: theme.colors.onSurfaceVariant,
-  },
-  // Chips
   chipsContainer: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: 8,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.sm,
+    gap: figmaSpacing.sm,
   },
   chip: {
-    backgroundColor: systemColors.gray6,
+    backgroundColor: figmaColors.surfaceMuted,
     marginRight: 6,
   },
   chipSelected: {
-    backgroundColor: systemColors.blue,
+    backgroundColor: figmaColors.error,
   },
   chipText: {
-    color: theme.colors.onSurface,
+    color: figmaColors.textSecondary,
   },
   chipTextSelected: {
     color: '#fff',
   },
-  // Chart
   chartCard: {
-    marginHorizontal: spacing.md,
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    marginBottom: 12,
-    color: theme.colors.onSurface,
+    marginHorizontal: figmaSpacing.lg,
+    padding: figmaSpacing.lg,
   },
   chart: {
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
     marginLeft: -16,
   },
-  emptyChart: {
-    height: 160,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyText: {
-    color: theme.colors.onSurfaceVariant,
-    textAlign: 'center',
-  },
-  // Alerts
-  sectionHeader: {
-    fontWeight: '600',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    color: theme.colors.onSurface,
-  },
   alertCard: {
-    marginHorizontal: spacing.md,
-    marginBottom: 8,
+    marginHorizontal: figmaSpacing.lg,
+    marginBottom: figmaSpacing.sm,
+    padding: figmaSpacing.lg,
   },
   alertRow: {
     flexDirection: 'row',
@@ -543,31 +570,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   alertMessage: {
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   alertDate: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textMuted,
     marginTop: 2,
   },
   severityBadge: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: figmaFonts.weights.semibold,
+    paddingHorizontal: figmaSpacing.sm,
   },
-  // Tips
+  tipsHeaderWrap: {
+    paddingHorizontal: figmaSpacing.lg,
+    marginBottom: figmaSpacing.sm,
+  },
+  tipsHeader: {
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textSecondary,
+  },
   tipCard: {
-    marginHorizontal: spacing.md,
-    marginBottom: 8,
+    marginHorizontal: figmaSpacing.lg,
+    marginBottom: figmaSpacing.sm,
+    padding: figmaSpacing.lg,
   },
   tipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   tipIconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.pastelBlue,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -575,23 +612,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tipTitle: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
     marginBottom: 2,
   },
   tipText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textSecondary,
     lineHeight: 18,
   },
-  // FAB
   fab: {
     position: 'absolute',
     right: 20,
     bottom: 30,
-    backgroundColor: systemColors.blue,
-    borderRadius: 28,
+    backgroundColor: figmaColors.error,
+    borderRadius: figmaRadius.pill,
   },
-  // Modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -601,39 +636,47 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
+    backgroundColor: figmaColors.surface,
+    borderTopLeftRadius: figmaRadius.xl,
+    borderTopRightRadius: figmaRadius.xl,
+    padding: figmaSpacing.lg,
     paddingBottom: 40,
   },
   modalHandle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: systemColors.gray4,
+    backgroundColor: figmaColors.border,
     alignSelf: 'center',
-    marginBottom: spacing.md,
+    marginBottom: figmaSpacing.md,
   },
   modalTitle: {
-    fontWeight: '700',
-    marginBottom: spacing.md,
-    color: theme.colors.onSurface,
+    fontWeight: figmaFonts.weights.bold,
+    marginBottom: figmaSpacing.md,
+    color: figmaColors.textPrimary,
+  },
+  modalLabel: {
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.medium,
+    color: figmaColors.textSecondary,
+    marginBottom: figmaSpacing.xs,
+    marginTop: figmaSpacing.sm,
   },
   modalChips: {
     gap: 6,
-    marginBottom: spacing.md,
+    marginBottom: figmaSpacing.md,
   },
   modalInput: {
-    marginBottom: spacing.md,
-    backgroundColor: '#fff',
+    marginBottom: figmaSpacing.md,
+    backgroundColor: figmaColors.surface,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.sm,
   },
   modalBtn: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
   },
 });
