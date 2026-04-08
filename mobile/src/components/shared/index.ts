@@ -14,3 +14,4 @@ export { AppointmentCard } from './AppointmentCard';
 export { SearchBar } from './SearchBar';
 export { ListRow } from './ListRow';
 export { MetricCard } from './MetricCard';
+export { Skeleton, SkeletonCard } from './Skeleton';

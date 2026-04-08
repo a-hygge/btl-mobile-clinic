@@ -17,5 +17,16 @@ export default function AppLayout() {
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/login" />;
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+        animationDuration: 280,
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+    </Stack>
+  );
 }

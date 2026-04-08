@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { ActivityIndicator, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -16,6 +16,7 @@ import {
   FadeInView,
   GradientHeader,
   SearchBar,
+  SkeletonCard,
 } from '../../components/shared';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
@@ -306,8 +307,8 @@ export function DoctorSearchScreen() {
         )}
         ListEmptyComponent={
           isLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={figmaColors.primary} />
+            <View style={styles.skeletonWrap}>
+              <SkeletonCard rows={4} />
             </View>
           ) : (
             <View style={styles.emptyWrap}>
@@ -545,9 +546,9 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: figmaSpacing.md,
   },
-  loadingWrap: {
-    paddingVertical: 48,
-    alignItems: 'center',
+  skeletonWrap: {
+    paddingTop: figmaSpacing.md,
+    gap: figmaSpacing.md,
   },
   emptyWrap: {
     paddingTop: figmaSpacing['3xl'],

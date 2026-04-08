@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GlassCard } from '../../components/ui/GlassCard';
 import {
@@ -8,6 +8,7 @@ import {
   FadeInView,
   GradientHeader,
   ScreenContainer,
+  SkeletonCard,
 } from '../../components/shared';
 import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
 import {
@@ -114,14 +115,6 @@ export function NotificationScreen() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={figmaColors.warning} />
-      </View>
-    );
-  }
-
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <GradientHeader
@@ -147,7 +140,11 @@ export function NotificationScreen() {
         }
       />
 
-      {notifications.length === 0 ? (
+      {loading && notifications.length === 0 ? (
+        <View style={styles.listContainer}>
+          <SkeletonCard rows={4} />
+        </View>
+      ) : notifications.length === 0 ? (
         <EmptyState
           icon="bell-off-outline"
           title="Chưa có thông báo nào"

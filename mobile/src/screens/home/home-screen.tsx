@@ -13,6 +13,7 @@ import {
   DoctorCard,
   AppointmentCard,
   SearchBar,
+  SkeletonCard,
 } from '../../components/shared';
 import { figmaColors, figmaFonts, figmaSpacing } from '../../constants/theme';
 import { api, extractData, extractPaginatedData } from '../../services/api';
@@ -236,7 +237,7 @@ export function HomeScreen() {
         </View>
         <View style={styles.doctorsList}>
           {doctorsLoading && topDoctors.length === 0 ? (
-            <Text style={styles.emptyText}>Đang tải...</Text>
+            <SkeletonCard rows={3} />
           ) : (
             topDoctors.map((doctor) => (
               <DoctorCard
@@ -280,10 +281,7 @@ export function HomeScreen() {
               status={upcomingAppointment.status}
               avatarText={getInitials(upcomingAppointment.doctor?.name ?? 'BS')}
               onPress={() =>
-                router.push({
-                  pathname: '/appointments/[id]',
-                  params: { id: upcomingAppointment.id },
-                } as never)
+                router.push(`/appointment-detail?id=${upcomingAppointment.id}`)
               }
             />
           ) : (

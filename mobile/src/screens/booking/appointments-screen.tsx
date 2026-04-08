@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import LottieView from 'lottie-react-native';
 import { router } from 'expo-router';
 import { useMyAppointments } from '../../hooks/use-my-appointments';
 import {
@@ -9,6 +8,7 @@ import {
   FadeInView,
   GradientHeader,
   ScreenContainer,
+  SkeletonCard,
   TabSwitcher,
 } from '../../components/shared';
 import { formatDate } from '../../utils/format';
@@ -92,13 +92,8 @@ export function AppointmentsScreen() {
       />
 
       {isLoading ? (
-        <View style={styles.center}>
-          <LottieView
-            source={require('../../assets/animations/loading.json')}
-            autoPlay
-            loop
-            style={styles.loadingLottie}
-          />
+        <View style={styles.cardList}>
+          <SkeletonCard rows={4} />
         </View>
       ) : displayedAppointments.length === 0 ? (
         <EmptyState
