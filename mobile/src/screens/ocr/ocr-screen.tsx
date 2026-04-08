@@ -1,12 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Animated,
-  Image,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Image, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -14,13 +7,21 @@ import {
   Text,
   TextInput,
 } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import {
+  FadeInView,
+  GradientHeader,
+  ScreenContainer,
+} from '../../components/shared';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { systemColors, spacing, theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import {
   ocrPrescription,
   savePrescription,
@@ -28,33 +29,7 @@ import {
   type OcrResult,
 } from '../../services/prescription.service';
 
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
+const HEADER_COLORS = ['#5AC8FA', figmaColors.primary] as const;
 
 export function OcrScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -70,7 +45,10 @@ export function OcrScreen() {
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Camera permission is required to scan prescriptions.');
+        Alert.alert(
+          'Cần cấp quyền',
+          'Vui lòng cho phép truy cập camera để quét đơn thuốc.'
+        );
         return;
       }
       result = await ImagePicker.launchCameraAsync({
@@ -80,7 +58,10 @@ export function OcrScreen() {
     } else {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Photo library permission is required.');
+        Alert.alert(
+          'Cần cấp quyền',
+          'Vui lòng cho phép truy cập thư viện ảnh.'
+        );
         return;
       }
       result = await ImagePicker.launchImageLibraryAsync({
@@ -107,7 +88,10 @@ export function OcrScreen() {
       setMedicines(result.medicines);
     } catch (error) {
       console.error('OCR failed:', error);
-      Alert.alert('Scan Failed', 'Could not process the prescription image. Please try again.');
+      Alert.alert(
+        'Quét thất bại',
+        'Không thể nhận dạng. Vui lòng chụp lại.'
+      );
     } finally {
       setScanning(false);
     }
@@ -134,10 +118,10 @@ export function OcrScreen() {
         rawText: ocrResult.rawText,
       });
       setSaved(true);
-      Alert.alert('Saved', 'Prescription has been saved successfully.');
+      Alert.alert('Đã lưu', 'Đơn thuốc đã được lưu vào hồ sơ.');
     } catch (error) {
       console.error('Save failed:', error);
-      Alert.alert('Save Failed', 'Could not save the prescription. Please try again.');
+      Alert.alert('Lưu thất bại', 'Không thể lưu đơn thuốc. Vui lòng thử lại.');
     } finally {
       setSaving(false);
     }
@@ -151,413 +135,401 @@ export function OcrScreen() {
   }, []);
 
   return (
-    <ScreenBackground>
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={['#5AC8FA', '#007AFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
-            <MaterialCommunityIcons name="camera-document" size={32} color="#fff" />
-            <Text variant="headlineMedium" style={styles.headerTitle}>
-              Scan Prescription
-            </Text>
-            <Text variant="bodyMedium" style={styles.headerSubtitle}>
-              Take a photo or upload to extract medicine details
-            </Text>
+    <ScreenContainer>
+      <GradientHeader
+        title="Quét đơn thuốc"
+        subtitle="Chụp ảnh hoặc tải lên để nhận dạng thuốc tự động"
+        colors={HEADER_COLORS}
+      />
+
+      {/* Section: Chụp ảnh đơn thuốc */}
+      {!ocrResult && (
+        <FadeInView delay={80}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Chụp ảnh đơn thuốc</Text>
           </View>
-        </LinearGradient>
+        </FadeInView>
+      )}
 
-        {/* Image Picker Section */}
-        {!imageUri && (
-          <FadeInView delay={100}>
-            <GlassCard style={styles.pickerCard}>
-              <View style={styles.pickerContent}>
-                <MaterialCommunityIcons
-                  name="file-document-outline"
-                  size={64}
-                  color={systemColors.gray3}
-                />
-                <Text variant="bodyLarge" style={styles.pickerText}>
-                  Select a prescription image
-                </Text>
-                <View style={styles.pickerButtons}>
-                  <Button
-                    mode="contained"
-                    icon="camera"
-                    onPress={() => pickImage('camera')}
-                    style={styles.pickerBtn}
-                    buttonColor={systemColors.teal}
-                  >
-                    Camera
-                  </Button>
-                  <Button
-                    mode="contained"
-                    icon="image"
-                    onPress={() => pickImage('gallery')}
-                    style={styles.pickerBtn}
-                    buttonColor={systemColors.blue}
-                  >
-                    Gallery
-                  </Button>
-                </View>
+      {/* Image Picker */}
+      {!imageUri && (
+        <FadeInView delay={120}>
+          <GlassCard style={styles.pickerCard}>
+            <View style={styles.pickerContent}>
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={64}
+                color={figmaColors.textMuted}
+              />
+              <Text style={styles.pickerText}>
+                Chọn một ảnh đơn thuốc để bắt đầu
+              </Text>
+              <View style={styles.pickerButtons}>
+                <Button
+                  mode="contained"
+                  icon="camera"
+                  onPress={() => pickImage('camera')}
+                  style={styles.pickerBtn}
+                  buttonColor={figmaColors.primary}
+                >
+                  Chụp ảnh
+                </Button>
+                <Button
+                  mode="outlined"
+                  icon="image"
+                  onPress={() => pickImage('gallery')}
+                  style={styles.pickerBtn}
+                  textColor={figmaColors.primary}
+                >
+                  Chọn từ thư viện
+                </Button>
               </View>
-            </GlassCard>
-          </FadeInView>
-        )}
+            </View>
+          </GlassCard>
+        </FadeInView>
+      )}
 
-        {/* Image Preview */}
-        {imageUri && !ocrResult && !scanning && (
-          <FadeInView delay={100}>
-            <GlassCard style={styles.previewCard}>
-              <View>
-                <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
-                <View style={styles.previewActions}>
-                  <Button
-                    mode="outlined"
-                    icon="close"
-                    onPress={handleReset}
-                    style={styles.actionBtn}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    mode="contained"
-                    icon="text-recognition"
-                    onPress={handleScan}
-                    style={styles.actionBtn}
-                    buttonColor={systemColors.teal}
-                  >
-                    Scan
-                  </Button>
-                </View>
-              </View>
-            </GlassCard>
-          </FadeInView>
-        )}
-
-        {/* Scanning State */}
-        {scanning && (
-          <FadeInView delay={0}>
-            <GlassCard style={styles.scanningCard}>
-              <View style={styles.scanningContent}>
-                <LottieView
-                  source={require('../../assets/animations/empty-state.json')}
-                  autoPlay
-                  loop
-                  style={styles.scanningAnimation}
-                />
-                <Text variant="titleMedium" style={styles.scanningText}>
-                  Analyzing prescription...
-                </Text>
-                <Text variant="bodySmall" style={styles.scanningSubtext}>
-                  AI is extracting medicine details
-                </Text>
-                <ActivityIndicator
-                  size="small"
-                  color={systemColors.teal}
-                  style={{ marginTop: spacing.sm }}
-                />
-              </View>
-            </GlassCard>
-          </FadeInView>
-        )}
-
-        {/* OCR Results */}
-        {ocrResult && medicines.length > 0 && (
-          <>
-            <FadeInView delay={100}>
-              <View style={styles.resultsHeader}>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Extracted Medicines ({medicines.length})
-                </Text>
-                <IconButton
+      {/* Image Preview */}
+      {imageUri && !ocrResult && !scanning && (
+        <FadeInView delay={120}>
+          <GlassCard style={styles.previewCard}>
+            <View>
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+              <View style={styles.previewActions}>
+                <Button
+                  mode="outlined"
                   icon="refresh"
-                  size={20}
                   onPress={handleReset}
-                  iconColor={systemColors.blue}
-                />
+                  style={styles.actionBtn}
+                  textColor={figmaColors.primary}
+                >
+                  Quét lại
+                </Button>
+                <Button
+                  mode="contained"
+                  icon="text-recognition"
+                  onPress={handleScan}
+                  style={styles.actionBtn}
+                  buttonColor={figmaColors.primary}
+                >
+                  Nhận dạng
+                </Button>
               </View>
-            </FadeInView>
+            </View>
+          </GlassCard>
+        </FadeInView>
+      )}
 
-            {medicines.map((medicine, index) => (
-              <FadeInView key={index} delay={150 + index * 80}>
-                <GlassCard style={styles.medicineCard}>
-                  <View>
-                    <View style={styles.medicineHeader}>
-                      <View style={styles.medicineIconContainer}>
-                        <MaterialCommunityIcons
-                          name="pill"
-                          size={24}
-                          color={systemColors.teal}
-                        />
-                      </View>
-                      <Text variant="titleSmall" style={styles.medicineNumber}>
-                        Medicine #{index + 1}
-                      </Text>
+      {/* Scanning State */}
+      {scanning && (
+        <FadeInView>
+          <GlassCard style={styles.scanningCard}>
+            <View style={styles.scanningContent}>
+              <LottieView
+                source={require('../../assets/animations/empty-state.json')}
+                autoPlay
+                loop
+                style={styles.scanningAnimation}
+              />
+              <Text style={styles.scanningText}>Đang phân tích đơn thuốc...</Text>
+              <Text style={styles.scanningSubtext}>
+                AI đang trích xuất thông tin thuốc
+              </Text>
+              <ActivityIndicator
+                size="small"
+                color={figmaColors.primary}
+                style={{ marginTop: figmaSpacing.sm }}
+              />
+            </View>
+          </GlassCard>
+        </FadeInView>
+      )}
+
+      {/* Results */}
+      {ocrResult && medicines.length > 0 && (
+        <>
+          <FadeInView delay={100}>
+            <View style={styles.resultsHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Kết quả nhận dạng</Text>
+                <Text style={styles.resultsSub}>
+                  Đã nhận dạng được {medicines.length} loại thuốc
+                </Text>
+              </View>
+              <IconButton
+                icon="refresh"
+                size={20}
+                onPress={handleReset}
+                iconColor={figmaColors.primary}
+                accessibilityLabel="Quét lại"
+              />
+            </View>
+          </FadeInView>
+
+          {medicines.map((medicine, index) => (
+            <FadeInView key={index} delay={150 + index * 80}>
+              <GlassCard style={styles.medicineCard}>
+                <View>
+                  <View style={styles.medicineHeader}>
+                    <View style={styles.medicineIconContainer}>
+                      <MaterialCommunityIcons
+                        name="pill"
+                        size={24}
+                        color={figmaColors.primary}
+                      />
                     </View>
+                    <Text style={styles.medicineNumber}>Thuốc #{index + 1}</Text>
+                  </View>
 
+                  <TextInput
+                    label="Tên thuốc"
+                    value={medicine.name}
+                    onChangeText={(v) => updateMedicine(index, 'name', v)}
+                    mode="outlined"
+                    style={styles.input}
+                    outlineColor={figmaColors.border}
+                    activeOutlineColor={figmaColors.primary}
+                    dense
+                  />
+                  <View style={styles.inputRow}>
                     <TextInput
-                      label="Name"
-                      value={medicine.name}
-                      onChangeText={(v) => updateMedicine(index, 'name', v)}
+                      label="Liều lượng"
+                      value={medicine.dosage}
+                      onChangeText={(v) => updateMedicine(index, 'dosage', v)}
                       mode="outlined"
-                      style={styles.input}
-                      outlineColor={systemColors.gray4}
-                      activeOutlineColor={systemColors.teal}
+                      style={[styles.input, styles.inputHalf]}
+                      outlineColor={figmaColors.border}
+                      activeOutlineColor={figmaColors.primary}
                       dense
                     />
-                    <View style={styles.inputRow}>
-                      <TextInput
-                        label="Dosage"
-                        value={medicine.dosage}
-                        onChangeText={(v) => updateMedicine(index, 'dosage', v)}
-                        mode="outlined"
-                        style={[styles.input, styles.inputHalf]}
-                        outlineColor={systemColors.gray4}
-                        activeOutlineColor={systemColors.teal}
-                        dense
-                      />
-                      <TextInput
-                        label="Quantity"
-                        value={medicine.quantity}
-                        onChangeText={(v) => updateMedicine(index, 'quantity', v)}
-                        mode="outlined"
-                        style={[styles.input, styles.inputHalf]}
-                        outlineColor={systemColors.gray4}
-                        activeOutlineColor={systemColors.teal}
-                        dense
-                      />
-                    </View>
                     <TextInput
-                      label="Frequency"
-                      value={medicine.frequency}
-                      onChangeText={(v) => updateMedicine(index, 'frequency', v)}
+                      label="Số lượng"
+                      value={medicine.quantity}
+                      onChangeText={(v) => updateMedicine(index, 'quantity', v)}
                       mode="outlined"
-                      style={styles.input}
-                      outlineColor={systemColors.gray4}
-                      activeOutlineColor={systemColors.teal}
+                      style={[styles.input, styles.inputHalf]}
+                      outlineColor={figmaColors.border}
+                      activeOutlineColor={figmaColors.primary}
                       dense
                     />
                   </View>
-                </GlassCard>
-              </FadeInView>
-            ))}
-
-            {/* Save Button */}
-            <FadeInView delay={150 + medicines.length * 80}>
-              <Button
-                mode="contained"
-                icon={saved ? 'check' : 'content-save'}
-                onPress={handleSave}
-                loading={saving}
-                disabled={saving || saved}
-                style={styles.saveBtn}
-                buttonColor={saved ? systemColors.green : systemColors.blue}
-              >
-                {saved ? 'Saved' : 'Save Prescription'}
-              </Button>
+                  <TextInput
+                    label="Tần suất"
+                    value={medicine.frequency}
+                    onChangeText={(v) => updateMedicine(index, 'frequency', v)}
+                    mode="outlined"
+                    style={styles.input}
+                    outlineColor={figmaColors.border}
+                    activeOutlineColor={figmaColors.primary}
+                    dense
+                  />
+                </View>
+              </GlassCard>
             </FadeInView>
-          </>
-        )}
+          ))}
 
-        {/* No medicines found */}
-        {ocrResult && medicines.length === 0 && (
-          <FadeInView delay={100}>
-            <GlassCard style={styles.emptyCard}>
-              <View style={styles.emptyContent}>
-                <MaterialCommunityIcons
-                  name="alert-circle-outline"
-                  size={48}
-                  color={systemColors.orange}
-                />
-                <Text variant="titleSmall" style={styles.emptyTitle}>
-                  No Medicines Detected
-                </Text>
-                <Text variant="bodySmall" style={styles.emptyText}>
-                  The AI could not extract medicine details. Try a clearer photo.
-                </Text>
-                <Button
-                  mode="outlined"
-                  icon="camera"
-                  onPress={handleReset}
-                  style={{ marginTop: spacing.md }}
-                >
-                  Try Again
-                </Button>
-              </View>
-            </GlassCard>
+          <FadeInView delay={150 + medicines.length * 80}>
+            <Button
+              mode="contained"
+              icon={saved ? 'check' : 'content-save'}
+              onPress={handleSave}
+              loading={saving}
+              disabled={saving || saved}
+              style={styles.saveBtn}
+              buttonColor={saved ? figmaColors.success : figmaColors.primary}
+            >
+              {saved ? 'Đã lưu' : 'Lưu vào hồ sơ'}
+            </Button>
           </FadeInView>
-        )}
+        </>
+      )}
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-    </View>
-    </ScreenBackground>
+      {/* No medicines found */}
+      {ocrResult && medicines.length === 0 && (
+        <FadeInView delay={100}>
+          <GlassCard style={styles.emptyCard}>
+            <View style={styles.emptyContent}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={48}
+                color={figmaColors.warning}
+              />
+              <Text style={styles.emptyTitle}>Không tìm thấy thuốc</Text>
+              <Text style={styles.emptyText}>
+                Không thể nhận dạng. Vui lòng chụp lại.
+              </Text>
+              <Button
+                mode="outlined"
+                icon="camera"
+                onPress={handleReset}
+                style={{ marginTop: figmaSpacing.md }}
+                textColor={figmaColors.primary}
+              >
+                Quét lại
+              </Button>
+            </View>
+          </GlassCard>
+        </FadeInView>
+      )}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  sectionHeader: {
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  // Header
-  header: {
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerContent: {
-    gap: 4,
-  },
-  headerTitle: {
-    color: '#fff',
+  sectionTitle: {
+    fontSize: figmaFonts.sizes.xl,
     fontWeight: '700',
-    marginTop: 8,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: figmaColors.textPrimary,
   },
   // Picker
   pickerCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.md,
   },
   pickerContent: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
-    gap: spacing.md,
+    paddingVertical: figmaSpacing.xl,
+    gap: figmaSpacing.md,
   },
   pickerText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textSecondary,
+    fontSize: figmaFonts.sizes.md,
+    textAlign: 'center',
   },
   pickerButtons: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   pickerBtn: {
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
   },
   // Preview
   previewCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.md,
   },
   previewImage: {
     width: '100%',
     height: 300,
-    borderRadius: 12,
-    backgroundColor: systemColors.gray6,
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.surfaceMuted,
   },
   previewActions: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.md,
   },
   actionBtn: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
   },
   // Scanning
   scanningCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
   },
   scanningContent: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    paddingVertical: figmaSpacing.lg,
   },
   scanningAnimation: {
     width: 120,
     height: 120,
   },
   scanningText: {
+    fontSize: figmaFonts.sizes.lg,
     fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginTop: spacing.sm,
+    color: figmaColors.textPrimary,
+    marginTop: figmaSpacing.sm,
   },
   scanningSubtext: {
-    color: theme.colors.onSurfaceVariant,
-    marginTop: spacing.xs,
+    color: figmaColors.textSecondary,
+    marginTop: figmaSpacing.xs,
+    fontSize: figmaFonts.sizes.sm,
   },
   // Results
   resultsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
   },
-  sectionTitle: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+  resultsSub: {
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
+    marginTop: 2,
   },
   medicineCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.sm,
   },
   medicineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    gap: figmaSpacing.sm,
+    marginBottom: figmaSpacing.sm,
   },
   medicineIconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(90, 200, 250, 0.12)',
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.pastelBlue,
     justifyContent: 'center',
     alignItems: 'center',
   },
   medicineNumber: {
+    fontSize: figmaFonts.sizes.md,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   input: {
-    backgroundColor: '#fff',
-    marginBottom: spacing.xs,
+    backgroundColor: figmaColors.surface,
+    marginBottom: figmaSpacing.xs,
   },
   inputRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: figmaSpacing.sm,
   },
   inputHalf: {
     flex: 1,
   },
   saveBtn: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    borderRadius: 12,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
+    borderRadius: figmaRadius.md,
     paddingVertical: 4,
   },
   // Empty
   emptyCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
   },
   emptyContent: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
+    paddingVertical: figmaSpacing.lg,
+    gap: figmaSpacing.xs,
   },
   emptyTitle: {
+    fontSize: figmaFonts.sizes.lg,
     fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginTop: spacing.sm,
+    color: figmaColors.textPrimary,
+    marginTop: figmaSpacing.sm,
   },
   emptyText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textSecondary,
     textAlign: 'center',
+    fontSize: figmaFonts.sizes.sm,
   },
 });
