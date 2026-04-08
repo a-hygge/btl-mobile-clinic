@@ -9,14 +9,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Snackbar, Text, TextInput } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
-import { theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaShadows,
+  figmaSpacing,
+} from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -24,9 +30,9 @@ function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
     const response = (error as { response?: { data?: { error?: { message?: string } } } })
       .response;
-    return response?.data?.error?.message ?? 'Login failed. Please try again.';
+    return response?.data?.error?.message ?? 'Đăng nhập thất bại. Vui lòng thử lại.';
   }
-  return 'Login failed. Please try again.';
+  return 'Đăng nhập thất bại. Vui lòng thử lại.';
 }
 
 export function LoginScreen() {
@@ -39,62 +45,34 @@ export function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // ── Animated values ──────────────────────────────────────────────
-  const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslateY = useRef(new Animated.Value(-30)).current;
-  const formItems = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
-  const formSlides = useRef([
-    new Animated.Value(40),
-    new Animated.Value(40),
-    new Animated.Value(40),
-    new Animated.Value(40),
-    new Animated.Value(40),
-  ]).current;
+  const formSlides = useRef(
+    Array.from({ length: 6 }, () => new Animated.Value(40)),
+  ).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Hero fade-in
-    Animated.parallel([
-      Animated.timing(heroOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroTranslateY, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.spring(heroTranslateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 14,
+    }).start();
 
-    // Staggered form fields
-    const staggerAnimations = formItems.map((opacity, index) =>
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 400,
-          delay: 300 + index * 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(formSlides[index], {
+    Animated.stagger(
+      90,
+      formSlides.map((slide) =>
+        Animated.spring(slide, {
           toValue: 0,
-          duration: 400,
-          delay: 300 + index * 100,
           useNativeDriver: true,
+          damping: 16,
         }),
-      ]),
-    );
-    Animated.parallel(staggerAnimations).start();
-  }, []);
+      ),
+    ).start();
+  }, [heroTranslateY, formSlides]);
 
   async function handleLogin(): Promise<void> {
     if (!email.trim() || !password) {
-      setError('Email and password are required.');
+      setError('Vui lòng nhập email và mật khẩu.');
       return;
     }
 
@@ -111,14 +89,26 @@ export function LoginScreen() {
     }
   }
 
-  function renderAnimatedItem(index: number, child: React.ReactNode): React.ReactNode {
+  function handleButtonPressIn() {
+    Animated.spring(buttonScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function handleButtonPressOut() {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 10,
+    }).start();
+  }
+
+  function renderRow(index: number, child: React.ReactNode): React.ReactNode {
     return (
       <Animated.View
         key={index}
-        style={{
-          opacity: formItems[index],
-          transform: [{ translateY: formSlides[index] }],
-        }}
+        style={{ transform: [{ translateY: formSlides[index] }] }}
       >
         {child}
       </Animated.View>
@@ -135,18 +125,14 @@ export function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Gradient Hero ─────────────────────────────────────── */}
         <Animated.View
-          style={[
-            styles.heroContainer,
-            { opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] },
-          ]}
+          style={[styles.heroContainer, { transform: [{ translateY: heroTranslateY }] }]}
         >
           <LinearGradient
-            colors={['#007AFF', '#0051D5']}
+            colors={[figmaColors.primary, figmaColors.primaryDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.gradient, { paddingTop: insets.top + 16 }]}
+            style={[styles.gradient, { paddingTop: insets.top + figmaSpacing.lg }]}
           >
             <View style={styles.lottieWrapper}>
               <LottieView
@@ -156,90 +142,126 @@ export function LoginScreen() {
                 style={styles.lottie}
               />
             </View>
-            <Text variant="headlineMedium" style={styles.heroTitle}>
-              BTL Healthcare
-            </Text>
-            <Text variant="bodyMedium" style={styles.heroSubtitle}>
-              Sign in to manage appointments, doctors, and care history.
-            </Text>
+            <Text style={styles.heroTitle}>BTL Healthcare</Text>
+            <Text style={styles.heroSubtitle}>Đăng nhập để tiếp tục</Text>
           </LinearGradient>
         </Animated.View>
 
-        {/* ── Form Card ─────────────────────────────────────────── */}
         <View style={styles.card}>
-          {renderAnimatedItem(
+          {renderRow(
             0,
-            <TextInput
-              label="Email"
-              mode="outlined"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              left={<TextInput.Icon icon="email-outline" />}
-              style={styles.input}
-            />,
-          )}
-
-          {renderAnimatedItem(
-            1,
-            <TextInput
-              label="Password"
-              mode="outlined"
-              secureTextEntry={secureTextEntry}
-              value={password}
-              onChangeText={setPassword}
-              left={<TextInput.Icon icon="lock-outline" />}
-              right={
-                <TextInput.Icon
-                  icon={secureTextEntry ? 'eye-off-outline' : 'eye-outline'}
-                  onPress={() => setSecureTextEntry((v) => !v)}
-                />
-              }
-              style={styles.input}
-            />,
-          )}
-
-          {renderAnimatedItem(
-            2,
-            <Button
-              mode="contained"
-              onPress={handleLogin}
-              loading={submitting}
-              disabled={submitting}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              style={styles.loginButton}
-            >
-              {submitting ? 'Signing in...' : 'Sign In'}
-            </Button>,
-          )}
-
-          {renderAnimatedItem(
-            3,
-            <View style={styles.demoHint}>
-              <MaterialCommunityIcons
-                name="information-outline"
-                size={16}
-                color={theme.colors.onSurfaceVariant}
+            <View style={styles.field}>
+              <Text style={styles.label}>Email hoặc số điện thoại</Text>
+              <TextInput
+                mode="outlined"
+                placeholder="vd: patient1@gmail.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                left={<TextInput.Icon icon="email-outline" />}
+                style={styles.input}
+                outlineColor={figmaColors.border}
+                activeOutlineColor={figmaColors.primary}
+                outlineStyle={styles.inputOutline}
               />
-              <Text variant="bodySmall" style={styles.demoText}>
-                Demo: patient1@gmail.com / password123
-              </Text>
             </View>,
           )}
 
-          {renderAnimatedItem(
-            4,
-            <View style={styles.footer}>
-              <Text variant="bodyMedium" style={styles.footerText}>
-                Don't have an account?
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/register')}>
-                <Text variant="labelLarge" style={styles.footerLink}>
-                  Register
-                </Text>
+          {renderRow(
+            1,
+            <View style={styles.field}>
+              <Text style={styles.label}>Mật khẩu</Text>
+              <TextInput
+                mode="outlined"
+                placeholder="Nhập mật khẩu"
+                secureTextEntry={secureTextEntry}
+                value={password}
+                onChangeText={setPassword}
+                left={<TextInput.Icon icon="lock-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={secureTextEntry ? 'eye-off-outline' : 'eye-outline'}
+                    onPress={() => setSecureTextEntry((v) => !v)}
+                  />
+                }
+                style={styles.input}
+                outlineColor={figmaColors.border}
+                activeOutlineColor={figmaColors.primary}
+                outlineStyle={styles.inputOutline}
+              />
+            </View>,
+          )}
+
+          {renderRow(
+            2,
+            <TouchableOpacity
+              style={styles.forgotWrap}
+              onPress={() => router.push('/forgot-password')}
+            >
+              <Text style={styles.forgotText}>Quên mật khẩu?</Text>
+            </TouchableOpacity>,
+          )}
+
+          {renderRow(
+            3,
+            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                disabled={submitting}
+                onPress={handleLogin}
+                onPressIn={handleButtonPressIn}
+                onPressOut={handleButtonPressOut}
+                style={styles.primaryButton}
+              >
+                <LinearGradient
+                  colors={[figmaColors.primary, figmaColors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.primaryButtonGradient}
+                >
+                  <Text style={styles.primaryButtonLabel}>
+                    {submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                  </Text>
+                </LinearGradient>
               </TouchableOpacity>
+            </Animated.View>,
+          )}
+
+          {renderRow(
+            4,
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>hoặc</Text>
+              <View style={styles.dividerLine} />
+            </View>,
+          )}
+
+          {renderRow(
+            5,
+            <View style={styles.bottomGroup}>
+              <TouchableOpacity activeOpacity={0.85} style={styles.googleButton}>
+                <MaterialCommunityIcons name="google" size={20} color="#DB4437" />
+                <Text style={styles.googleButtonLabel}>Đăng nhập với Google</Text>
+              </TouchableOpacity>
+
+              <View style={styles.demoHint}>
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={14}
+                  color={figmaColors.textMuted}
+                />
+                <Text style={styles.demoText}>
+                  Demo: patient1@gmail.com / password123
+                </Text>
+              </View>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Chưa có tài khoản? </Text>
+                <TouchableOpacity onPress={() => router.push('/register')}>
+                  <Text style={styles.footerLink}>Đăng ký</Text>
+                </TouchableOpacity>
+              </View>
             </View>,
           )}
         </View>
@@ -261,26 +283,26 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: figmaColors.background,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: figmaSpacing['3xl'],
   },
-  // ── Hero ──────────────────────────────────────────────────────────
   heroContainer: {
     overflow: 'hidden',
   },
   gradient: {
     width: SCREEN_WIDTH,
-    paddingBottom: 40,
+    paddingBottom: figmaSpacing['3xl'] + figmaSpacing.lg,
     alignItems: 'center',
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
   lottieWrapper: {
-    width: 180,
-    height: 180,
-    marginBottom: 12,
+    width: 160,
+    height: 160,
+    marginBottom: figmaSpacing.sm,
   },
   lottie: {
     width: '100%',
@@ -288,72 +310,127 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: figmaFonts.weights.bold,
     textAlign: 'center',
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.85)',
+    fontSize: figmaFonts.sizes.md,
     textAlign: 'center',
-    marginTop: 4,
-    paddingHorizontal: 32,
+    marginTop: figmaSpacing.xs,
+    fontWeight: figmaFonts.weights.medium,
   },
-  // ── Card ──────────────────────────────────────────────────────────
   card: {
-    marginTop: -16,
-    marginHorizontal: 20,
-    padding: 24,
-    gap: 16,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-    marginBottom: 32,
+    marginTop: -figmaSpacing.xl,
+    marginHorizontal: figmaSpacing.xl,
+    padding: figmaSpacing['2xl'],
+    gap: figmaSpacing.lg,
+    borderRadius: figmaRadius.xl,
+    backgroundColor: figmaColors.surface,
+    ...figmaShadows.pop,
+  },
+  field: {
+    gap: figmaSpacing.xs,
+  },
+  label: {
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
+    marginLeft: figmaSpacing.xs,
   },
   input: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: figmaColors.surface,
+    fontSize: figmaFonts.sizes.md,
   },
-  // ── Button ────────────────────────────────────────────────────────
-  loginButton: {
-    marginTop: 4,
-    borderRadius: 12,
+  inputOutline: {
+    borderRadius: figmaRadius.md,
+    borderWidth: 1.5,
   },
-  buttonContent: {
-    height: 50,
+  forgotWrap: {
+    alignSelf: 'flex-end',
+    marginTop: -figmaSpacing.sm,
   },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+  forgotText: {
+    color: figmaColors.primary,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
   },
-  // ── Demo hint ─────────────────────────────────────────────────────
+  primaryButton: {
+    borderRadius: figmaRadius.md,
+    overflow: 'hidden',
+    ...figmaShadows.banner,
+  },
+  primaryButtonGradient: {
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    letterSpacing: 0.3,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: figmaSpacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: figmaColors.border,
+  },
+  dividerText: {
+    color: figmaColors.textMuted,
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.medium,
+  },
+  bottomGroup: {
+    gap: figmaSpacing.lg,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: figmaSpacing.sm,
+    height: 52,
+    borderRadius: figmaRadius.md,
+    borderWidth: 1.5,
+    borderColor: figmaColors.border,
+    backgroundColor: figmaColors.surface,
+  },
+  googleButtonLabel: {
+    color: figmaColors.textPrimary,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
+  },
   demoHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: figmaSpacing.xs,
     justifyContent: 'center',
   },
   demoText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textMuted,
+    fontSize: figmaFonts.sizes.sm,
   },
-  // ── Footer ────────────────────────────────────────────────────────
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 4,
   },
   footerText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textSecondary,
+    fontSize: figmaFonts.sizes.md,
   },
   footerLink: {
-    color: theme.colors.primary,
-    fontWeight: '600',
+    color: figmaColors.primary,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
   },
-  // ── Snackbar ──────────────────────────────────────────────────────
   snackbar: {
-    backgroundColor: theme.colors.error,
+    backgroundColor: figmaColors.error,
   },
 });

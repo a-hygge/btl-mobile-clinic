@@ -2,98 +2,105 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaSpacing,
+} from '../constants/theme';
 
 export function LoadingScreen() {
-  const lottieOpacity = useRef(new Animated.Value(0)).current;
-  const lottieScale = useRef(new Animated.Value(0.8)).current;
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(12)).current;
-  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+
+  const heroTranslateY = useRef(new Animated.Value(20)).current;
+  const titleTranslateY = useRef(new Animated.Value(20)).current;
+  const subtitleTranslateY = useRef(new Animated.Value(20)).current;
+
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Lottie fades in + scales up
-    Animated.parallel([
-      Animated.timing(lottieOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(lottieScale, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Title fades in after a short delay
-    Animated.parallel([
-      Animated.timing(titleOpacity, {
-        toValue: 1,
-        duration: 500,
-        delay: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(titleTranslateY, {
+    Animated.stagger(120, [
+      Animated.spring(heroTranslateY, {
         toValue: 0,
-        duration: 500,
-        delay: 400,
         useNativeDriver: true,
+        damping: 14,
+      }),
+      Animated.spring(titleTranslateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 14,
+      }),
+      Animated.spring(subtitleTranslateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 14,
       }),
     ]).start();
 
-    // Subtitle fades in last
-    Animated.timing(subtitleOpacity, {
-      toValue: 1,
-      duration: 500,
-      delay: 700,
-      useNativeDriver: true,
-    }).start();
-  }, [lottieOpacity, lottieScale, titleOpacity, titleTranslateY, subtitleOpacity]);
+    const makeBounce = (val: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, {
+            toValue: -8,
+            duration: 360,
+            delay,
+            useNativeDriver: true,
+          }),
+          Animated.timing(val, {
+            toValue: 0,
+            duration: 360,
+            useNativeDriver: true,
+          }),
+          Animated.delay(240),
+        ]),
+      );
+
+    Animated.parallel([
+      makeBounce(dot1, 0),
+      makeBounce(dot2, 160),
+      makeBounce(dot3, 320),
+    ]).start();
+  }, [heroTranslateY, titleTranslateY, subtitleTranslateY, dot1, dot2, dot3]);
 
   return (
     <LinearGradient
-      colors={['#D6EAFF', '#B3D7FF', '#D6EAFF']}
+      colors={[figmaColors.primary, figmaColors.primaryDark]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
     >
-      {/* Soft glow behind animation */}
-      <View style={styles.glow} />
+      <View style={styles.center}>
+        <Animated.View
+          style={[
+            styles.lottieWrapper,
+            { transform: [{ translateY: heroTranslateY }] },
+          ]}
+        >
+          <LottieView
+            source={require('../assets/animations/medical-hero.json')}
+            autoPlay
+            loop
+            style={styles.lottie}
+          />
+        </Animated.View>
 
-      {/* Lottie animation */}
-      <Animated.View
-        style={[
-          styles.lottieWrapper,
-          { opacity: lottieOpacity, transform: [{ scale: lottieScale }] },
-        ]}
-      >
-        <LottieView
-          source={require('../assets/animations/medical-hero.json')}
-          autoPlay
-          loop
-          style={styles.lottie}
-        />
-      </Animated.View>
+        <Animated.View style={{ transform: [{ translateY: titleTranslateY }] }}>
+          <Text style={styles.title}>BTL Healthcare</Text>
+        </Animated.View>
 
-      {/* App title */}
-      <Animated.View
-        style={{
-          opacity: titleOpacity,
-          transform: [{ translateY: titleTranslateY }],
-        }}
-      >
-        <Text variant="headlineMedium" style={styles.title}>
-          BTL Healthcare
-        </Text>
-      </Animated.View>
+        <Animated.View style={{ transform: [{ translateY: subtitleTranslateY }] }}>
+          <Text style={styles.subtitle}>Chăm sóc sức khỏe thông minh</Text>
+        </Animated.View>
 
-      {/* Subtitle */}
-      <Animated.View style={{ opacity: subtitleOpacity }}>
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          Preparing your care dashboard
-        </Text>
-      </Animated.View>
+        <View style={styles.dotsRow}>
+          <Animated.View style={[styles.dot, { transform: [{ translateY: dot1 }] }]} />
+          <Animated.View style={[styles.dot, { transform: [{ translateY: dot2 }] }]} />
+          <Animated.View style={[styles.dot, { transform: [{ translateY: dot3 }] }]} />
+        </View>
+      </View>
     </LinearGradient>
   );
 }
@@ -101,33 +108,47 @@ export function LoadingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  },
-  glow: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#99C8FF',
-    opacity: 0.35,
+    gap: figmaSpacing.md,
   },
   lottieWrapper: {
     width: 200,
     height: 200,
+    marginBottom: figmaSpacing.sm,
   },
   lottie: {
     width: '100%',
     height: '100%',
   },
   title: {
-    fontWeight: '700',
-    color: '#0051D5',
-    marginTop: 4,
+    fontSize: 28,
+    fontWeight: figmaFonts.weights.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
   subtitle: {
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: figmaFonts.sizes.md,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    marginTop: figmaSpacing.xs,
+    fontWeight: figmaFonts.weights.medium,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: figmaSpacing.sm,
+    marginTop: figmaSpacing.xl,
+    height: 16,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
   },
 });
