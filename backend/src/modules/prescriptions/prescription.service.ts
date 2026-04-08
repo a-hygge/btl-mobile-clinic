@@ -1,6 +1,6 @@
+import sharp from 'sharp';
 import { prisma } from '../../config/database';
 import { visionAnalysis } from '../../utils/ai-client';
-import { uploadToCloudinary } from '../../utils/cloudinary';
 import type { SavePrescriptionInput, GetPrescriptionsQuery } from './prescription.schemas';
 
 export interface OcrMedicine {
@@ -26,20 +26,35 @@ Respond ONLY with valid JSON, no markdown.`;
 
 export class PrescriptionService {
   static async ocrPrescription(imageBuffer: Buffer): Promise<OcrResult> {
-    // Upload image to Cloudinary (or get a mock URL for storage reference)
-    let imageUrl: string;
+    console.log('[ocr] received image, raw size=', imageBuffer.length, 'bytes');
+
+    // Resize + recompress before encoding to base64. Phone photos are 1-3 MB
+    // raw, which becomes a 4 MB+ JSON payload after base64 — exceeding most
+    // AI provider request limits. 1024px @ q70 brings it down to ~100-200 KB.
+    let processed: Buffer;
     try {
-      const uploaded = await uploadToCloudinary(imageBuffer, 'prescriptions');
-      imageUrl = uploaded.secure_url;
-    } catch (err) {
-      console.warn('Cloudinary upload failed, using data URI fallback:', err);
-      imageUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+      processed = await sharp(imageBuffer)
+        .rotate()
+        .resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 75 })
+        .toBuffer();
+      console.log('[ocr] resized to', processed.length, 'bytes');
+    } catch (resizeErr) {
+      console.warn('[ocr] sharp resize failed, sending original:', resizeErr);
+      processed = imageBuffer;
     }
 
-    // Always pass a data URI to the AI vision API so it can actually read
-    // the image, even when Cloudinary returns a fake/unreachable URL.
-    const dataUri = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
-    const aiResponse = await visionAnalysis(dataUri, OCR_PROMPT);
+    const dataUri = `data:image/jpeg;base64,${processed.toString('base64')}`;
+    console.log('[ocr] data URI length=', dataUri.length, 'chars');
+
+    let aiResponse: string;
+    try {
+      aiResponse = await visionAnalysis(dataUri, OCR_PROMPT);
+      console.log('[ocr] AI raw response (first 500):', aiResponse.slice(0, 500));
+    } catch (err) {
+      console.error('[ocr] AI vision call failed:', err);
+      throw err;
+    }
 
     // Parse JSON from response (handle possible markdown wrapping)
     const jsonStr = aiResponse.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
@@ -47,8 +62,8 @@ export class PrescriptionService {
     let parsed: { medicines: OcrMedicine[]; rawText?: string };
     try {
       parsed = JSON.parse(jsonStr);
-    } catch {
-      // If parsing fails, return raw text as a single medicine entry
+    } catch (parseErr) {
+      console.warn('[ocr] JSON parse failed, returning raw text. err=', parseErr);
       parsed = {
         medicines: [],
         rawText: aiResponse,
@@ -56,7 +71,7 @@ export class PrescriptionService {
     }
 
     return {
-      imageUrl,
+      imageUrl: dataUri,
       medicines: parsed.medicines ?? [],
       rawText: parsed.rawText ?? aiResponse,
     };

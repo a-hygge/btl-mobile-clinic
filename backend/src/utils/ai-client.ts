@@ -56,6 +56,12 @@ export async function chatCompletion(
 
   if (!response.ok) {
     const error = await response.text();
+    console.error('[ai-client] non-ok response', {
+      status: response.status,
+      url: `${env.AI_BASE_URL}/chat/completions`,
+      model,
+      bodyPreview: error.slice(0, 1000),
+    });
     throw new Error(`AI API error (${response.status}): ${error}`);
   }
 
