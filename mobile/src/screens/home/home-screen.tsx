@@ -246,12 +246,7 @@ export function HomeScreen() {
                 rating={doctor.averageRating ?? 0}
                 fee={doctor.consultationFee}
                 avatarText={getInitials(doctor.name)}
-                onPress={() =>
-                  router.push({
-                    pathname: '/doctors/[id]',
-                    params: { id: doctor.id },
-                  })
-                }
+                onPress={() => router.push(`/doctors/${doctor.id}`)}
               />
             ))
           )}

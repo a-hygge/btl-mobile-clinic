@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   StyleSheet,
   TouchableOpacity,
@@ -209,7 +210,7 @@ export function AppointmentDetailScreen({
     setRefreshing(false);
   }, [fetchDetail]);
 
-  async function handleCancel() {
+  async function performCancel() {
     setCanceling(true);
     try {
       const updated = await cancelAppointment(appointmentId);
@@ -220,6 +221,23 @@ export function AppointmentDetailScreen({
     } finally {
       setCanceling(false);
     }
+  }
+
+  function handleCancel() {
+    Alert.alert(
+      'Hủy lịch hẹn',
+      'Bạn có chắc muốn hủy lịch hẹn này? Hành động này không thể hoàn tác.',
+      [
+        { text: 'Không', style: 'cancel' },
+        {
+          text: 'Hủy lịch',
+          style: 'destructive',
+          onPress: () => {
+            void performCancel();
+          },
+        },
+      ],
+    );
   }
 
   if (isLoading) {
@@ -306,12 +324,7 @@ export function AppointmentDetailScreen({
             <FadeInView delay={60}>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() =>
-                  router.push({
-                    pathname: '/doctors/[id]',
-                    params: { id: doctor.id },
-                  })
-                }
+                onPress={() => router.push(`/doctors/${doctor.id}`)}
               >
                 <GlassCard style={styles.card} glassStyle="regular">
                   <View style={styles.cardInner}>

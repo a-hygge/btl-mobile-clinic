@@ -298,12 +298,7 @@ export function DoctorSearchScreen() {
               rating={item.averageRating}
               totalReviews={item.totalReviews}
               fee={item.consultationFee}
-              onPress={() =>
-                router.push({
-                  pathname: '/doctors/[id]',
-                  params: { id: item.id },
-                })
-              }
+              onPress={() => router.push(`/doctors/${item.id}`)}
             />
           </FadeInView>
         )}
