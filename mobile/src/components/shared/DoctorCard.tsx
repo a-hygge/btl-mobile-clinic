@@ -37,7 +37,10 @@ export function DoctorCard({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        console.log('[DoctorCard] press:', name);
+        onPress?.();
+      }}
       style={({ pressed }) => pressed && styles.pressed}
     >
       <GlassCard style={styles.card}>

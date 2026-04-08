@@ -16,7 +16,10 @@ interface SpecialtyChipProps {
 export function SpecialtyChip({ icon, label, bgColor = figmaColors.pastelRed, onPress }: SpecialtyChipProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        console.log('[SpecialtyChip] press:', label);
+        onPress?.();
+      }}
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
     >
       <View style={[styles.iconBox, { backgroundColor: bgColor }]}>

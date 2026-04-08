@@ -247,10 +247,8 @@ export function HomeScreen() {
                 fee={doctor.consultationFee}
                 avatarText={getInitials(doctor.name)}
                 onPress={() => {
-                  router.push({
-                    pathname: '/doctor-view',
-                    params: { id: doctor.id },
-                  });
+                  console.log('[home] push doctor-view, id=', doctor.id);
+                  router.push(`/doctor-view?id=${doctor.id}`);
                 }}
               />
             ))

@@ -28,7 +28,10 @@ export function ListRow({
 }: ListRowProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        console.log('[ListRow] press:', title);
+        onPress?.();
+      }}
       style={({ pressed }) => [
         styles.row,
         style,

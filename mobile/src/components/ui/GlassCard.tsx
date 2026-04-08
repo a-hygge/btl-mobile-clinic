@@ -1,5 +1,10 @@
 /**
  * GlassCard - iOS 26 Liquid Glass with native GlassView
+ *
+ * IMPORTANT: GlassView (UIVisualEffectView under the hood) can swallow touch
+ * events on iOS. To keep child Pressables clickable, we render the GlassView
+ * absolutely positioned as a background layer, and put the actual content in
+ * a sibling View on top. Touches go straight to the content layer.
  */
 import React from 'react';
 import { Platform, StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
@@ -39,14 +44,16 @@ export function GlassCard({
 }: GlassCardProps) {
   if (CAN_USE_GLASS) {
     return (
-      <GlassView
-        style={[styles.glass, style]}
-        glassEffectStyle={glassStyle}
-        tintColor={tintColor}
-        isInteractive={interactive}
-      >
+      <View style={[styles.wrap, style]}>
+        <GlassView
+          style={StyleSheet.absoluteFill}
+          glassEffectStyle={glassStyle}
+          tintColor={tintColor}
+          isInteractive={interactive}
+          pointerEvents="none"
+        />
         {children}
-      </GlassView>
+      </View>
     );
   }
 
@@ -58,10 +65,11 @@ export function GlassCard({
 }
 
 const styles = StyleSheet.create({
-  glass: {
+  wrap: {
     borderRadius: 20,
     overflow: 'hidden',
     padding: 16,
+    backgroundColor: 'transparent',
   },
   fallback: {
     borderRadius: 20,

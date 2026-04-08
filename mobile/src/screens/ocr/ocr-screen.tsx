@@ -40,41 +40,62 @@ export function OcrScreen() {
   const [saved, setSaved] = useState(false);
 
   const pickImage = useCallback(async (source: 'camera' | 'gallery') => {
-    let result: ImagePicker.ImagePickerResult;
+    try {
+      let result: ImagePicker.ImagePickerResult;
 
-    if (source === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          'Cần cấp quyền',
-          'Vui lòng cho phép truy cập camera để quét đơn thuốc.'
-        );
-        return;
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            'Cần cấp quyền',
+            'Vui lòng cho phép truy cập camera để quét đơn thuốc.'
+          );
+          return;
+        }
+        try {
+          result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+          });
+        } catch (camErr) {
+          console.log('[ocr] camera unavailable, fallback to gallery:', camErr);
+          Alert.alert(
+            'Camera không khả dụng',
+            'Thiết bị này không có camera (simulator). Mở thư viện ảnh thay thế.',
+            [
+              { text: 'Hủy', style: 'cancel' },
+              {
+                text: 'Mở thư viện',
+                onPress: () => void pickImage('gallery'),
+              },
+            ]
+          );
+          return;
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            'Cần cấp quyền',
+            'Vui lòng cho phép truy cập thư viện ảnh.'
+          );
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+        });
       }
-      result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
-    } else {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          'Cần cấp quyền',
-          'Vui lòng cho phép truy cập thư viện ảnh.'
-        );
-        return;
-      }
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
-    }
 
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
-      setOcrResult(null);
-      setMedicines([]);
-      setSaved(false);
+      if (!result.canceled && result.assets[0]) {
+        setImageUri(result.assets[0].uri);
+        setOcrResult(null);
+        setMedicines([]);
+        setSaved(false);
+      }
+    } catch (err) {
+      console.error('[ocr] pickImage error:', err);
+      Alert.alert('Lỗi', 'Không thể mở ảnh. Vui lòng thử lại.');
     }
   }, []);
 

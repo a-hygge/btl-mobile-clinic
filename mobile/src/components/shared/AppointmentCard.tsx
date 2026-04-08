@@ -50,7 +50,13 @@ export function AppointmentCard({
   const statusCfg = STATUS_COLORS[status];
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      onPress={() => {
+        console.log('[AppointmentCard] press:', doctorName);
+        onPress?.();
+      }}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
         <View style={[styles.card, { borderLeftColor: statusCfg.border }]}>
           <View style={styles.topRow}>
             <View style={styles.left}>

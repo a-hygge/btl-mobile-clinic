@@ -3,6 +3,10 @@ import { DoctorDetailScreen } from '../../src/screens/doctor/doctor-detail-scree
 
 export default function DoctorDetailRoute() {
   const params = useLocalSearchParams<{ id?: string }>();
-  if (!params.id) return null;
+  console.log('[doctor-view route] mounted with params:', params);
+  if (!params.id) {
+    console.log('[doctor-view route] no id → returning null');
+    return null;
+  }
   return <DoctorDetailScreen doctorId={params.id} />;
 }

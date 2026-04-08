@@ -14,7 +14,10 @@ export function SectionTitle({ title, action }: SectionTitleProps) {
       <Text style={styles.title}>{title}</Text>
       {action ? (
         <Pressable
-          onPress={action.onPress}
+          onPress={() => {
+            console.log('[SectionTitle] action press:', title, '→', action.label);
+            action.onPress();
+          }}
           hitSlop={12}
           style={({ pressed }) => pressed && { opacity: 0.6 }}
         >
