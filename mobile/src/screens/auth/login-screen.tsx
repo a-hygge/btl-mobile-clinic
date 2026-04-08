@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   KeyboardAvoidingView,
@@ -240,7 +241,17 @@ export function LoginScreen() {
           {renderRow(
             5,
             <View style={styles.bottomGroup}>
-              <TouchableOpacity activeOpacity={0.85} style={styles.googleButton}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.googleButton}
+                onPress={() =>
+                  Alert.alert(
+                    'Đăng nhập với Google',
+                    'Tính năng đang được phát triển. Vui lòng quay lại sau.',
+                    [{ text: 'Đã hiểu' }],
+                  )
+                }
+              >
                 <MaterialCommunityIcons name="google" size={20} color="#DB4437" />
                 <Text style={styles.googleButtonLabel}>Đăng nhập với Google</Text>
               </TouchableOpacity>
