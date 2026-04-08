@@ -37,6 +37,7 @@ export async function getDoctors(params?: {
   q?: string;
   specialtyId?: string;
   clinicId?: string;
+  status?: 'PENDING' | 'ACTIVE' | 'REJECTED';
   page?: number;
   limit?: number;
 }): Promise<PaginatedResponse<Doctor[]>> {

@@ -28,6 +28,7 @@ export function useDoctors(search: string) {
       try {
         const result = await getDoctors({
           q: search.trim() || undefined,
+          status: 'ACTIVE',
           limit: 20,
         });
         setDoctors(result.data);
