@@ -60,6 +60,15 @@ export async function rejectDoctor(req: Request, res: Response, next: NextFuncti
 
 // ── Clinics ────────────────────────────────────────────────
 
+export async function listClinics(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await adminService.listClinics();
+    sendSuccess(res, data);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createClinic(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = createClinicSchema.parse(req.body);
@@ -115,6 +124,15 @@ export async function updateSpecialty(req: Request, res: Response, next: NextFun
 }
 
 // ── Services ───────────────────────────────────────────────
+
+export async function listServices(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await adminService.listServices();
+    sendSuccess(res, data);
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createService(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

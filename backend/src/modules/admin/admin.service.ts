@@ -117,6 +117,13 @@ export async function rejectDoctor(id: string, reason: string) {
 
 // ── Clinics ────────────────────────────────────────────────
 
+export async function listClinics() {
+  return prisma.clinic.findMany({
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function createClinic(data: {
   name: string;
   address: string;
@@ -173,6 +180,13 @@ export async function updateSpecialty(
 }
 
 // ── Services ───────────────────────────────────────────────
+
+export async function listServices() {
+  return prisma.service.findMany({
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+  });
+}
 
 export async function createService(data: {
   name: string;

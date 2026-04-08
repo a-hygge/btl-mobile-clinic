@@ -6,11 +6,13 @@ import {
   listDoctors,
   approveDoctor,
   rejectDoctor,
+  listClinics,
   createClinic,
   updateClinic,
   deleteClinic,
   createSpecialty,
   updateSpecialty,
+  listServices,
   createService,
   updateService,
   deleteService,
@@ -31,6 +33,7 @@ adminRouter.put('/doctors/:id/approve', approveDoctor);
 adminRouter.put('/doctors/:id/reject', rejectDoctor);
 
 // Clinic management
+adminRouter.get('/clinics', listClinics);
 adminRouter.post('/clinics', createClinic);
 adminRouter.put('/clinics/:id', updateClinic);
 adminRouter.delete('/clinics/:id', deleteClinic);
@@ -40,6 +43,7 @@ adminRouter.post('/specialties', createSpecialty);
 adminRouter.put('/specialties/:id', updateSpecialty);
 
 // Service management
+adminRouter.get('/services', listServices);
 adminRouter.post('/services', createService);
 adminRouter.put('/services/:id', updateService);
 adminRouter.delete('/services/:id', deleteService);
