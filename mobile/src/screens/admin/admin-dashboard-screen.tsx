@@ -1,67 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { Button, Divider, Text } from 'react-native-paper';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Button, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { theme, systemColors } from '../../constants/theme';
 import {
-  fetchDashboard,
-  fetchAdminDoctors,
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  MetricCard,
+  ScreenContainer,
+  SectionTitle,
+} from '../../components/shared';
+import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
+import {
   approveDoctorApi,
+  fetchAdminDoctors,
+  fetchDashboard,
   rejectDoctorApi,
-  type DashboardData,
   type AdminDoctor,
+  type DashboardData,
 } from '../../services/admin.service';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const HEADER_GRADIENT = ['#5856D6', '#3634A3'] as const;
 
-// ── Stat Card ──────────────────────────────────────────────
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  label: string;
-  value: string | number;
-  color: string;
-}) {
-  return (
-    <GlassCard style={styles.statCard}>
-      <View style={styles.statContent}>
-        <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-          <MaterialCommunityIcons name={icon} size={22} color={color} />
-        </View>
-        <Text variant="titleLarge" style={styles.statValue}>
-          {value}
-        </Text>
-        <Text variant="bodySmall" style={styles.statLabel}>
-          {label}
-        </Text>
-      </View>
-    </GlassCard>
-  );
+function formatVnd(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} tỷ`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} triệu`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+  return `${value}`;
 }
 
-// ── Main Screen ────────────────────────────────────────────
-
 export function AdminDashboardScreen() {
-  const insets = useSafeAreaInsets();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [pendingDoctors, setPendingDoctors] = useState<AdminDoctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,10 +66,10 @@ export function AdminDashboardScreen() {
     async (doctor: AdminDoctor) => {
       try {
         await approveDoctorApi(doctor.id);
-        Alert.alert('Success', `${doctor.user.name} has been approved.`);
+        Alert.alert('Đã duyệt bác sĩ', `BS. ${doctor.user.name}`);
         loadData();
       } catch {
-        Alert.alert('Error', 'Failed to approve doctor.');
+        Alert.alert('Lỗi', 'Không thể duyệt bác sĩ.');
       }
     },
     [loadData],
@@ -108,24 +78,24 @@ export function AdminDashboardScreen() {
   const handleReject = useCallback(
     (doctor: AdminDoctor) => {
       Alert.prompt(
-        'Reject Doctor',
-        `Provide a reason for rejecting ${doctor.user.name}:`,
+        'Lý do từ chối',
+        'Nhập lý do...',
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Hủy', style: 'cancel' },
           {
-            text: 'Reject',
+            text: 'Từ chối',
             style: 'destructive',
             onPress: async (reason?: string) => {
               if (!reason?.trim()) {
-                Alert.alert('Error', 'Rejection reason is required.');
+                Alert.alert('Lỗi', 'Vui lòng nhập lý do từ chối.');
                 return;
               }
               try {
                 await rejectDoctorApi(doctor.id, reason.trim());
-                Alert.alert('Rejected', `${doctor.user.name} has been rejected.`);
+                Alert.alert('Đã từ chối', `BS. ${doctor.user.name}`);
                 loadData();
               } catch {
-                Alert.alert('Error', 'Failed to reject doctor.');
+                Alert.alert('Lỗi', 'Không thể từ chối bác sĩ.');
               }
             },
           },
@@ -139,375 +109,317 @@ export function AdminDashboardScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={systemColors.indigo} />
+        <ActivityIndicator size="large" color={figmaColors.primary} />
       </View>
     );
   }
 
+  const cancelRate = dashboard?.cancelRate ?? 0;
+  const cancelColor = cancelRate > 20 ? figmaColors.error : figmaColors.success;
+
   return (
-    <ScreenBackground>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {/* Gradient Header */}
-      <LinearGradient
-        colors={['#5856D6', '#3634A3']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, { paddingTop: insets.top + 16 }]}
-      >
-        <Text variant="headlineMedium" style={styles.heroTitle}>
-          Admin Dashboard
-        </Text>
-        <Text variant="bodyMedium" style={styles.heroSub}>
-          Manage your healthcare platform
-        </Text>
-      </LinearGradient>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh} contentStyle={styles.content}>
+      <GradientHeader
+        title="Trang quản trị"
+        subtitle="Tổng quan hệ thống"
+        colors={HEADER_GRADIENT}
+      />
 
-      {/* Stats Cards */}
-      <View style={styles.statsRow}>
-        <StatCard
-          icon="account-group"
-          label="Patients"
-          value={dashboard?.totalPatients ?? 0}
-          color={systemColors.blue}
-        />
-        <StatCard
-          icon="doctor"
-          label="Doctors"
-          value={dashboard?.totalDoctors ?? 0}
-          color={systemColors.green}
-        />
-      </View>
-      <View style={styles.statsRow}>
-        <StatCard
-          icon="calendar-check"
-          label="Appointments"
-          value={dashboard?.appointmentsThisMonth ?? 0}
-          color={systemColors.orange}
-        />
-        <StatCard
-          icon="cash-multiple"
-          label="Revenue"
-          value={`${((dashboard?.revenueThisMonth ?? 0) / 1000).toFixed(0)}K`}
-          color={systemColors.indigo}
-        />
-      </View>
-
-      {/* Cancel Rate & Top Doctors */}
-      {dashboard && (
-        <GlassCard style={styles.sectionCard}>
-          <View>
-            <View style={styles.sectionHeader}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Monthly Overview
-              </Text>
-            </View>
-            <View style={styles.overviewRow}>
-              <Text variant="bodyMedium" style={styles.overviewLabel}>Cancel Rate</Text>
-              <Text variant="titleMedium" style={{ color: dashboard.cancelRate > 20 ? systemColors.red : systemColors.green }}>
-                {dashboard.cancelRate}%
-              </Text>
-            </View>
-            <Divider style={styles.divider} />
-            <Text variant="titleSmall" style={[styles.sectionTitle, { marginTop: 8 }]}>
-              Top Doctors
-            </Text>
-            {dashboard.topDoctors.map((doc, i) => (
-              <View key={doc.doctorId} style={styles.topDoctorRow}>
-                <Text variant="bodyMedium" style={styles.topDoctorRank}>
-                  #{i + 1}
-                </Text>
-                <Text variant="bodyMedium" style={styles.topDoctorName} numberOfLines={1}>
-                  {doc.name}
-                </Text>
-                <Text variant="bodySmall" style={styles.topDoctorCount}>
-                  {doc.appointmentCount} appts
-                </Text>
-              </View>
-            ))}
-          </View>
-        </GlassCard>
-      )}
-
-      {/* Pending Doctors */}
-      <View style={styles.section}>
+      {/* Stats */}
+      <FadeInView delay={60}>
         <View style={styles.sectionHeader}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Pending Doctors
-          </Text>
-          <Text variant="bodySmall" style={styles.badge}>
-            {pendingDoctors.length}
-          </Text>
+          <SectionTitle title="Thống kê" />
         </View>
+        <View style={styles.statsGrid}>
+          <MetricCard
+            icon="👥"
+            value={dashboard?.totalPatients ?? 0}
+            label="Bệnh nhân"
+            iconBgColor={figmaColors.pastelBlue}
+            style={styles.statCard}
+          />
+          <MetricCard
+            icon="🩺"
+            value={dashboard?.totalDoctors ?? 0}
+            label="Bác sĩ"
+            iconBgColor={figmaColors.pastelGreen}
+            style={styles.statCard}
+          />
+        </View>
+        <View style={styles.statsGrid}>
+          <MetricCard
+            icon="📅"
+            value={dashboard?.appointmentsThisMonth ?? 0}
+            label="Lịch hẹn tháng này"
+            iconBgColor={figmaColors.pastelOrange}
+            style={styles.statCard}
+          />
+          <MetricCard
+            icon="💰"
+            value={formatVnd(dashboard?.revenueThisMonth ?? 0)}
+            unit="₫"
+            label="Doanh thu tháng này"
+            iconBgColor={figmaColors.pastelPurple}
+            style={styles.statCard}
+          />
+        </View>
+      </FadeInView>
 
-        {pendingDoctors.length === 0 ? (
-          <GlassCard style={styles.emptyCard}>
-            <View style={styles.emptyContent}>
-              <MaterialCommunityIcons name="check-circle" size={40} color={systemColors.green} />
-              <Text variant="bodyMedium" style={styles.emptyText}>
-                No pending approvals
+      {/* Monthly Overview */}
+      {dashboard && (
+        <FadeInView delay={140}>
+          <View style={styles.sectionHeader}>
+            <SectionTitle title="Hoạt động tháng" />
+          </View>
+          <GlassCard style={styles.sectionCard}>
+            <View style={styles.overviewRow}>
+              <Text style={styles.overviewLabel}>Tỷ lệ hủy</Text>
+              <Text style={[styles.overviewValue, { color: cancelColor }]}>
+                {cancelRate}%
               </Text>
             </View>
           </GlassCard>
+        </FadeInView>
+      )}
+
+      {/* Top Doctors */}
+      {dashboard && dashboard.topDoctors.length > 0 && (
+        <FadeInView delay={200}>
+          <View style={styles.sectionHeader}>
+            <SectionTitle title="Top bác sĩ" />
+          </View>
+          <GlassCard style={styles.sectionCard}>
+            {dashboard.topDoctors.map((doc, i) => (
+              <View
+                key={doc.doctorId}
+                style={[
+                  styles.topDoctorRow,
+                  i < dashboard.topDoctors.length - 1 && styles.topDoctorRowBorder,
+                ]}
+              >
+                <View style={styles.rankBadge}>
+                  <Text style={styles.rankText}>{i + 1}</Text>
+                </View>
+                <Text style={styles.topDoctorName} numberOfLines={1}>
+                  BS. {doc.name}
+                </Text>
+                <Text style={styles.topDoctorCount}>{doc.appointmentCount} lịch hẹn</Text>
+              </View>
+            ))}
+          </GlassCard>
+        </FadeInView>
+      )}
+
+      {/* Pending Doctors */}
+      <FadeInView delay={260}>
+        <View style={styles.sectionHeader}>
+          <SectionTitle title="Bác sĩ chờ duyệt" />
+        </View>
+        {pendingDoctors.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState icon="check-circle-outline" title="Không có bác sĩ nào chờ duyệt" />
+          </View>
         ) : (
-          pendingDoctors.map((doctor) => (
-            <GlassCard key={doctor.id} style={styles.doctorCard}>
-              <View>
-                <View style={styles.doctorHeader}>
-                  <View style={styles.doctorInfo}>
-                    <Text variant="titleMedium" style={styles.doctorName}>
-                      {doctor.user.name}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.doctorMeta}>
-                      {doctor.specialty.name}
-                      {doctor.clinic ? ` - ${doctor.clinic.name}` : ''}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.doctorMeta}>
-                      {doctor.user.email}
-                    </Text>
-                    {doctor.licenseNumber && (
-                      <Text variant="bodySmall" style={styles.doctorMeta}>
-                        License: {doctor.licenseNumber}
-                      </Text>
-                    )}
-                  </View>
+          <View style={styles.pendingList}>
+            {pendingDoctors.map((doctor) => (
+              <GlassCard key={doctor.id} style={styles.doctorCard}>
+                <View style={styles.doctorInfo}>
+                  <Text style={styles.doctorName}>BS. {doctor.user.name}</Text>
+                  <Text style={styles.doctorMeta}>{doctor.specialty.name}</Text>
+                  {doctor.clinic ? (
+                    <Text style={styles.doctorMeta}>{doctor.clinic.name}</Text>
+                  ) : null}
+                  <Text style={styles.doctorMeta}>{doctor.user.email}</Text>
+                  {doctor.licenseNumber ? (
+                    <Text style={styles.doctorMeta}>GPHN: {doctor.licenseNumber}</Text>
+                  ) : null}
                 </View>
                 <View style={styles.doctorActions}>
                   <Button
                     mode="contained"
                     onPress={() => handleApprove(doctor)}
-                    buttonColor={systemColors.green}
+                    buttonColor={figmaColors.success}
                     textColor="#fff"
                     compact
                     style={styles.actionBtn}
                   >
-                    Approve
+                    Duyệt
                   </Button>
                   <Button
                     mode="outlined"
                     onPress={() => handleReject(doctor)}
-                    textColor={systemColors.red}
+                    textColor={figmaColors.error}
                     compact
-                    style={[styles.actionBtn, { borderColor: systemColors.red }]}
+                    style={[styles.actionBtn, { borderColor: figmaColors.error }]}
                   >
-                    Reject
+                    Từ chối
                   </Button>
                 </View>
-              </View>
-            </GlassCard>
-          ))
+              </GlassCard>
+            ))}
+          </View>
         )}
-      </View>
+      </FadeInView>
 
-      {/* Quick Links */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Quick Actions
-        </Text>
+      {/* Quick Actions */}
+      <FadeInView delay={320}>
+        <View style={styles.sectionHeader}>
+          <SectionTitle title="Thao tác nhanh" />
+        </View>
         <View style={styles.quickLinks}>
-          <Pressable style={styles.quickLink} onPress={() => Alert.alert('Coming Soon', 'Clinic management will be available soon.')}>
-            <GlassCard style={styles.quickLinkGlass} tintColor={systemColors.indigo} interactive>
-              <LinearGradient colors={['#5856D6', '#3634A3']} style={styles.quickLinkGradient}>
-                <MaterialCommunityIcons name="hospital-building" size={28} color="#fff" />
-                <Text variant="labelLarge" style={styles.quickLinkLabel}>Manage Clinics</Text>
-              </LinearGradient>
-            </GlassCard>
+          <Pressable
+            style={styles.quickLink}
+            onPress={() =>
+              Alert.alert('Sắp ra mắt', 'Quản lý phòng khám sẽ sớm có mặt.')
+            }
+          >
+            <LinearGradient colors={HEADER_GRADIENT} style={styles.quickLinkGradient}>
+              <MaterialCommunityIcons name="hospital-building" size={28} color="#fff" />
+              <Text style={styles.quickLinkLabel}>Quản lý phòng khám</Text>
+            </LinearGradient>
           </Pressable>
-          <Pressable style={styles.quickLink} onPress={() => Alert.alert('Coming Soon', 'Service management will be available soon.')}>
-            <GlassCard style={styles.quickLinkGlass} tintColor={systemColors.blue} interactive>
-              <LinearGradient colors={['#007AFF', '#0051D5']} style={styles.quickLinkGradient}>
-                <MaterialCommunityIcons name="medical-bag" size={28} color="#fff" />
-                <Text variant="labelLarge" style={styles.quickLinkLabel}>Manage Services</Text>
-              </LinearGradient>
-            </GlassCard>
+          <Pressable
+            style={styles.quickLink}
+            onPress={() => Alert.alert('Sắp ra mắt', 'Quản lý dịch vụ sẽ sớm có mặt.')}
+          >
+            <LinearGradient
+              colors={[figmaColors.primary, figmaColors.primaryDark]}
+              style={styles.quickLinkGradient}
+            >
+              <MaterialCommunityIcons name="medical-bag" size={28} color="#fff" />
+              <Text style={styles.quickLinkLabel}>Quản lý dịch vụ</Text>
+            </LinearGradient>
           </Pressable>
         </View>
-      </View>
-    </ScrollView>
-    </ScreenBackground>
+      </FadeInView>
+    </ScreenContainer>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
   content: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: figmaColors.background,
   },
-  hero: {
-    paddingBottom: 32,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+  sectionHeader: {
+    marginTop: figmaSpacing['2xl'],
   },
-  heroTitle: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  heroSub: {
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
-  },
-  statsRow: {
+  statsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
+    gap: figmaSpacing.md,
+    paddingHorizontal: figmaSpacing.lg,
+    marginBottom: figmaSpacing.md,
   },
   statCard: {
     flex: 1,
-    borderRadius: 16,
-  },
-  statContent: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  statIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statValue: {
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  statLabel: {
-    color: systemColors.gray,
   },
   sectionCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  badge: {
-    backgroundColor: systemColors.red,
-    color: '#fff',
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    overflow: 'hidden',
+    marginHorizontal: figmaSpacing.lg,
+    padding: figmaSpacing.lg,
   },
   overviewRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
   },
   overviewLabel: {
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.md,
+    color: figmaColors.textSecondary,
+    fontWeight: figmaFonts.weights.medium,
   },
-  divider: {
-    marginVertical: 4,
+  overviewValue: {
+    fontSize: figmaFonts.sizes.xl,
+    fontWeight: figmaFonts.weights.bold,
   },
   topDoctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    gap: 8,
+    gap: figmaSpacing.md,
+    paddingVertical: figmaSpacing.md,
   },
-  topDoctorRank: {
-    fontWeight: '700',
-    color: systemColors.indigo,
+  topDoctorRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: figmaColors.border,
+  },
+  rankBadge: {
     width: 28,
+    height: 28,
+    borderRadius: figmaRadius.pill,
+    backgroundColor: figmaColors.pastelPurple,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: {
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.bold,
+    color: '#5856D6',
   },
   topDoctorName: {
     flex: 1,
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.medium,
+    color: figmaColors.textPrimary,
   },
   topDoctorCount: {
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
   },
-  emptyCard: {
-    borderRadius: 16,
+  emptyWrap: {
+    paddingHorizontal: figmaSpacing.lg,
   },
-  emptyContent: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 16,
-  },
-  emptyText: {
-    color: systemColors.gray,
+  pendingList: {
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.md,
   },
   doctorCard: {
-    marginBottom: 10,
-    borderRadius: 16,
-  },
-  doctorHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    padding: figmaSpacing.lg,
+    gap: figmaSpacing.md,
   },
   doctorInfo: {
-    flex: 1,
     gap: 2,
   },
   doctorName: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
+    marginBottom: 2,
   },
   doctorMeta: {
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
   },
   doctorActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+    gap: figmaSpacing.md,
   },
   actionBtn: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: figmaRadius.md,
   },
   quickLinks: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: figmaSpacing.md,
+    paddingHorizontal: figmaSpacing.lg,
   },
   quickLink: {
     flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  quickLinkGlass: {
-    padding: 0,
-    borderRadius: 16,
+    borderRadius: figmaRadius.lg,
     overflow: 'hidden',
   },
   quickLinkGradient: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
-    gap: 8,
+    paddingVertical: figmaSpacing['2xl'],
+    gap: figmaSpacing.sm,
   },
   quickLinkLabel: {
     color: '#fff',
-    fontWeight: '600',
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
   },
 });
