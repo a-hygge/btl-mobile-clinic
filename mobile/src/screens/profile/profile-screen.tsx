@@ -1,4 +1,4 @@
-import { StyleSheet, View, Pressable } from 'react-native';
+import { Alert, StyleSheet, View, Pressable } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -17,8 +17,23 @@ export function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   async function handleLogout() {
-    await logout();
-    router.replace('/login');
+    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/login');
+        },
+      },
+    ]);
+  }
+
+  function showComingSoon(feature: string) {
+    Alert.alert(feature, 'Tính năng đang được phát triển. Vui lòng quay lại sau.', [
+      { text: 'Đã hiểu' },
+    ]);
   }
 
   const initials = (user?.name ?? 'U')
@@ -112,6 +127,7 @@ export function ProfileScreen() {
               iconBgColor={figmaColors.pastelOrange}
               title="Đổi mật khẩu"
               subtitle="Bảo mật tài khoản"
+              onPress={() => showComingSoon('Đổi mật khẩu')}
             />
           </GlassCard>
         </FadeInView>
@@ -125,6 +141,7 @@ export function ProfileScreen() {
               iconBgColor={figmaColors.surfaceMuted}
               title="Cài đặt"
               subtitle="Ngôn ngữ, giao diện, quyền riêng tư"
+              onPress={() => showComingSoon('Cài đặt')}
             />
             {user?.role === 'ADMIN' ? (
               <>
