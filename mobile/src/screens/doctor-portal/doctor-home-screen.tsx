@@ -3,66 +3,29 @@ import {
   Animated,
   FlatList,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
-import { theme, systemColors } from '../../constants/theme';
+import { figmaColors, figmaRadius, figmaSpacing } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import {
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  ScreenContainer,
+  SectionTitle,
+} from '../../components/shared';
 import { api, extractPaginatedData } from '../../services/api';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
-}
 
 function formatTime(t?: string): string {
   if (!t) return '';
@@ -76,18 +39,112 @@ function isToday(dateStr?: string): boolean {
 }
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
-  PENDING: { color: systemColors.orange, bg: '#FF950018', label: 'Pending' },
-  CONFIRMED: { color: systemColors.blue, bg: '#007AFF18', label: 'Confirmed' },
-  COMPLETED: { color: systemColors.green, bg: '#34C75918', label: 'Completed' },
-  CANCELED: { color: systemColors.red, bg: '#FF3B3018', label: 'Canceled' },
+  PENDING: { color: figmaColors.warning, bg: figmaColors.warningBg, label: 'Chờ xác nhận' },
+  CONFIRMED: { color: figmaColors.primary, bg: figmaColors.pastelBlue, label: 'Đã xác nhận' },
+  COMPLETED: { color: figmaColors.success, bg: figmaColors.successBg, label: 'Hoàn thành' },
+  CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, label: 'Đã hủy' },
 };
+
+const HEADER_COLORS = [figmaColors.info, '#00695C'] as const;
+
+// ---------------------------------------------------------------------------
+// Animated Stat Card
+// ---------------------------------------------------------------------------
+
+interface StatCardProps {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  value: number;
+  label: string;
+  color: string;
+  bg: string;
+  delay: number;
+}
+
+function StatCard({ icon, value, label, color, bg, delay }: StatCardProps) {
+  const scale = useRef(new Animated.Value(0.85)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      delay,
+      friction: 6,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+  }, [delay, scale]);
+
+  return (
+    <Animated.View style={[styles.statCardWrap, { transform: [{ scale }] }]}>
+      <GlassCard style={styles.statCard}>
+        <View style={[styles.statIconCircle, { backgroundColor: bg }]}>
+          <MaterialCommunityIcons name={icon} size={22} color={color} />
+        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </GlassCard>
+    </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Spring-animated Pressable button
+// ---------------------------------------------------------------------------
+
+interface SpringButtonProps {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+  iconColor: string;
+  iconBg: string;
+  onPress: () => void;
+}
+
+function SpringButton({ icon, label, iconColor, iconBg, onPress }: SpringButtonProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.96,
+      friction: 5,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  };
+  const onPressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 4,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={[styles.quickActionWrap, { transform: [{ scale }] }]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.quickActionBtn}
+      >
+        <View style={[styles.quickActionIcon, { backgroundColor: iconBg }]}>
+          <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
+        </View>
+        <Text style={styles.quickActionLabel}>{label}</Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={20}
+          color={figmaColors.textMuted}
+        />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // DoctorHomeScreen
 // ---------------------------------------------------------------------------
 
 export function DoctorHomeScreen() {
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -165,32 +222,25 @@ export function DoctorHomeScreen() {
     (a) => a.status === 'PENDING' || a.status === 'CONFIRMED'
   ).length;
 
-  const greeting = getGreeting();
-
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
 
-  const renderAppointmentCard = ({ item }: { item: Appointment }) => {
+  const renderAppointmentCard = ({ item, index }: { item: Appointment; index: number }) => {
     const isExpanded = expandedId === item.id;
     const status = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.PENDING;
-    const patientName = item.patient?.name ?? 'Patient';
+    const patientName = item.patient?.name ?? 'Bệnh nhân';
     const slotStart = formatTime(item.timeSlot?.startTime);
     const slotEnd = formatTime(item.timeSlot?.endTime);
     const isProcessing = actionLoading === item.id;
 
     return (
-      <FadeInView delay={0}>
+      <FadeInView delay={index * 60}>
         <Pressable onPress={() => setExpandedId(isExpanded ? null : item.id)}>
           <GlassCard style={styles.appointmentCard}>
-            {/* Main row */}
             <View style={styles.cardRow}>
               <View style={[styles.avatarCircle, { backgroundColor: status.bg }]}>
-                <MaterialCommunityIcons
-                  name="account"
-                  size={24}
-                  color={status.color}
-                />
+                <MaterialCommunityIcons name="account" size={24} color={status.color} />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.patientName} numberOfLines={1}>
@@ -200,10 +250,11 @@ export function DoctorHomeScreen() {
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={13}
-                    color={systemColors.gray}
+                    color={figmaColors.textSecondary}
                   />
                   <Text style={styles.timeText}>
-                    {slotStart}{slotEnd ? ` - ${slotEnd}` : ''}
+                    {slotStart}
+                    {slotEnd ? ` - ${slotEnd}` : ''}
                   </Text>
                 </View>
                 {item.notes ? (
@@ -221,21 +272,21 @@ export function DoctorHomeScreen() {
                 <MaterialCommunityIcons
                   name={isExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color={systemColors.gray3}
+                  color={figmaColors.textMuted}
                 />
               </View>
             </View>
 
-            {/* Expanded details */}
             {isExpanded && (
               <View style={styles.expandedSection}>
                 <View style={styles.detailRow}>
                   <MaterialCommunityIcons
                     name="email-outline"
                     size={14}
-                    color={systemColors.gray}
+                    color={figmaColors.textSecondary}
                   />
-                  <Text style={styles.detailText}>
+                  <Text style={styles.detailLabel}>Email:</Text>
+                  <Text style={styles.detailText} numberOfLines={1}>
                     {item.patient?.email ?? 'N/A'}
                   </Text>
                 </View>
@@ -244,8 +295,9 @@ export function DoctorHomeScreen() {
                     <MaterialCommunityIcons
                       name="phone-outline"
                       size={14}
-                      color={systemColors.gray}
+                      color={figmaColors.textSecondary}
                     />
+                    <Text style={styles.detailLabel}>Số điện thoại:</Text>
                     <Text style={styles.detailText}>{item.patient.phone}</Text>
                   </View>
                 ) : null}
@@ -254,8 +306,9 @@ export function DoctorHomeScreen() {
                     <MaterialCommunityIcons
                       name="note-text-outline"
                       size={14}
-                      color={systemColors.gray}
+                      color={figmaColors.textSecondary}
                     />
+                    <Text style={styles.detailLabel}>Triệu chứng:</Text>
                     <Text style={styles.detailText}>{item.notes}</Text>
                   </View>
                 ) : null}
@@ -264,15 +317,17 @@ export function DoctorHomeScreen() {
                     <MaterialCommunityIcons
                       name="stethoscope"
                       size={14}
-                      color={systemColors.green}
+                      color={figmaColors.success}
                     />
-                    <Text style={[styles.detailText, { color: systemColors.green }]}>
+                    <Text style={[styles.detailLabel, { color: figmaColors.success }]}>
+                      Chẩn đoán:
+                    </Text>
+                    <Text style={[styles.detailText, { color: figmaColors.success }]}>
                       {item.diagnosis}
                     </Text>
                   </View>
                 ) : null}
 
-                {/* Actions */}
                 {item.status === 'PENDING' && (
                   <Button
                     mode="contained"
@@ -280,10 +335,10 @@ export function DoctorHomeScreen() {
                     loading={isProcessing}
                     disabled={isProcessing}
                     style={styles.actionButton}
-                    buttonColor={systemColors.blue}
+                    buttonColor={figmaColors.primary}
                     icon="check"
                   >
-                    Confirm Appointment
+                    Xác nhận
                   </Button>
                 )}
 
@@ -291,12 +346,12 @@ export function DoctorHomeScreen() {
                   <View style={styles.completeSection}>
                     <TextInput
                       mode="outlined"
-                      label="Diagnosis (optional)"
+                      label="Chẩn đoán..."
                       value={diagnosisInput}
                       onChangeText={setDiagnosisInput}
                       style={styles.diagnosisInput}
-                      outlineColor={systemColors.gray4}
-                      activeOutlineColor={systemColors.blue}
+                      outlineColor={figmaColors.border}
+                      activeOutlineColor={figmaColors.info}
                       multiline
                       numberOfLines={2}
                     />
@@ -306,10 +361,10 @@ export function DoctorHomeScreen() {
                       loading={isProcessing}
                       disabled={isProcessing}
                       style={styles.actionButton}
-                      buttonColor={systemColors.green}
+                      buttonColor={figmaColors.success}
                       icon="check-circle"
                     >
-                      Mark as Completed
+                      Hoàn thành ca khám
                     </Button>
                   </View>
                 )}
@@ -322,144 +377,94 @@ export function DoctorHomeScreen() {
   };
 
   return (
-    <ScreenBackground>
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
-        }
-      >
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={['#5AC8FA', '#007AFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.hero, { paddingTop: insets.top + 16 }]}
-        >
-          <FadeInView delay={0}>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.heroName}>Dr. {user?.name ?? 'Doctor'}</Text>
-            <Text style={styles.heroSub}>Welcome back</Text>
-          </FadeInView>
-        </LinearGradient>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
+      <GradientHeader
+        title={`BS. ${user?.name ?? 'Bác sĩ'}`}
+        subtitle="Chào mừng quay lại"
+        colors={HEADER_COLORS}
+      />
 
-        {/* Today's Stats */}
-        <FadeInView delay={100}>
-          <View style={styles.statsRow}>
-            <GlassCard style={styles.statCard}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#5AC8FA18' }]}>
-                <MaterialCommunityIcons
-                  name="account-group"
-                  size={20}
-                  color={systemColors.teal}
-                />
-              </View>
-              <Text style={styles.statValue}>{todayAppointments.length}</Text>
-              <Text style={styles.statLabel}>Today's Patients</Text>
-            </GlassCard>
+      <View style={styles.statsRow}>
+        <StatCard
+          icon="account-group"
+          value={todayAppointments.length}
+          label="Bệnh nhân hôm nay"
+          color={figmaColors.info}
+          bg={figmaColors.infoBg}
+          delay={100}
+        />
+        <StatCard
+          icon="check-circle"
+          value={todayCompleted}
+          label="Đã hoàn thành"
+          color={figmaColors.success}
+          bg={figmaColors.successBg}
+          delay={180}
+        />
+        <StatCard
+          icon="clock-outline"
+          value={todayPending}
+          label="Chờ xác nhận"
+          color={figmaColors.warning}
+          bg={figmaColors.warningBg}
+          delay={260}
+        />
+      </View>
 
-            <GlassCard style={styles.statCard}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#34C75918' }]}>
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={20}
-                  color={systemColors.green}
-                />
-              </View>
-              <Text style={styles.statValue}>{todayCompleted}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </GlassCard>
-
-            <GlassCard style={styles.statCard}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#FF950018' }]}>
-                <MaterialCommunityIcons
-                  name="clock-outline"
-                  size={20}
-                  color={systemColors.orange}
-                />
-              </View>
-              <Text style={styles.statValue}>{todayPending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-            </GlassCard>
-          </View>
-        </FadeInView>
-
-        {/* Quick Actions */}
-        <FadeInView delay={200}>
-          <View style={styles.quickActions}>
-            <Pressable
-              style={styles.quickActionBtn}
-              onPress={() => router.push('/appointments' as never)}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#007AFF18' }]}>
-                <MaterialCommunityIcons
-                  name="calendar-text"
-                  size={22}
-                  color={systemColors.blue}
-                />
-              </View>
-              <Text style={styles.quickActionLabel}>All Appointments</Text>
-            </Pressable>
-            <Pressable
-              style={styles.quickActionBtn}
-              onPress={() => router.push('/doctor-schedule' as never)}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#5856D618' }]}>
-                <MaterialCommunityIcons
-                  name="calendar-edit"
-                  size={22}
-                  color={systemColors.indigo}
-                />
-              </View>
-              <Text style={styles.quickActionLabel}>Manage Schedule</Text>
-            </Pressable>
-          </View>
-        </FadeInView>
-
-        {/* Today's Appointments List */}
-        <FadeInView delay={300}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Today's Appointments</Text>
-          </View>
-        </FadeInView>
-
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <LottieView
-              source={require('../../assets/animations/loading.json')}
-              autoPlay
-              loop
-              style={{ width: 100, height: 100 }}
-            />
-          </View>
-        ) : todayAppointments.length === 0 ? (
-          <FadeInView delay={400}>
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons
-                name="calendar-blank"
-                size={48}
-                color={systemColors.gray3}
-              />
-              <Text style={styles.emptyText}>No appointments today</Text>
-              <Text style={styles.emptySubText}>
-                Enjoy your free time or manage your schedule
-              </Text>
-            </View>
-          </FadeInView>
-        ) : (
-          <FlatList
-            data={todayAppointments}
-            keyExtractor={(item) => item.id}
-            renderItem={renderAppointmentCard}
-            scrollEnabled={false}
-            contentContainerStyle={styles.listContent}
+      <FadeInView delay={300}>
+        <View style={styles.sectionWrap}>
+          <SectionTitle title="Hành động nhanh" />
+        </View>
+        <View style={styles.quickActions}>
+          <SpringButton
+            icon="calendar-text"
+            label="Xem tất cả lịch khám"
+            iconColor={figmaColors.primary}
+            iconBg={figmaColors.pastelBlue}
+            onPress={() => router.push('/appointments' as never)}
           />
-        )}
-      </ScrollView>
-    </View>
-    </ScreenBackground>
+          <SpringButton
+            icon="calendar-edit"
+            label="Quản lý lịch làm việc"
+            iconColor={figmaColors.info}
+            iconBg={figmaColors.infoBg}
+            onPress={() => router.push('/doctor-schedule' as never)}
+          />
+        </View>
+      </FadeInView>
+
+      <FadeInView delay={400}>
+        <View style={styles.sectionWrap}>
+          <SectionTitle title="Lịch khám hôm nay" />
+        </View>
+      </FadeInView>
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <LottieView
+            source={require('../../assets/animations/loading.json')}
+            autoPlay
+            loop
+            style={{ width: 100, height: 100 }}
+          />
+        </View>
+      ) : todayAppointments.length === 0 ? (
+        <FadeInView delay={450}>
+          <EmptyState
+            icon="calendar-blank"
+            title="Hôm nay chưa có lịch khám nào"
+          />
+        </FadeInView>
+      ) : (
+        <FlatList
+          data={todayAppointments}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAppointmentCard}
+          scrollEnabled={false}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </ScreenContainer>
   );
 }
 
@@ -468,89 +473,64 @@ export function DoctorHomeScreen() {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 120,
-  },
-
-  /* Header */
-  hero: {
-    paddingBottom: 40,
-    paddingHorizontal: 16,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  greeting: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 2,
-  },
-  heroName: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-  },
-
   /* Stats */
   statsRow: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: -20,
-    gap: 12,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: -figmaSpacing.xl,
+    gap: figmaSpacing.md,
+  },
+  statCardWrap: {
+    flex: 1,
   },
   statCard: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.md + 2,
+    paddingHorizontal: figmaSpacing.sm + 2,
     alignItems: 'center',
   },
   statIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: figmaSpacing.sm,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 11,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     textAlign: 'center',
+  },
+
+  /* Section spacing */
+  sectionWrap: {
+    marginTop: figmaSpacing['2xl'],
   },
 
   /* Quick Actions */
   quickActions: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 24,
-    gap: 12,
+    marginHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.md,
+  },
+  quickActionWrap: {
+    flex: 1,
   },
   quickActionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    gap: figmaSpacing.sm + 2,
+    backgroundColor: figmaColors.surface,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.md + 2,
+    paddingHorizontal: figmaSpacing.md + 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -567,37 +547,25 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     flex: 1,
-  },
-
-  /* Section */
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
   },
 
   /* Appointment Cards */
   listContent: {
-    paddingHorizontal: 16,
-    gap: 10,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.sm + 2,
   },
   appointmentCard: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.md + 2,
+    paddingHorizontal: figmaSpacing.md + 2,
     marginBottom: 2,
   },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   avatarCircle: {
     width: 48,
@@ -613,30 +581,30 @@ const styles = StyleSheet.create({
   patientName: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: figmaSpacing.xs,
   },
   timeText: {
     fontSize: 13,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   notesPreview: {
     fontSize: 12,
-    color: systemColors.gray2,
+    color: figmaColors.textMuted,
     marginTop: 2,
   },
   cardRight: {
     alignItems: 'flex-end',
-    gap: 6,
+    gap: figmaSpacing.xs + 2,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: figmaSpacing.sm,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: figmaRadius.sm,
   },
   statusText: {
     fontSize: 11,
@@ -645,54 +613,43 @@ const styles = StyleSheet.create({
 
   /* Expanded */
   expandedSection: {
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: figmaSpacing.md + 2,
+    paddingTop: figmaSpacing.md + 2,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: systemColors.gray5,
-    gap: 8,
+    borderTopColor: figmaColors.border,
+    gap: figmaSpacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: figmaSpacing.sm,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: figmaColors.textSecondary,
   },
   detailText: {
     fontSize: 13,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     flex: 1,
   },
   completeSection: {
-    gap: 10,
-    marginTop: 4,
+    gap: figmaSpacing.sm + 2,
+    marginTop: figmaSpacing.xs,
   },
   diagnosisInput: {
-    backgroundColor: '#fff',
+    backgroundColor: figmaColors.surface,
     fontSize: 14,
   },
   actionButton: {
-    borderRadius: 12,
-    marginTop: 4,
+    borderRadius: figmaRadius.md,
+    marginTop: figmaSpacing.xs,
   },
 
-  /* Empty & Loading */
+  /* Loading */
   loadingWrap: {
     alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 32,
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: systemColors.gray,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: systemColors.gray2,
-    textAlign: 'center',
+    paddingVertical: figmaSpacing['3xl'],
   },
 });

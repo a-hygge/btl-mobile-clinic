@@ -2,52 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 import { Button, Snackbar, Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme, systemColors } from '../../constants/theme';
+import { figmaColors, figmaRadius, figmaSpacing } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
+import {
+  EmptyState,
+  FadeInView,
+  GradientHeader,
+  ScreenContainer,
+  SectionTitle,
+} from '../../components/shared';
 import { api, extractData } from '../../services/api';
-
-// ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,7 +46,8 @@ interface RegisteredShift {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const VN_DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const HEADER_COLORS = [figmaColors.info, '#00695C'] as const;
 
 function getWeekDays(): { label: string; date: string; isToday: boolean }[] {
   const today = new Date();
@@ -83,12 +55,12 @@ function getWeekDays(): { label: string; date: string; isToday: boolean }[] {
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
 
   const days: { label: string; date: string; isToday: boolean }[] = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + mondayOffset + i);
     const dateStr = d.toISOString().slice(0, 10);
     days.push({
-      label: DAY_NAMES[i],
+      label: VN_DAY_LABELS[i],
       date: dateStr,
       isToday: dateStr === today.toISOString().slice(0, 10),
     });
@@ -98,15 +70,60 @@ function getWeekDays(): { label: string; date: string; isToday: boolean }[] {
 
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'response' in error) {
     const resp = (error as { response?: { data?: { error?: { message?: string } } } }).response;
-    return resp?.data?.error?.message ?? 'Something went wrong.';
+    return resp?.data?.error?.message ?? 'Không thể đăng ký ca này';
   }
-  return 'Something went wrong.';
+  return 'Không thể đăng ký ca này';
+}
+
+// ---------------------------------------------------------------------------
+// Spring Button
+// ---------------------------------------------------------------------------
+
+function SpringPressable({
+  children,
+  onPress,
+  disabled,
+  style,
+}: {
+  children: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+  style?: object;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  return (
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        onPressIn={() => {
+          Animated.spring(scale, {
+            toValue: 0.96,
+            friction: 5,
+            tension: 140,
+            useNativeDriver: true,
+          }).start();
+        }}
+        onPressOut={() => {
+          Animated.spring(scale, {
+            toValue: 1,
+            friction: 4,
+            tension: 140,
+            useNativeDriver: true,
+          }).start();
+        }}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +131,6 @@ function getErrorMessage(error: unknown): string {
 // ---------------------------------------------------------------------------
 
 export function DoctorScheduleScreen() {
-  const insets = useSafeAreaInsets();
   const weekDays = getWeekDays();
 
   const [selectedDate, setSelectedDate] = useState(
@@ -126,7 +142,6 @@ export function DoctorScheduleScreen() {
   const [registerLoading, setRegisterLoading] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
 
-  // Available shifts (static — morning/afternoon for each day)
   const availableShifts: WorkSchedule[] = [
     {
       id: `${selectedDate}-morning`,
@@ -150,7 +165,6 @@ export function DoctorScheduleScreen() {
       const data = extractData<RegisteredShift[]>(res);
       setRegisteredShifts(data);
     } catch {
-      // silently handle — may not have schedules yet
       setRegisteredShifts([]);
     } finally {
       setLoading(false);
@@ -182,7 +196,7 @@ export function DoctorScheduleScreen() {
         startTime: shift.startTime,
         endTime: shift.endTime,
       });
-      setSnackbar({ visible: true, message: 'Shift registered successfully!' });
+      setSnackbar({ visible: true, message: 'Đăng ký ca thành công' });
       await fetchSchedule();
     } catch (err) {
       setSnackbar({ visible: true, message: getErrorMessage(err) });
@@ -191,42 +205,19 @@ export function DoctorScheduleScreen() {
     }
   };
 
-  // -----------------------------------------------------------------------
-  // Registered shifts for selected date
-  // -----------------------------------------------------------------------
-
   const shiftsForDate = registeredShifts.filter(
     (s) => s.date?.slice(0, 10) === selectedDate
   );
 
-  // -----------------------------------------------------------------------
-  // Render
-  // -----------------------------------------------------------------------
-
   return (
-    <ScreenBackground>
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
-        }
-      >
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={['#5AC8FA', '#007AFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.hero, { paddingTop: insets.top + 16 }]}
-        >
-          <FadeInView delay={0}>
-            <Text style={styles.heroTitle}>My Schedule</Text>
-            <Text style={styles.heroSub}>Register for work shifts</Text>
-          </FadeInView>
-        </LinearGradient>
+    <View style={styles.root}>
+      <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
+        <GradientHeader
+          title="Lịch làm việc"
+          subtitle="Đăng ký ca làm việc"
+          colors={HEADER_COLORS}
+        />
 
-        {/* Week Day Selector */}
         <FadeInView delay={100}>
           <ScrollView
             horizontal
@@ -236,48 +227,50 @@ export function DoctorScheduleScreen() {
             {weekDays.map((day) => {
               const isSelected = day.date === selectedDate;
               return (
-                <Pressable
+                <SpringPressable
                   key={day.date}
-                  style={[
-                    styles.dayPill,
-                    isSelected && styles.dayPillSelected,
-                  ]}
                   onPress={() => setSelectedDate(day.date)}
                 >
-                  <Text
+                  <View
                     style={[
-                      styles.dayPillLabel,
-                      isSelected && styles.dayPillLabelSelected,
+                      styles.dayPill,
+                      isSelected && styles.dayPillSelected,
                     ]}
                   >
-                    {day.label}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayPillDate,
-                      isSelected && styles.dayPillDateSelected,
-                    ]}
-                  >
-                    {formatDateLabel(day.date)}
-                  </Text>
-                  {day.isToday && (
-                    <View
+                    <Text
                       style={[
-                        styles.todayDot,
-                        isSelected && styles.todayDotSelected,
+                        styles.dayPillLabel,
+                        isSelected && styles.dayPillLabelSelected,
                       ]}
-                    />
-                  )}
-                </Pressable>
+                    >
+                      {day.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dayPillDate,
+                        isSelected && styles.dayPillDateSelected,
+                      ]}
+                    >
+                      {formatDateLabel(day.date)}
+                    </Text>
+                    {day.isToday && (
+                      <View
+                        style={[
+                          styles.todayDot,
+                          isSelected && styles.todayDotSelected,
+                        ]}
+                      />
+                    )}
+                  </View>
+                </SpringPressable>
               );
             })}
           </ScrollView>
         </FadeInView>
 
-        {/* Available Shifts */}
         <FadeInView delay={200}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Shifts</Text>
+          <View style={styles.sectionWrap}>
+            <SectionTitle title="Ca làm việc" />
           </View>
 
           {loading ? (
@@ -295,6 +288,9 @@ export function DoctorScheduleScreen() {
                 const registered = isShiftRegistered(shift);
                 const isProcessing = registerLoading === shift.id;
                 const isMorning = shift.shift === 'MORNING';
+                const shiftLabel = isMorning
+                  ? `Ca sáng (${shift.startTime} - ${shift.endTime})`
+                  : `Ca chiều (${shift.startTime} - ${shift.endTime})`;
 
                 return (
                   <GlassCard key={shift.id} style={styles.shiftCard}>
@@ -303,47 +299,40 @@ export function DoctorScheduleScreen() {
                         style={[
                           styles.shiftIconCircle,
                           {
-                            backgroundColor: isMorning ? '#FF950018' : '#5856D618',
+                            backgroundColor: isMorning
+                              ? figmaColors.warningBg
+                              : figmaColors.pastelPurple,
                           },
                         ]}
                       >
                         <MaterialCommunityIcons
                           name={isMorning ? 'weather-sunny' : 'weather-sunset'}
                           size={24}
-                          color={isMorning ? systemColors.orange : systemColors.indigo}
+                          color={isMorning ? figmaColors.warning : '#7B4FBF'}
                         />
                       </View>
                       <View style={styles.shiftInfo}>
-                        <Text style={styles.shiftName}>
-                          {isMorning ? 'Morning Shift' : 'Afternoon Shift'}
-                        </Text>
-                        <Text style={styles.shiftTime}>
-                          {shift.startTime} - {shift.endTime}
-                        </Text>
+                        <Text style={styles.shiftName}>{shiftLabel}</Text>
                       </View>
-                      {registered ? (
-                        <View style={styles.registeredBadge}>
-                          <MaterialCommunityIcons
-                            name="check-circle"
-                            size={18}
-                            color={systemColors.green}
-                          />
-                          <Text style={styles.registeredText}>Registered</Text>
-                        </View>
-                      ) : (
-                        <Button
-                          mode="contained"
-                          onPress={() => handleRegister(shift)}
-                          loading={isProcessing}
-                          disabled={isProcessing}
-                          compact
-                          buttonColor={systemColors.blue}
-                          style={styles.registerBtn}
-                          labelStyle={styles.registerBtnLabel}
-                        >
-                          Register
-                        </Button>
-                      )}
+                      <Button
+                        mode={registered ? 'outlined' : 'contained'}
+                        onPress={() => handleRegister(shift)}
+                        loading={isProcessing}
+                        disabled={isProcessing || registered}
+                        compact
+                        buttonColor={registered ? undefined : figmaColors.info}
+                        textColor={registered ? figmaColors.success : undefined}
+                        style={[
+                          styles.registerBtn,
+                          registered && {
+                            borderColor: figmaColors.success,
+                          },
+                        ]}
+                        labelStyle={styles.registerBtnLabel}
+                        icon={registered ? 'check-circle' : undefined}
+                      >
+                        {registered ? 'Đã đăng ký' : 'Đăng ký ca này'}
+                      </Button>
                     </View>
                   </GlassCard>
                 );
@@ -352,51 +341,42 @@ export function DoctorScheduleScreen() {
           )}
         </FadeInView>
 
-        {/* Registered Shifts for Selected Day */}
         <FadeInView delay={300}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Registered Shifts</Text>
+          <View style={styles.sectionWrap}>
+            <SectionTitle title="Ca làm đã đăng ký" />
           </View>
 
           {shiftsForDate.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons
-                name="calendar-blank-outline"
-                size={40}
-                color={systemColors.gray3}
-              />
-              <Text style={styles.emptyText}>
-                No shifts registered for this day
-              </Text>
-            </View>
+            <EmptyState
+              icon="calendar-blank-outline"
+              title="Bạn chưa đăng ký ca nào cho ngày này"
+            />
           ) : (
             <View style={styles.shiftsList}>
               {shiftsForDate.map((shift) => {
                 const isMorning = shift.shift === 'MORNING';
+                const start = shift.startTime?.slice(0, 5);
+                const end = shift.endTime?.slice(0, 5);
+                const shiftLabel = isMorning
+                  ? `Ca sáng (${start} - ${end})`
+                  : `Ca chiều (${start} - ${end})`;
                 return (
-                  <GlassCard key={shift.id} style={styles.registeredCard}>
+                  <GlassCard key={shift.id} style={styles.shiftCard}>
                     <View style={styles.shiftRow}>
                       <View
                         style={[
                           styles.shiftIconCircle,
-                          {
-                            backgroundColor: isMorning ? '#34C75918' : '#34C75918',
-                          },
+                          { backgroundColor: figmaColors.successBg },
                         ]}
                       >
                         <MaterialCommunityIcons
                           name="check-decagram"
                           size={22}
-                          color={systemColors.green}
+                          color={figmaColors.success}
                         />
                       </View>
                       <View style={styles.shiftInfo}>
-                        <Text style={styles.shiftName}>
-                          {isMorning ? 'Morning Shift' : 'Afternoon Shift'}
-                        </Text>
-                        <Text style={styles.shiftTime}>
-                          {shift.startTime?.slice(0, 5)} - {shift.endTime?.slice(0, 5)}
-                        </Text>
+                        <Text style={styles.shiftName}>{shiftLabel}</Text>
                       </View>
                     </View>
                   </GlassCard>
@@ -405,7 +385,7 @@ export function DoctorScheduleScreen() {
             </View>
           )}
         </FadeInView>
-      </ScrollView>
+      </ScreenContainer>
 
       <Snackbar
         visible={snackbar.visible}
@@ -416,7 +396,6 @@ export function DoctorScheduleScreen() {
         {snackbar.message}
       </Snackbar>
     </View>
-    </ScreenBackground>
   );
 }
 
@@ -425,116 +404,80 @@ export function DoctorScheduleScreen() {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 120,
-  },
-
-  /* Header */
-  hero: {
-    paddingBottom: 32,
-    paddingHorizontal: 16,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
   },
 
   /* Week selector */
   weekRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 4,
-    gap: 10,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingTop: figmaSpacing.xl,
+    paddingBottom: figmaSpacing.xs,
+    gap: figmaSpacing.sm + 2,
   },
   dayPill: {
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    minWidth: 64,
+    paddingVertical: figmaSpacing.md,
+    paddingHorizontal: figmaSpacing.lg,
+    borderRadius: figmaRadius.lg,
+    backgroundColor: figmaColors.surface,
+    minWidth: 60,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
   dayPillSelected: {
-    backgroundColor: systemColors.blue,
+    backgroundColor: figmaColors.info,
   },
   dayPillLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: systemColors.gray,
-    marginBottom: 4,
+    fontWeight: '700',
+    color: figmaColors.textPrimary,
+    marginBottom: figmaSpacing.xs,
   },
   dayPillLabelSelected: {
     color: '#fff',
   },
   dayPillDate: {
     fontSize: 12,
-    color: systemColors.gray2,
+    color: figmaColors.textSecondary,
   },
   dayPillDateSelected: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
   },
   todayDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: systemColors.blue,
-    marginTop: 4,
+    backgroundColor: figmaColors.info,
+    marginTop: figmaSpacing.xs,
   },
   todayDotSelected: {
     backgroundColor: '#fff',
   },
 
-  /* Section */
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
+  /* Section spacing */
+  sectionWrap: {
+    marginTop: figmaSpacing['2xl'],
   },
 
   /* Shifts */
   shiftsList: {
-    paddingHorizontal: 16,
-    gap: 10,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.sm + 2,
   },
   shiftCard: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  registeredCard: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.md + 2,
+    paddingHorizontal: figmaSpacing.md + 2,
   },
   shiftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   shiftIconCircle: {
     width: 44,
@@ -548,47 +491,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   shiftName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.onSurface,
-  },
-  shiftTime: {
-    fontSize: 13,
-    color: systemColors.gray,
-  },
-  registeredBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#34C75918',
-  },
-  registeredText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: systemColors.green,
+    color: figmaColors.textPrimary,
   },
   registerBtn: {
-    borderRadius: 10,
+    borderRadius: figmaRadius.md,
   },
   registerBtnLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
 
-  /* Loading & Empty */
+  /* Loading */
   loadingWrap: {
     alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: systemColors.gray,
+    paddingVertical: figmaSpacing['3xl'],
   },
 });
