@@ -98,11 +98,19 @@ export function ManageDoctorsScreen() {
   }, [doctors, filter, search]);
 
   const handleAdd = useCallback(() => {
-    Alert.alert('Sắp ra mắt', 'Tính năng thêm bác sĩ sẽ sớm có mặt.');
+    Alert.alert(
+      'Thêm bác sĩ',
+      'Tính năng đang được phát triển. Vui lòng quay lại sau.',
+      [{ text: 'Đã hiểu' }],
+    );
   }, []);
 
-  const handleEdit = useCallback((doctor: AdminDoctor) => {
-    Alert.alert('Sắp ra mắt', `Chỉnh sửa BS. ${doctor.user.name} sẽ sớm có mặt.`);
+  const handleEdit = useCallback((_doctor: AdminDoctor) => {
+    Alert.alert(
+      'Chỉnh sửa bác sĩ',
+      'Tính năng đang được phát triển. Vui lòng quay lại sau.',
+      [{ text: 'Đã hiểu' }],
+    );
   }, []);
 
   const handleDelete = useCallback(

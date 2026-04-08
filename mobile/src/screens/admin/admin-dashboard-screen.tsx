@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-nat
 import { Button, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
 import {
   EmptyState,
@@ -269,9 +270,7 @@ export function AdminDashboardScreen() {
         <View style={styles.quickLinks}>
           <Pressable
             style={styles.quickLink}
-            onPress={() =>
-              Alert.alert('Sắp ra mắt', 'Quản lý phòng khám sẽ sớm có mặt.')
-            }
+            onPress={() => router.push('/admin-clinics')}
           >
             <LinearGradient colors={HEADER_GRADIENT} style={styles.quickLinkGradient}>
               <MaterialCommunityIcons name="hospital-building" size={28} color="#fff" />
@@ -280,7 +279,7 @@ export function AdminDashboardScreen() {
           </Pressable>
           <Pressable
             style={styles.quickLink}
-            onPress={() => Alert.alert('Sắp ra mắt', 'Quản lý dịch vụ sẽ sớm có mặt.')}
+            onPress={() => router.push('/admin-services')}
           >
             <LinearGradient
               colors={[figmaColors.primary, figmaColors.primaryDark]}
