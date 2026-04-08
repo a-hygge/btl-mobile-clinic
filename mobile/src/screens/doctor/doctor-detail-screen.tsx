@@ -8,7 +8,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { ActivityIndicator, Text } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { FadeInView, ScreenContainer } from '../../components/shared';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,7 +16,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDoctorDetail } from '../../hooks/use-doctor-detail';
-import { systemColors, theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+  theme,
+} from '../../constants/theme';
 import {
   getDoctorReviews,
   type DoctorRatingStats,
@@ -34,44 +40,23 @@ interface DoctorDetailScreenProps {
 /*  Skeleton placeholder                                              */
 /* ------------------------------------------------------------------ */
 
-function SkeletonBlock({ width, height, style }: {
+function SkeletonBlock({
+  width,
+  height,
+  style,
+}: {
   width: number | string;
   height: number;
   style?: object;
 }) {
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmer, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [shimmer]);
-
-  const opacity = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.25, 0.5],
-  });
-
   return (
-    <Animated.View
+    <View
       style={[
         {
           width: width as number,
           height,
-          borderRadius: 8,
-          backgroundColor: theme.colors.outline,
-          opacity,
+          borderRadius: figmaRadius.sm,
+          backgroundColor: figmaColors.border,
         },
         style,
       ]}
@@ -82,22 +67,17 @@ function SkeletonBlock({ width, height, style }: {
 function LoadingSkeleton() {
   return (
     <View style={styles.skeletonContainer}>
-      {/* Header skeleton */}
       <View style={styles.skeletonHeader}>
         <SkeletonBlock width={SCREEN_WIDTH * 0.5} height={28} />
         <SkeletonBlock width={SCREEN_WIDTH * 0.35} height={16} style={{ marginTop: 10 }} />
         <SkeletonBlock width={SCREEN_WIDTH * 0.6} height={16} style={{ marginTop: 8 }} />
       </View>
-
-      {/* About card skeleton */}
       <View style={styles.skeletonCard}>
         <SkeletonBlock width={80} height={18} />
         <SkeletonBlock width={'100%' as unknown as number} height={14} style={{ marginTop: 12 }} />
         <SkeletonBlock width={'90%' as unknown as number} height={14} style={{ marginTop: 8 }} />
         <SkeletonBlock width={'70%' as unknown as number} height={14} style={{ marginTop: 8 }} />
       </View>
-
-      {/* Services card skeleton */}
       <View style={styles.skeletonCard}>
         <SkeletonBlock width={90} height={18} />
         {[1, 2, 3].map((i) => (
@@ -107,40 +87,12 @@ function LoadingSkeleton() {
           </View>
         ))}
       </View>
-
-      {/* Button skeleton */}
-      <SkeletonBlock width={'100%' as unknown as number} height={48} style={{ borderRadius: 24 }} />
     </View>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Star rating                                                       */
-/* ------------------------------------------------------------------ */
-
-function StarRating({ rating, reviewCount }: { rating: number; reviewCount: number }) {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating - fullStars >= 0.5;
-  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-
-  return (
-    <View style={styles.starsRow}>
-      {Array.from({ length: fullStars }).map((_, i) => (
-        <MaterialCommunityIcons key={`full-${i}`} name="star" size={18} color="#FF9500" />
-      ))}
-      {halfStar && <MaterialCommunityIcons name="star-half-full" size={18} color="#FF9500" />}
-      {Array.from({ length: emptyStars }).map((_, i) => (
-        <MaterialCommunityIcons key={`empty-${i}`} name="star-outline" size={18} color="#FF9500" />
-      ))}
-      <Text variant="bodySmall" style={styles.reviewText}>
-        {rating.toFixed(1)} ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
-      </Text>
-    </View>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Reviews section                                                   */
+/*  Reviews sub-components                                            */
 /* ------------------------------------------------------------------ */
 
 function RatingBar({
@@ -176,7 +128,7 @@ function RatingBar({
     <View style={styles.barRow}>
       <View style={styles.barStarLabel}>
         <Text style={styles.barStarText}>{star}</Text>
-        <MaterialCommunityIcons name="star" size={12} color={systemColors.orange} />
+        <MaterialCommunityIcons name="star" size={12} color={figmaColors.warning} />
       </View>
       <View style={styles.barTrack}>
         <Animated.View style={[styles.barFill, { width: widthInterpolate }]} />
@@ -197,14 +149,14 @@ function ReviewStars({ rating, size = 14 }: { rating: number; size?: number }) {
           key={`f-${i}`}
           name="star"
           size={size}
-          color={systemColors.orange}
+          color={figmaColors.warning}
         />
       ))}
       {halfStar && (
         <MaterialCommunityIcons
           name="star-half-full"
           size={size}
-          color={systemColors.orange}
+          color={figmaColors.warning}
         />
       )}
       {Array.from({ length: emptyStars }).map((_, i) => (
@@ -212,7 +164,7 @@ function ReviewStars({ rating, size = 14 }: { rating: number; size?: number }) {
           key={`e-${i}`}
           name="star-outline"
           size={size}
-          color={systemColors.orange}
+          color={figmaColors.warning}
         />
       ))}
     </View>
@@ -221,10 +173,10 @@ function ReviewStars({ rating, size = 14 }: { rating: number; size?: number }) {
 
 function formatReviewDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString('vi-VN', {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
 }
 
@@ -335,25 +287,23 @@ function ReviewsSection({ doctorId }: { doctorId: string }) {
           <MaterialCommunityIcons
             name="star-circle-outline"
             size={20}
-            color={theme.colors.primary}
+            color={figmaColors.primary}
           />
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Patient Reviews
-          </Text>
+          <Text style={styles.sectionTitle}>Đánh giá</Text>
         </View>
 
         {isLoading ? (
           <View style={styles.reviewsLoading}>
-            <ActivityIndicator color={theme.colors.primary} />
+            <ActivityIndicator color={figmaColors.primary} />
           </View>
         ) : total === 0 ? (
           <View style={styles.reviewsEmpty}>
             <MaterialCommunityIcons
               name="comment-text-outline"
               size={36}
-              color={systemColors.gray3}
+              color={figmaColors.textMuted}
             />
-            <Text style={styles.reviewsEmptyText}>No reviews yet</Text>
+            <Text style={styles.reviewsEmptyText}>Chưa có đánh giá nào</Text>
           </View>
         ) : (
           <>
@@ -361,9 +311,7 @@ function ReviewsSection({ doctorId }: { doctorId: string }) {
               <View style={styles.summaryLeft}>
                 <Text style={styles.summaryAvg}>{avg.toFixed(1)}</Text>
                 <ReviewStars rating={avg} size={16} />
-                <Text style={styles.summaryTotal}>
-                  {total} {total === 1 ? 'review' : 'reviews'}
-                </Text>
+                <Text style={styles.summaryLabel}>Đánh giá trung bình</Text>
               </View>
               <View style={styles.summaryBars}>
                 {[5, 4, 3, 2, 1].map((star, idx) => (
@@ -375,6 +323,7 @@ function ReviewsSection({ doctorId }: { doctorId: string }) {
                     delay={idx * 80}
                   />
                 ))}
+                <Text style={styles.summaryTotal}>Tổng đánh giá: {total}</Text>
               </View>
             </View>
 
@@ -396,15 +345,15 @@ function ReviewsSection({ doctorId }: { doctorId: string }) {
                 ]}
               >
                 {isLoadingMore ? (
-                  <ActivityIndicator color={theme.colors.primary} size="small" />
+                  <ActivityIndicator color={figmaColors.primary} size="small" />
                 ) : (
                   <>
                     <MaterialCommunityIcons
                       name="chevron-down"
                       size={18}
-                      color={theme.colors.primary}
+                      color={figmaColors.primary}
                     />
-                    <Text style={styles.loadMoreText}>Load more reviews</Text>
+                    <Text style={styles.loadMoreText}>Xem thêm đánh giá</Text>
                   </>
                 )}
               </Pressable>
@@ -427,15 +376,10 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
   if (isLoading) {
     return (
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.backRow}>
-          <Button
-            icon="arrow-left"
-            mode="text"
-            textColor="#fff"
-            onPress={() => router.back()}
-          >
-            Back
-          </Button>
+        <View style={[styles.backRow, { paddingTop: insets.top + 8 }]}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backIconBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={22} color={figmaColors.textPrimary} />
+          </Pressable>
         </View>
         <LoadingSkeleton />
       </ScrollView>
@@ -445,21 +389,21 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
   if (!doctor) {
     return (
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.backRow}>
-          <Button icon="arrow-left" mode="text" onPress={() => router.back()}>
-            Back
-          </Button>
+        <View style={[styles.backRow, { paddingTop: insets.top + 8 }]}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backIconBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={22} color={figmaColors.textPrimary} />
+          </Pressable>
         </View>
         <GlassCard style={styles.card}>
           <View style={styles.cardContent}>
             <MaterialCommunityIcons
               name="alert-circle-outline"
               size={40}
-              color={theme.colors.error}
+              color={figmaColors.error}
               style={{ alignSelf: 'center' }}
             />
-            <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
-              Doctor details are unavailable.
+            <Text style={{ textAlign: 'center', color: figmaColors.textSecondary }}>
+              Không tải được thông tin bác sĩ.
             </Text>
           </View>
         </GlassCard>
@@ -467,38 +411,36 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
     );
   }
 
-  const rating = doctor.averageRating ?? 0;
-  const reviews = doctor.totalReviews ?? 0;
+  const initials = doctor.name.split(' ').slice(-2).map((w) => w[0]).join('').toUpperCase();
 
   return (
     <ScreenContainer contentStyle={styles.content}>
       {/* ---- Gradient header ---- */}
       <FadeInView delay={0 * STAGGER_DELAY} duration={450} distance={24}>
         <LinearGradient
-          colors={['#007AFF', '#0051D5']}
+          colors={[figmaColors.primary, figmaColors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.gradientHeader, { paddingTop: insets.top + 8 }]}
         >
-          <View style={styles.backRow}>
-            <Button
-              icon="arrow-left"
-              mode="text"
-              textColor="#fff"
+          <View style={styles.headerBar}>
+            <Pressable
               onPress={() => router.back()}
+              hitSlop={12}
+              style={styles.headerBackBtn}
             >
-              Back
-            </Button>
+              <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+            </Pressable>
+            <Text style={styles.headerTitle}>Chi tiết bác sĩ</Text>
+            <View style={{ width: 36 }} />
           </View>
 
           <View style={styles.avatarCircle}>
-            <MaterialCommunityIcons name="doctor" size={48} color={theme.colors.primary} />
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
 
-          <Text variant="headlineSmall" style={styles.heroName}>
-            {doctor.name}
-          </Text>
-          <Text variant="bodyMedium" style={styles.heroSpecialty}>
+          <Text style={styles.heroName}>{doctor.name}</Text>
+          <Text style={styles.heroSpecialty}>
             {doctor.specialty.name}
             {doctor.clinic ? ` \u2022 ${doctor.clinic.name}` : ''}
           </Text>
@@ -506,44 +448,42 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
               <MaterialCommunityIcons name="briefcase-outline" size={16} color="#fff" />
-              <Text style={styles.badgeText}>{doctor.experienceYears} yrs</Text>
+              <Text style={styles.badgeText}>
+                {doctor.experienceYears} năm kinh nghiệm
+              </Text>
             </View>
             <View style={styles.badge}>
               <MaterialCommunityIcons name="cash" size={16} color="#fff" />
               <Text style={styles.badgeText}>
-                {doctor.consultationFee.toLocaleString()} VND
+                Phí khám {doctor.consultationFee.toLocaleString('vi-VN')}đ
               </Text>
             </View>
           </View>
         </LinearGradient>
       </FadeInView>
 
-      {/* ---- Rating ---- */}
-      <FadeInView delay={1 * STAGGER_DELAY} duration={450} distance={24}>
-        <GlassCard style={styles.card}>
-          <View style={styles.cardContent}>
-            <StarRating rating={rating} reviewCount={reviews} />
-          </View>
-        </GlassCard>
-      </FadeInView>
-
       {/* ---- About ---- */}
-      <FadeInView delay={2 * STAGGER_DELAY} duration={450} distance={24}>
+      <FadeInView delay={1 * STAGGER_DELAY} duration={450} distance={24}>
         <GlassCard style={styles.card}>
           <View style={styles.cardContent}>
             <View style={styles.sectionTitleRow}>
               <MaterialCommunityIcons
                 name="information-outline"
                 size={20}
-                color={theme.colors.primary}
+                color={figmaColors.primary}
               />
-              <Text variant="titleMedium" style={styles.sectionTitle}>About</Text>
+              <Text style={styles.sectionTitle}>Giới thiệu</Text>
             </View>
-            <Text variant="bodyMedium" style={styles.bodyText}>
-              {doctor.bio || 'Profile is being updated.'}
+            <Text style={styles.bodyText}>
+              {doctor.bio || 'Hồ sơ đang được cập nhật.'}
             </Text>
           </View>
         </GlassCard>
+      </FadeInView>
+
+      {/* ---- Reviews ---- */}
+      <FadeInView delay={2 * STAGGER_DELAY} duration={450} distance={24}>
+        <ReviewsSection doctorId={doctorId} />
       </FadeInView>
 
       {/* ---- Services ---- */}
@@ -555,18 +495,16 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
                 <MaterialCommunityIcons
                   name="medical-bag"
                   size={20}
-                  color={theme.colors.primary}
+                  color={figmaColors.primary}
                 />
-                <Text variant="titleMedium" style={styles.sectionTitle}>Services</Text>
+                <Text style={styles.sectionTitle}>Dịch vụ</Text>
               </View>
               {doctor.doctorServices.map((service) => (
                 <View key={service.id} style={styles.serviceRow}>
-                  <Text variant="bodyMedium" style={styles.serviceName}>
-                    {service.name}
-                  </Text>
+                  <Text style={styles.serviceName}>{service.name}</Text>
                   <View style={styles.priceTag}>
                     <Text style={styles.priceText}>
-                      {service.price.toLocaleString()} VND
+                      {service.price.toLocaleString('vi-VN')}đ
                     </Text>
                   </View>
                 </View>
@@ -576,30 +514,18 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
         </FadeInView>
       )}
 
-      {/* ---- Reviews ---- */}
-      <FadeInView delay={4 * STAGGER_DELAY} duration={450} distance={24}>
-        <ReviewsSection doctorId={doctorId} />
-      </FadeInView>
-
       {/* ---- Book button ---- */}
-      <FadeInView delay={5 * STAGGER_DELAY} duration={450} distance={24}>
-        <LinearGradient
-          colors={['#007AFF', '#0051D5']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.bookGradient}
+      <FadeInView delay={4 * STAGGER_DELAY} duration={450} distance={24}>
+        <Pressable
+          onPress={() => router.push('/booking')}
+          style={({ pressed }) => [
+            styles.bookButton,
+            pressed && styles.bookButtonPressed,
+          ]}
         >
-          <Button
-            mode="text"
-            textColor="#fff"
-            icon="calendar-check"
-            contentStyle={styles.bookButtonContent}
-            labelStyle={styles.bookButtonLabel}
-            onPress={() => router.push('/booking')}
-          >
-            Book this specialty
-          </Button>
-        </LinearGradient>
+          <MaterialCommunityIcons name="calendar-check" size={20} color="#fff" />
+          <Text style={styles.bookButtonLabel}>Đặt lịch với chuyên khoa này</Text>
+        </Pressable>
       </FadeInView>
     </ScreenContainer>
   );
@@ -612,88 +538,123 @@ export function DoctorDetailScreen({ doctorId }: DoctorDetailScreenProps) {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
+    backgroundColor: figmaColors.background,
   },
   content: {
     paddingBottom: 40,
-    gap: 16,
+    gap: figmaSpacing.lg,
+  },
+
+  /* Back row (loading/error) */
+  backRow: {
+    paddingHorizontal: figmaSpacing.lg,
+    paddingBottom: figmaSpacing.md,
+  },
+  backIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: figmaColors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* Gradient header */
   gradientHeader: {
-    paddingBottom: 28,
-    paddingHorizontal: 20,
+    paddingBottom: figmaSpacing['2xl'] + 4,
+    paddingHorizontal: figmaSpacing.xl,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     alignItems: 'center',
-    gap: 8,
+    gap: figmaSpacing.sm,
   },
-  backRow: {
-    alignSelf: 'flex-start',
+  headerBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: figmaSpacing.md,
+  },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
   },
   avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: figmaSpacing.xs,
+  },
+  avatarText: {
+    fontSize: figmaFonts.sizes['3xl'],
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.primary,
   },
   heroName: {
-    fontWeight: '700',
+    fontSize: figmaFonts.sizes['2xl'],
+    fontWeight: figmaFonts.weights.bold,
     color: '#fff',
+    textAlign: 'center',
   },
   heroSpecialty: {
+    fontSize: figmaFonts.sizes.md,
     color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.xs,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: figmaSpacing.xs,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: figmaSpacing.md,
+    paddingVertical: 6,
+    borderRadius: figmaRadius.md,
   },
   badgeText: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  /* Stars */
-  starsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  reviewText: {
-    marginLeft: 6,
-    color: theme.colors.onSurfaceVariant,
+    fontSize: figmaFonts.sizes.base,
+    fontWeight: figmaFonts.weights.semibold,
   },
 
   /* Cards */
   card: {
-    marginHorizontal: 16,
+    marginHorizontal: figmaSpacing.lg,
   },
   cardContent: {
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: figmaSpacing.sm,
   },
   sectionTitle: {
-    fontWeight: '600',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
   },
   bodyText: {
-    color: theme.colors.onSurfaceVariant,
+    color: figmaColors.textSecondary,
+    fontSize: figmaFonts.sizes.md,
     lineHeight: 22,
   },
 
@@ -702,81 +663,96 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   serviceName: {
     flex: 1,
+    fontSize: figmaFonts.sizes.md,
+    color: figmaColors.textPrimary,
   },
   priceTag: {
-    backgroundColor: theme.colors.primaryContainer,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    backgroundColor: figmaColors.pastelBlue,
+    paddingHorizontal: figmaSpacing.md,
+    paddingVertical: figmaSpacing.xs,
+    borderRadius: figmaRadius.md,
   },
   priceText: {
-    color: theme.colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
+    color: figmaColors.primary,
+    fontWeight: figmaFonts.weights.bold,
+    fontSize: figmaFonts.sizes.base,
   },
 
   /* Book button */
-  bookGradient: {
-    marginHorizontal: 16,
-    borderRadius: 24,
-    overflow: 'hidden',
+  bookButton: {
+    marginHorizontal: figmaSpacing.lg,
+    backgroundColor: figmaColors.primary,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: figmaSpacing.sm,
   },
-  bookButtonContent: {
-    height: 50,
+  bookButtonPressed: {
+    transform: [{ scale: 0.98 }],
+    backgroundColor: figmaColors.primaryDark,
   },
   bookButtonLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: '#fff',
+    letterSpacing: 0.3,
   },
 
   /* Reviews */
   reviewsLoading: {
-    paddingVertical: 24,
+    paddingVertical: figmaSpacing['2xl'],
     alignItems: 'center',
   },
   reviewsEmpty: {
-    paddingVertical: 24,
+    paddingVertical: figmaSpacing['2xl'],
     alignItems: 'center',
-    gap: 6,
+    gap: figmaSpacing.xs,
   },
   reviewsEmptyText: {
-    color: systemColors.gray,
-    fontSize: 14,
+    color: figmaColors.textSecondary,
+    fontSize: figmaFonts.sizes.md,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: figmaSpacing.lg,
     alignItems: 'center',
   },
   summaryLeft: {
     alignItems: 'center',
-    minWidth: 88,
-    gap: 4,
+    minWidth: 96,
+    gap: figmaSpacing.xs,
   },
   summaryAvg: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: theme.colors.onSurface,
-    lineHeight: 42,
+    fontSize: figmaFonts.sizes['4xl'] + 10,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    lineHeight: 44,
+  },
+  summaryLabel: {
+    fontSize: figmaFonts.sizes.xs,
+    color: figmaColors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
   },
   summaryTotal: {
-    fontSize: 12,
-    color: systemColors.gray,
-    marginTop: 2,
+    fontSize: figmaFonts.sizes.xs,
+    color: figmaColors.textSecondary,
+    marginTop: figmaSpacing.xs,
   },
   summaryBars: {
     flex: 1,
-    gap: 6,
+    gap: figmaSpacing.xs + 2,
   },
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: figmaSpacing.sm,
   },
   barStarLabel: {
     flexDirection: 'row',
@@ -785,44 +761,44 @@ const styles = StyleSheet.create({
     width: 22,
   },
   barStarText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textSecondary,
   },
   barTrack: {
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: systemColors.gray5,
+    backgroundColor: figmaColors.border,
   },
   barFill: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: systemColors.orange,
+    backgroundColor: figmaColors.warning,
   },
   barCount: {
-    fontSize: 11,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.xs,
+    color: figmaColors.textSecondary,
     width: 22,
     textAlign: 'right',
   },
   reviewsDivider: {
     height: 1,
-    backgroundColor: systemColors.gray5,
-    marginVertical: 12,
+    backgroundColor: figmaColors.border,
+    marginVertical: figmaSpacing.md,
   },
   reviewsList: {
-    gap: 16,
+    gap: figmaSpacing.lg,
   },
   reviewRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   reviewAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.primaryContainer,
+    backgroundColor: figmaColors.pastelBlue,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -832,13 +808,13 @@ const styles = StyleSheet.create({
     height: 40,
   },
   reviewAvatarInitial: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.primary,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.primary,
   },
   reviewBody: {
     flex: 1,
-    gap: 4,
+    gap: figmaSpacing.xs,
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -846,59 +822,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reviewName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
     flex: 1,
   },
   reviewDate: {
-    fontSize: 12,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
   },
   reviewStarsRow: {
     flexDirection: 'row',
     gap: 1,
   },
   reviewComment: {
-    fontSize: 14,
-    color: theme.colors.onSurfaceVariant,
+    fontSize: figmaFonts.sizes.md,
+    color: figmaColors.textSecondary,
     lineHeight: 20,
     marginTop: 2,
   },
   loadMore: {
-    marginTop: 12,
+    marginTop: figmaSpacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: theme.colors.primaryContainer,
+    gap: figmaSpacing.xs,
+    paddingVertical: figmaSpacing.md,
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.pastelBlue,
   },
   loadMorePressed: {
     transform: [{ scale: 0.97 }],
   },
   loadMoreText: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
+    color: figmaColors.primary,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
   },
 
   /* Skeleton */
   skeletonContainer: {
-    padding: 20,
-    gap: 20,
+    padding: figmaSpacing.xl,
+    gap: figmaSpacing.xl,
   },
   skeletonHeader: {
-    gap: 4,
+    gap: figmaSpacing.xs,
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: figmaSpacing.lg,
   },
   skeletonCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 20,
+    borderRadius: figmaRadius.xl,
     borderWidth: 1,
-    borderColor: theme.colors.outline,
-    padding: 16,
+    borderColor: figmaColors.border,
+    padding: figmaSpacing.lg,
   },
 });

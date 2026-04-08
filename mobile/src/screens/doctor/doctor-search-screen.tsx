@@ -5,20 +5,26 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  DoctorCard,
   EmptyState,
   FadeInView,
   GradientHeader,
+  SearchBar,
 } from '../../components/shared';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { systemColors, theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import { getDoctors } from '../../services/doctors.service';
 import { getSpecialties } from '../../services/specialties.service';
 import type { Doctor, Specialty } from '../../types';
@@ -32,9 +38,9 @@ interface FilterState {
 }
 
 const SORT_LABELS: Record<SortKey, string> = {
-  rating: 'Top rated',
-  fee: 'Lowest fee',
-  experience: 'Most experience',
+  rating: 'Đánh giá cao',
+  fee: 'Phí thấp',
+  experience: 'Kinh nghiệm',
 };
 
 const SORT_ICONS: Record<SortKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -58,9 +64,6 @@ export function DoctorSearchScreen() {
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Filter sheet animation
-  const sheetAnim = useRef(new Animated.Value(0)).current;
 
   // Debounce search input
   useEffect(() => {
@@ -108,16 +111,6 @@ export function DoctorSearchScreen() {
     void loadDoctors();
   }, [loadDoctors]);
 
-  // Animate filter sheet
-  useEffect(() => {
-    Animated.spring(sheetAnim, {
-      toValue: showFilters ? 1 : 0,
-      friction: 9,
-      tension: 60,
-      useNativeDriver: true,
-    }).start();
-  }, [showFilters, sheetAnim]);
-
   // Apply client-side rating filter + sort
   const visibleDoctors = useMemo(() => {
     let list = doctors.slice();
@@ -141,20 +134,15 @@ export function DoctorSearchScreen() {
     (filters.minRating > 0 ? 1 : 0) +
     (filters.sort !== 'rating' ? 1 : 0);
 
-  const sheetTranslate = sheetAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-12, 0],
-  });
-  const sheetScale = sheetAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.98, 1],
-  });
+  const hasAnyFilter =
+    filters.specialtyId !== null ||
+    filters.minRating > 0 ||
+    filters.sort !== 'rating';
 
   return (
     <ScreenBackground>
       <GradientHeader
-        title="Find a doctor"
-        subtitle="Search by name, specialty, or rating"
+        title="Tìm bác sĩ"
         leftSlot={
           <Pressable
             onPress={() => router.back()}
@@ -166,147 +154,126 @@ export function DoctorSearchScreen() {
         }
       >
         <View style={styles.searchBarWrap}>
-          <View style={styles.searchBar}>
-            <MaterialCommunityIcons
-              name="magnify"
-              size={20}
-              color={systemColors.gray}
-            />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search doctors"
-              placeholderTextColor={systemColors.gray2}
-              style={styles.searchInput}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => setQuery('')} hitSlop={10}>
-                <MaterialCommunityIcons
-                  name="close-circle"
-                  size={18}
-                  color={systemColors.gray2}
-                />
-              </Pressable>
-            )}
-          </View>
+          <SearchBar
+            placeholder="Tên bác sĩ, chuyên khoa..."
+            value={query}
+            onChangeText={setQuery}
+          />
         </View>
       </GradientHeader>
 
       {/* Filter chips row */}
       <View style={styles.chipsRow}>
         <FilterChip
+          label="Tất cả"
+          icon="filter-variant"
+          active={!hasAnyFilter}
+          onPress={() => setFilters(DEFAULT_FILTERS)}
+        />
+        <FilterChip
           label={
             filters.specialtyId
               ? specialties.find((s) => s.id === filters.specialtyId)?.name ??
-                'Specialty'
-              : 'Specialty'
+                'Chuyên khoa'
+              : 'Chuyên khoa'
           }
           icon="medical-bag"
           active={!!filters.specialtyId}
           onPress={() => setShowFilters((v) => !v)}
         />
         <FilterChip
-          label={filters.minRating > 0 ? `${filters.minRating}+ rating` : 'Rating'}
+          label={filters.minRating > 0 ? `${filters.minRating}+` : 'Đánh giá'}
           icon="star"
           active={filters.minRating > 0}
           onPress={() => setShowFilters((v) => !v)}
         />
         <FilterChip
-          label={SORT_LABELS[filters.sort]}
+          label={
+            filters.sort !== 'rating' ? SORT_LABELS[filters.sort] : 'Sắp xếp'
+          }
           icon={SORT_ICONS[filters.sort]}
           active={filters.sort !== 'rating'}
           onPress={() => setShowFilters((v) => !v)}
         />
-        {activeFilterCount > 0 && (
-          <Pressable
-            onPress={() => setFilters(DEFAULT_FILTERS)}
-            style={styles.clearChip}
-            hitSlop={6}
-          >
-            <MaterialCommunityIcons
-              name="close"
-              size={14}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.clearChipText}>Clear</Text>
-          </Pressable>
-        )}
       </View>
 
-      {/* Animated filter sheet */}
+      {/* Filter sheet */}
       {showFilters && (
-        <Animated.View
-          style={[
-            styles.sheetWrap,
-            {
-              transform: [
-                { translateY: sheetTranslate },
-                { scale: sheetScale },
-              ],
-            },
-          ]}
-        >
-          <GlassCard style={styles.sheetCard}>
-            <Text style={styles.sheetSectionTitle}>Specialty</Text>
-            <View style={styles.sheetWrapRow}>
-              <SheetChip
-                label="All"
-                active={filters.specialtyId === null}
-                onPress={() =>
-                  setFilters((f) => ({ ...f, specialtyId: null }))
-                }
-              />
-              {specialties.map((s) => (
+        <FadeInView distance={12} duration={260}>
+          <View style={styles.sheetWrap}>
+            <GlassCard style={styles.sheetCard}>
+              <Text style={styles.sheetTitle}>Lọc và sắp xếp</Text>
+
+              <Text style={styles.sheetSectionTitle}>Chuyên khoa</Text>
+              <View style={styles.sheetWrapRow}>
                 <SheetChip
-                  key={s.id}
-                  label={s.name}
-                  active={filters.specialtyId === s.id}
+                  label="Tất cả"
+                  active={filters.specialtyId === null}
                   onPress={() =>
-                    setFilters((f) => ({ ...f, specialtyId: s.id }))
+                    setFilters((f) => ({ ...f, specialtyId: null }))
                   }
                 />
-              ))}
-            </View>
+                {specialties.map((s) => (
+                  <SheetChip
+                    key={s.id}
+                    label={s.name}
+                    active={filters.specialtyId === s.id}
+                    onPress={() =>
+                      setFilters((f) => ({ ...f, specialtyId: s.id }))
+                    }
+                  />
+                ))}
+              </View>
 
-            <Text style={styles.sheetSectionTitle}>Minimum rating</Text>
-            <View style={styles.sheetWrapRow}>
-              {[0, 3, 4, 4.5].map((r) => (
-                <SheetChip
-                  key={r}
-                  label={r === 0 ? 'Any' : `${r}+`}
-                  active={filters.minRating === r}
-                  onPress={() => setFilters((f) => ({ ...f, minRating: r }))}
-                  icon={r > 0 ? 'star' : undefined}
-                />
-              ))}
-            </View>
+              <Text style={styles.sheetSectionTitle}>Đánh giá</Text>
+              <View style={styles.sheetWrapRow}>
+                {[0, 3, 4, 4.5].map((r) => (
+                  <SheetChip
+                    key={r}
+                    label={r === 0 ? 'Tất cả' : `${r}+`}
+                    active={filters.minRating === r}
+                    onPress={() => setFilters((f) => ({ ...f, minRating: r }))}
+                    icon={r > 0 ? 'star' : undefined}
+                  />
+                ))}
+              </View>
 
-            <Text style={styles.sheetSectionTitle}>Sort by</Text>
-            <View style={styles.sheetWrapRow}>
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                <SheetChip
-                  key={key}
-                  label={SORT_LABELS[key]}
-                  active={filters.sort === key}
-                  onPress={() => setFilters((f) => ({ ...f, sort: key }))}
-                  icon={SORT_ICONS[key]}
-                />
-              ))}
-            </View>
+              <Text style={styles.sheetSectionTitle}>Sắp xếp</Text>
+              <View style={styles.sheetWrapRow}>
+                {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                  <SheetChip
+                    key={key}
+                    label={SORT_LABELS[key]}
+                    active={filters.sort === key}
+                    onPress={() => setFilters((f) => ({ ...f, sort: key }))}
+                    icon={SORT_ICONS[key]}
+                  />
+                ))}
+              </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.applyBtn,
-                pressed && styles.applyBtnPressed,
-              ]}
-              onPress={() => setShowFilters(false)}
-            >
-              <Text style={styles.applyBtnText}>Done</Text>
-            </Pressable>
-          </GlassCard>
-        </Animated.View>
+              <View style={styles.sheetActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.resetBtn,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={() => setFilters(DEFAULT_FILTERS)}
+                >
+                  <Text style={styles.resetBtnText}>Đặt lại</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.applyBtn,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={() => setShowFilters(false)}
+                >
+                  <Text style={styles.applyBtnText}>Áp dụng</Text>
+                </Pressable>
+              </View>
+            </GlassCard>
+          </View>
+        </FadeInView>
       )}
 
       <FlatList
@@ -321,24 +288,41 @@ export function DoctorSearchScreen() {
           />
         }
         renderItem={({ item, index }) => (
-          <DoctorRow doctor={item} index={index} />
+          <FadeInView delay={index * 60} distance={20} duration={380}>
+            <DoctorCard
+              name={item.name}
+              specialty={
+                item.specialty?.name +
+                (item.clinic ? ` • ${item.clinic.name}` : '')
+              }
+              rating={item.averageRating}
+              totalReviews={item.totalReviews}
+              fee={item.consultationFee}
+              onPress={() =>
+                router.push({
+                  pathname: '/doctors/[id]',
+                  params: { id: item.id },
+                })
+              }
+            />
+          </FadeInView>
         )}
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator color={theme.colors.primary} />
+              <ActivityIndicator color={figmaColors.primary} />
             </View>
           ) : (
             <View style={styles.emptyWrap}>
               <EmptyState
                 icon="doctor"
-                title="No doctors found"
-                message="Try adjusting your search or filters"
+                title="Không tìm thấy bác sĩ phù hợp"
               />
             </View>
           )
         }
       />
+      {activeFilterCount > 0 && !showFilters ? null : null}
     </ScreenBackground>
   );
 }
@@ -384,7 +368,7 @@ function FilterChip({
         <MaterialCommunityIcons
           name={icon}
           size={14}
-          color={active ? '#fff' : theme.colors.primary}
+          color={active ? '#fff' : figmaColors.primary}
         />
         <Text style={[styles.chipText, active && styles.chipTextActive]}>
           {label}
@@ -414,7 +398,7 @@ function SheetChip({
         <MaterialCommunityIcons
           name={icon}
           size={13}
-          color={active ? '#fff' : theme.colors.primary}
+          color={active ? '#fff' : figmaColors.primary}
         />
       ) : null}
       <Text
@@ -426,111 +410,6 @@ function SheetChip({
         {label}
       </Text>
     </Pressable>
-  );
-}
-
-function DoctorRow({ doctor, index }: { doctor: Doctor; index: number }) {
-  const translateY = useRef(new Animated.Value(24)).current;
-  const scale = useRef(new Animated.Value(0.96)).current;
-  const pressScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        delay: index * 80,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 8,
-        tension: 50,
-        delay: index * 80,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [index, translateY, scale]);
-
-  return (
-    <Animated.View
-      style={{
-        transform: [{ translateY }, { scale }],
-      }}
-    >
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: '/doctors/[id]',
-            params: { id: doctor.id },
-          })
-        }
-        onPressIn={() =>
-          Animated.spring(pressScale, {
-            toValue: 0.97,
-            useNativeDriver: true,
-          }).start()
-        }
-        onPressOut={() =>
-          Animated.spring(pressScale, {
-            toValue: 1,
-            friction: 5,
-            useNativeDriver: true,
-          }).start()
-        }
-      >
-        <Animated.View style={{ transform: [{ scale: pressScale }] }}>
-          <GlassCard style={styles.doctorCard}>
-            <View style={styles.doctorRow}>
-              <View style={styles.doctorAvatar}>
-                <MaterialCommunityIcons
-                  name="doctor"
-                  size={26}
-                  color={theme.colors.primary}
-                />
-              </View>
-              <View style={styles.doctorInfo}>
-                <Text style={styles.doctorName} numberOfLines={1}>
-                  {doctor.name}
-                </Text>
-                <Text style={styles.doctorMeta} numberOfLines={1}>
-                  {doctor.specialty?.name}
-                  {doctor.clinic ? ` \u2022 ${doctor.clinic.name}` : ''}
-                </Text>
-                <View style={styles.doctorStats}>
-                  <MaterialCommunityIcons
-                    name="star"
-                    size={13}
-                    color={systemColors.orange}
-                  />
-                  <Text style={styles.ratingText}>
-                    {(doctor.averageRating ?? 0).toFixed(1)}
-                  </Text>
-                  <Text style={styles.reviewCount}>
-                    ({doctor.totalReviews ?? 0})
-                  </Text>
-                  <View style={styles.dot} />
-                  <Text style={styles.expText}>
-                    {doctor.experienceYears}y exp
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.doctorRight}>
-                <Text style={styles.feeText}>
-                  {doctor.consultationFee.toLocaleString()}d
-                </Text>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={20}
-                  color={systemColors.gray3}
-                />
-              </View>
-            </View>
-          </GlassCard>
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
   );
 }
 
@@ -546,31 +425,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchBarWrap: {
-    marginTop: 16,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: theme.colors.onSurface,
-    paddingVertical: 0,
+    marginTop: figmaSpacing.lg,
   },
 
   /* Chips */
   chipsRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 6,
+    gap: figmaSpacing.sm,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingTop: figmaSpacing.md,
+    paddingBottom: figmaSpacing.xs,
     flexWrap: 'wrap',
     alignItems: 'center',
   },
@@ -578,173 +442,117 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: figmaSpacing.md,
     paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: theme.colors.primaryContainer,
+    borderRadius: figmaRadius.pill,
+    backgroundColor: figmaColors.pastelBlue,
   },
   chipActive: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: figmaColors.primary,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.primary,
+    fontSize: figmaFonts.sizes.base,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.primary,
   },
   chipTextActive: {
     color: '#fff',
   },
-  clearChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  clearChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.primary,
-  },
 
   /* Sheet */
   sheetWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingTop: figmaSpacing.sm,
+    paddingBottom: figmaSpacing.sm,
   },
   sheetCard: {
-    padding: 16,
+    padding: figmaSpacing.lg,
+  },
+  sheetTitle: {
+    fontSize: figmaFonts.sizes.xl,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    marginBottom: figmaSpacing.sm,
   },
   sheetSectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: figmaSpacing.md,
+    marginBottom: figmaSpacing.sm,
   },
   sheetWrapRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: figmaSpacing.sm,
   },
   sheetChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: systemColors.gray6,
+    paddingHorizontal: figmaSpacing.md,
+    paddingVertical: figmaSpacing.sm,
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.surfaceMuted,
   },
   sheetChipActive: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: figmaColors.primary,
   },
   sheetChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.base,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
   },
   sheetChipTextActive: {
     color: '#fff',
   },
-  applyBtn: {
-    marginTop: 16,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 14,
-    paddingVertical: 12,
+  sheetActions: {
+    flexDirection: 'row',
+    gap: figmaSpacing.md,
+    marginTop: figmaSpacing.lg,
+  },
+  resetBtn: {
+    flex: 1,
+    backgroundColor: figmaColors.surfaceMuted,
+    borderRadius: figmaRadius.md,
+    paddingVertical: figmaSpacing.md,
     alignItems: 'center',
   },
-  applyBtnPressed: {
-    transform: [{ scale: 0.97 }],
+  resetBtnText: {
+    color: figmaColors.textPrimary,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
+  },
+  applyBtn: {
+    flex: 1,
+    backgroundColor: figmaColors.primary,
+    borderRadius: figmaRadius.md,
+    paddingVertical: figmaSpacing.md,
+    alignItems: 'center',
   },
   applyBtnText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
+  },
+  btnPressed: {
+    transform: [{ scale: 0.97 }],
   },
 
   /* List */
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingTop: figmaSpacing.md,
     paddingBottom: 120,
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   loadingWrap: {
     paddingVertical: 48,
     alignItems: 'center',
   },
   emptyWrap: {
-    paddingTop: 32,
-  },
-
-  /* Doctor card */
-  doctorCard: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  doctorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  doctorAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doctorInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  doctorName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  doctorMeta: {
-    fontSize: 13,
-    color: systemColors.gray,
-  },
-  doctorStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: systemColors.orange,
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: systemColors.gray,
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: systemColors.gray3,
-    marginHorizontal: 2,
-  },
-  expText: {
-    fontSize: 12,
-    color: systemColors.gray,
-  },
-  doctorRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  feeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.primary,
+    paddingTop: figmaSpacing['3xl'],
   },
 });

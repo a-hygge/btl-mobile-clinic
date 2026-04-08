@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,55 +7,26 @@ import {
 } from 'react-native';
 import {
   ActivityIndicator,
-  Button,
   Snackbar,
   Text,
   TextInput,
 } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { theme, systemColors } from '../../constants/theme';
+import { FadeInView, GradientHeader } from '../../components/shared';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaSpacing,
+} from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
-// FadeInView
-// ---------------------------------------------------------------------------
-
-function FadeInView({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 500,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// StarRating
+// Star rating
 // ---------------------------------------------------------------------------
 
 function StarRating({
@@ -72,8 +42,8 @@ function StarRating({
         <Pressable key={star} onPress={() => onRate(star)} hitSlop={8}>
           <MaterialCommunityIcons
             name={star <= rating ? 'star' : 'star-outline'}
-            size={32}
-            color={star <= rating ? systemColors.yellow : systemColors.gray3}
+            size={40}
+            color={star <= rating ? figmaColors.warning : figmaColors.textMuted}
           />
         </Pressable>
       ))}
@@ -81,8 +51,16 @@ function StarRating({
   );
 }
 
+const RATING_HINTS: Record<number, string> = {
+  1: 'Rất tệ',
+  2: 'Tệ',
+  3: 'Bình thường',
+  4: 'Tốt',
+  5: 'Rất tốt',
+};
+
 // ---------------------------------------------------------------------------
-// ReviewScreen
+// Screen
 // ---------------------------------------------------------------------------
 
 interface ReviewScreenProps {
@@ -90,8 +68,6 @@ interface ReviewScreenProps {
 }
 
 export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
-  const insets = useSafeAreaInsets();
-
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
@@ -111,7 +87,7 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
       );
       setAppointment(data);
     } catch {
-      setSnackbar({ visible: true, message: 'Failed to load appointment.' });
+      setSnackbar({ visible: true, message: 'Không tải được lịch hẹn.' });
     } finally {
       setLoading(false);
     }
@@ -119,7 +95,7 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
 
   async function handleSubmit() {
     if (rating === 0) {
-      setSnackbar({ visible: true, message: 'Please select a rating.' });
+      setSnackbar({ visible: true, message: 'Vui lòng chọn mức đánh giá.' });
       return;
     }
     try {
@@ -129,144 +105,152 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
         rating,
         comment: comment.trim() || undefined,
       });
-      setSnackbar({ visible: true, message: 'Review submitted!' });
+      setSnackbar({ visible: true, message: 'Đã gửi đánh giá!' });
       setTimeout(() => router.back(), 800);
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? ((err as { response?: { data?: { error?: { message?: string } } } })
-              .response?.data?.error?.message ?? 'Failed to submit review.')
-          : 'Failed to submit review.';
+              .response?.data?.error?.message ?? 'Không gửi được đánh giá.')
+          : 'Không gửi được đánh giá.';
       setSnackbar({ visible: true, message: msg });
     } finally {
       setSubmitting(false);
     }
   }
 
+  const doctorInitials =
+    appointment?.doctor?.name
+      ?.split(' ')
+      .slice(-2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() ?? '?';
+
   return (
     <ScreenBackground>
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={[systemColors.orange, systemColors.pink]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 16 }]}
-        >
-          <View style={styles.headerRow}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
-              <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-            </Pressable>
-            <Text variant="titleLarge" style={styles.headerTitle}>
-              Write a Review
-            </Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            Share your experience with the doctor
-          </Text>
-        </LinearGradient>
+      <View style={styles.root}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <GradientHeader
+            title="Viết đánh giá"
+            leftSlot={
+              <Pressable
+                onPress={() => router.back()}
+                hitSlop={12}
+                style={styles.backBtn}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={22}
+                  color="#fff"
+                />
+              </Pressable>
+            }
+          />
 
-        {loading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} size="large" />
-        ) : (
-          <>
-            {/* Doctor Info Card */}
-            <FadeInView delay={100}>
-              <GlassCard style={styles.card}>
-                <View style={styles.doctorRow}>
-                  <View style={styles.doctorAvatar}>
-                    <MaterialCommunityIcons
-                      name="doctor"
-                      size={28}
-                      color={systemColors.blue}
-                    />
+          {loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" color={figmaColors.primary} />
+            </View>
+          ) : (
+            <>
+              {/* Doctor info */}
+              <FadeInView delay={80} distance={20}>
+                <GlassCard style={styles.card}>
+                  <View style={styles.doctorRow}>
+                    <View style={styles.doctorAvatar}>
+                      <Text style={styles.doctorAvatarText}>{doctorInitials}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.doctorName}>
+                        {appointment?.doctor?.name ?? 'Bác sĩ'}
+                      </Text>
+                      <Text style={styles.doctorSpecialty}>
+                        {appointment?.doctor?.specialty?.name ?? 'Chuyên khoa'}
+                      </Text>
+                      {appointment?.doctor?.clinic?.name && (
+                        <Text style={styles.clinicName}>
+                          {appointment.doctor.clinic.name}
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="titleMedium" style={styles.doctorName}>
-                      {appointment?.doctor?.name ?? 'Doctor'}
+                </GlassCard>
+              </FadeInView>
+
+              {/* Star rating */}
+              <FadeInView delay={160} distance={20}>
+                <GlassCard style={styles.card}>
+                  <View style={styles.ratingSection}>
+                    <Text style={styles.ratingQuestion}>
+                      Bạn đánh giá thế nào về bác sĩ?
                     </Text>
-                    <Text variant="bodySmall" style={styles.doctorSpecialty}>
-                      {appointment?.doctor?.specialty?.name ?? 'Specialist'}
-                    </Text>
-                    {appointment?.doctor?.clinic?.name && (
-                      <Text variant="bodySmall" style={styles.clinicName}>
-                        {appointment.doctor.clinic.name}
+                    <StarRating rating={rating} onRate={setRating} />
+                    {rating > 0 ? (
+                      <Text style={styles.ratingHint}>{RATING_HINTS[rating]}</Text>
+                    ) : (
+                      <Text style={styles.ratingHintMuted}>
+                        Chạm vào sao để đánh giá
                       </Text>
                     )}
                   </View>
-                </View>
-              </GlassCard>
-            </FadeInView>
+                </GlassCard>
+              </FadeInView>
 
-            {/* Star Rating */}
-            <FadeInView delay={200}>
-              <GlassCard style={styles.card}>
-                <View style={styles.ratingSection}>
-                  <Text variant="titleSmall" style={styles.sectionLabel}>
-                    How was your experience?
-                  </Text>
-                  <StarRating rating={rating} onRate={setRating} />
-                  <Text variant="bodySmall" style={styles.ratingHint}>
-                    {rating === 0
-                      ? 'Tap a star to rate'
-                      : rating <= 2
-                        ? 'We\'re sorry to hear that'
-                        : rating <= 3
-                          ? 'Thank you for your feedback'
-                          : 'Glad you had a great experience!'}
-                  </Text>
-                </View>
-              </GlassCard>
-            </FadeInView>
+              {/* Comment */}
+              <FadeInView delay={240} distance={20}>
+                <GlassCard style={styles.card}>
+                  <Text style={styles.sectionLabel}>Nhận xét của bạn</Text>
+                  <TextInput
+                    mode="outlined"
+                    placeholder="Chia sẻ trải nghiệm của bạn..."
+                    value={comment}
+                    onChangeText={setComment}
+                    multiline
+                    numberOfLines={4}
+                    style={styles.textInput}
+                    outlineStyle={{ borderRadius: figmaRadius.md }}
+                  />
+                </GlassCard>
+              </FadeInView>
 
-            {/* Comment Input */}
-            <FadeInView delay={300}>
-              <GlassCard style={styles.card}>
-                <Text variant="titleSmall" style={styles.sectionLabel}>
-                  Your comments
-                </Text>
-                <TextInput
-                  mode="outlined"
-                  placeholder="Share your experience..."
-                  value={comment}
-                  onChangeText={setComment}
-                  multiline
-                  numberOfLines={4}
-                  style={styles.textInput}
-                  outlineStyle={{ borderRadius: 12 }}
-                />
-              </GlassCard>
-            </FadeInView>
+              {/* Submit */}
+              <FadeInView delay={320} distance={20}>
+                <Pressable
+                  onPress={handleSubmit}
+                  disabled={submitting || rating === 0}
+                  style={({ pressed }) => [
+                    styles.submitBtn,
+                    (submitting || rating === 0) && styles.submitBtnDisabled,
+                    pressed && styles.submitBtnPressed,
+                  ]}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons
+                        name="send"
+                        size={20}
+                        color="#fff"
+                      />
+                      <Text style={styles.submitBtnLabel}>Gửi đánh giá</Text>
+                    </>
+                  )}
+                </Pressable>
+              </FadeInView>
+            </>
+          )}
+        </ScrollView>
 
-            {/* Submit Button */}
-            <FadeInView delay={400}>
-              <Button
-                mode="contained"
-                onPress={handleSubmit}
-                loading={submitting}
-                disabled={submitting || rating === 0}
-                icon="send"
-                style={styles.submitBtn}
-                contentStyle={styles.submitBtnContent}
-                labelStyle={styles.submitBtnLabel}
-              >
-                Submit Review
-              </Button>
-            </FadeInView>
-          </>
-        )}
-      </ScrollView>
-
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ visible: false, message: '' })}
-        duration={2500}
-      >
-        {snackbar.message}
-      </Snackbar>
-    </View>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ visible: false, message: '' })}
+          duration={2500}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </View>
     </ScreenBackground>
   );
 }
@@ -276,93 +260,115 @@ export function ReviewScreen({ appointmentId }: ReviewScreenProps) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   scrollContent: {
     paddingBottom: 120,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerRow: {
-    flexDirection: 'row',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginTop: 8,
+  loading: {
+    paddingVertical: figmaSpacing['4xl'],
+    alignItems: 'center',
   },
   card: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
   },
   doctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 4,
+    gap: figmaSpacing.md,
+    padding: figmaSpacing.xs,
   },
   doctorAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: systemColors.gray6,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: figmaColors.pastelBlue,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  doctorAvatarText: {
+    fontSize: figmaFonts.sizes.xl,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.primary,
+  },
   doctorName: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
   },
   doctorSpecialty: {
-    color: theme.colors.onSurfaceVariant,
+    fontSize: figmaFonts.sizes.base,
+    color: figmaColors.textSecondary,
     marginTop: 2,
   },
   clinicName: {
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textMuted,
     marginTop: 2,
   },
   ratingSection: {
     alignItems: 'center',
-    paddingVertical: 8,
-    gap: 12,
+    paddingVertical: figmaSpacing.md,
+    gap: figmaSpacing.md,
+  },
+  ratingQuestion: {
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    textAlign: 'center',
   },
   starsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: figmaSpacing.md,
   },
   ratingHint: {
-    color: theme.colors.onSurfaceVariant,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.primary,
+  },
+  ratingHintMuted: {
+    fontSize: figmaFonts.sizes.md,
+    color: figmaColors.textMuted,
   },
   sectionLabel: {
-    fontWeight: '600',
-    color: theme.colors.onSurface,
-    marginBottom: 8,
+    fontSize: figmaFonts.sizes.md,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    marginBottom: figmaSpacing.sm,
   },
   textInput: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: figmaColors.surface,
   },
   submitBtn: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 14,
-    backgroundColor: systemColors.orange,
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing['2xl'],
+    backgroundColor: figmaColors.primary,
+    borderRadius: figmaRadius.lg,
+    paddingVertical: figmaSpacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: figmaSpacing.sm,
   },
-  submitBtnContent: {
-    paddingVertical: 6,
+  submitBtnPressed: {
+    transform: [{ scale: 0.98 }],
+    backgroundColor: figmaColors.primaryDark,
+  },
+  submitBtnDisabled: {
+    backgroundColor: figmaColors.textMuted,
   },
   submitBtnLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: '#fff',
+    letterSpacing: 0.3,
   },
 });
