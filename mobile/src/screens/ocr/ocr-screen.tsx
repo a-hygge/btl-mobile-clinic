@@ -159,6 +159,7 @@ export function OcrScreen() {
     <ScreenContainer>
       <GradientHeader
         title="Quét đơn thuốc"
+        showBack
         subtitle="Chụp ảnh hoặc tải lên để nhận dạng thuốc tự động"
         colors={HEADER_COLORS}
       />

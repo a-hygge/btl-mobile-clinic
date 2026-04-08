@@ -119,6 +119,7 @@ export function NotificationScreen() {
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <GradientHeader
         title="Thông báo"
+        showBack
         subtitle={unreadCount > 0 ? `${unreadCount} chưa đọc` : undefined}
         colors={[figmaColors.warning, '#C93400']}
         rightSlot={

@@ -1,8 +1,10 @@
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 interface GradientHeaderProps {
   title: string;
@@ -10,6 +12,8 @@ interface GradientHeaderProps {
   colors?: readonly [string, string, ...string[]];
   rightSlot?: React.ReactNode;
   leftSlot?: React.ReactNode;
+  /** Show a back chevron in the left slot. Calls router.back() when pressed. */
+  showBack?: boolean;
   children?: React.ReactNode;
 }
 
@@ -21,9 +25,26 @@ export function GradientHeader({
   colors = DEFAULT_COLORS,
   rightSlot,
   leftSlot,
+  showBack,
   children,
 }: GradientHeaderProps) {
   const insets = useSafeAreaInsets();
+
+  const resolvedLeft =
+    leftSlot ??
+    (showBack ? (
+      <Pressable
+        onPress={() => {
+          console.log('[GradientHeader] back pressed');
+          router.back();
+        }}
+        hitSlop={12}
+        style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+      >
+        <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
+      </Pressable>
+    ) : null);
+
   return (
     <LinearGradient
       colors={colors}
@@ -32,7 +53,7 @@ export function GradientHeader({
       style={[styles.root, { paddingTop: insets.top + 16 }]}
     >
       <View style={styles.row}>
-        {leftSlot}
+        {resolvedLeft}
         <View style={styles.titleBlock}>
           <Text variant="headlineMedium" style={styles.title}>
             {title}
@@ -56,4 +77,15 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1 },
   title: { color: '#fff', fontWeight: '700' },
   subtitle: { color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnPressed: {
+    backgroundColor: 'rgba(255,255,255,0.32)',
+  },
 });

@@ -221,6 +221,7 @@ export function HealthScreen() {
       <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
         <GradientHeader
           title="Theo dõi sức khỏe"
+          showBack
           subtitle="Chăm sóc sức khỏe của bạn"
           colors={HEADER_GRADIENT}
         />
