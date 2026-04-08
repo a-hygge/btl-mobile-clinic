@@ -26,12 +26,20 @@ Respond ONLY with valid JSON, no markdown.`;
 
 export class PrescriptionService {
   static async ocrPrescription(imageBuffer: Buffer): Promise<OcrResult> {
-    // Upload image to Cloudinary
-    const uploaded = await uploadToCloudinary(imageBuffer, 'prescriptions');
-    const imageUrl = uploaded.secure_url;
+    // Upload image to Cloudinary (or get a mock URL for storage reference)
+    let imageUrl: string;
+    try {
+      const uploaded = await uploadToCloudinary(imageBuffer, 'prescriptions');
+      imageUrl = uploaded.secure_url;
+    } catch (err) {
+      console.warn('Cloudinary upload failed, using data URI fallback:', err);
+      imageUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+    }
 
-    // Call AI vision analysis
-    const aiResponse = await visionAnalysis(imageUrl, OCR_PROMPT);
+    // Always pass a data URI to the AI vision API so it can actually read
+    // the image, even when Cloudinary returns a fake/unreachable URL.
+    const dataUri = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+    const aiResponse = await visionAnalysis(dataUri, OCR_PROMPT);
 
     // Parse JSON from response (handle possible markdown wrapping)
     const jsonStr = aiResponse.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
