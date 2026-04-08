@@ -76,7 +76,7 @@ function PatientTabs() {
       <NativeTabs.Trigger name="doctor-reviews" hidden />
       <NativeTabs.Trigger name="doctor-profile" hidden />
       <NativeTabs.Trigger name="doctor-time-slots" hidden />
-      <NativeTabs.Trigger name="doctors/[id]" hidden />
+      <NativeTabs.Trigger name="doctor-view" hidden />
       <NativeTabs.Trigger name="chat-history" hidden />
       <NativeTabs.Trigger name="health" hidden />
       <NativeTabs.Trigger name="admin" hidden />
@@ -137,7 +137,7 @@ function DoctorTabs() {
       <NativeTabs.Trigger name="doctor-reviews" hidden />
       <NativeTabs.Trigger name="doctor-profile" hidden />
       <NativeTabs.Trigger name="doctor-time-slots" hidden />
-      <NativeTabs.Trigger name="doctors/[id]" hidden />
+      <NativeTabs.Trigger name="doctor-view" hidden />
       <NativeTabs.Trigger name="chat-history" hidden />
       <NativeTabs.Trigger name="health" hidden />
       <NativeTabs.Trigger name="admin" hidden />
@@ -198,7 +198,7 @@ function AdminTabs() {
       <NativeTabs.Trigger name="doctor-reviews" hidden />
       <NativeTabs.Trigger name="doctor-profile" hidden />
       <NativeTabs.Trigger name="doctor-time-slots" hidden />
-      <NativeTabs.Trigger name="doctors/[id]" hidden />
+      <NativeTabs.Trigger name="doctor-view" hidden />
       <NativeTabs.Trigger name="chat-history" hidden />
       <NativeTabs.Trigger name="health" hidden />
       <NativeTabs.Trigger name="admin" hidden />

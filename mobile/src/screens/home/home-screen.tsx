@@ -246,7 +246,12 @@ export function HomeScreen() {
                 rating={doctor.averageRating ?? 0}
                 fee={doctor.consultationFee}
                 avatarText={getInitials(doctor.name)}
-                onPress={() => router.push(`/doctors/${doctor.id}`)}
+                onPress={() => {
+                  router.push({
+                    pathname: '/doctor-view',
+                    params: { id: doctor.id },
+                  });
+                }}
               />
             ))
           )}

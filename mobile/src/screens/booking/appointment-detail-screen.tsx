@@ -324,7 +324,9 @@ export function AppointmentDetailScreen({
             <FadeInView delay={60}>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => router.push(`/doctors/${doctor.id}`)}
+                onPress={() =>
+                  router.push({ pathname: '/doctor-view', params: { id: doctor.id } })
+                }
               >
                 <GlassCard style={styles.card} glassStyle="regular">
                   <View style={styles.cardInner}>
