@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
-import { theme, systemColors } from '../../constants/theme';
+import { figmaColors, theme } from '../../constants/theme';
+import { formatLongDate, formatShortDate, formatVND } from '../../utils/format';
 import { api, extractData } from '../../services/api';
 import { cancelAppointment } from '../../services/appointments.service';
 import type { Appointment, Payment } from '../../types';
@@ -20,6 +21,10 @@ import type { Appointment, Payment } from '../../types';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const ORANGE = '#F57C00';
+const PURPLE = '#7C4DFF';
+const INDIGO = '#5856D6';
 
 const STATUS_CONFIG: Record<
   string,
@@ -32,27 +37,27 @@ const STATUS_CONFIG: Record<
 > = {
   PENDING: {
     color: '#fff',
-    bgColor: systemColors.orange,
+    bgColor: ORANGE,
     icon: 'clock-outline',
-    label: 'Pending Confirmation',
+    label: 'Chờ xác nhận',
   },
   CONFIRMED: {
     color: '#fff',
-    bgColor: systemColors.blue,
+    bgColor: figmaColors.primary,
     icon: 'check-circle-outline',
-    label: 'Confirmed',
+    label: 'Đã xác nhận',
   },
   COMPLETED: {
     color: '#fff',
-    bgColor: systemColors.green,
+    bgColor: figmaColors.success,
     icon: 'check-decagram',
-    label: 'Completed',
+    label: 'Đã hoàn thành',
   },
   CANCELED: {
     color: '#fff',
-    bgColor: systemColors.red,
+    bgColor: figmaColors.error,
     icon: 'close-circle-outline',
-    label: 'Canceled',
+    label: 'Đã hủy',
   },
 };
 
@@ -60,30 +65,17 @@ const PAYMENT_STATUS_CONFIG: Record<
   string,
   { color: string; label: string }
 > = {
-  PENDING: { color: systemColors.orange, label: 'Pending' },
-  PAID: { color: systemColors.green, label: 'Paid' },
-  FAILED: { color: systemColors.red, label: 'Failed' },
-  REFUNDED: { color: systemColors.purple, label: 'Refunded' },
+  PENDING: { color: ORANGE, label: 'Chờ thanh toán' },
+  PAID: { color: figmaColors.success, label: 'Đã thanh toán' },
+  FAILED: { color: figmaColors.error, label: 'Thất bại' },
+  REFUNDED: { color: PURPLE, label: 'Đã hoàn tiền' },
 };
 
-function formatDate(value?: string): string {
-  if (!value) return '';
-  return new Date(value).toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-function formatShortDate(value?: string): string {
-  if (!value) return '';
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'Tiền mặt',
+  VNPAY: 'VNPAY',
+  MOMO: 'Momo',
+};
 
 // ---------------------------------------------------------------------------
 // Info Row
@@ -129,12 +121,12 @@ const infoStyles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   value: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     marginTop: 1,
   },
 });
@@ -151,7 +143,7 @@ function StarRating({ rating }: { rating: number }) {
           key={star}
           name={star <= rating ? 'star' : 'star-outline'}
           size={18}
-          color={star <= rating ? systemColors.yellow : systemColors.gray3}
+          color={star <= rating ? figmaColors.warning : figmaColors.textMuted}
         />
       ))}
     </View>
@@ -201,7 +193,7 @@ export function AppointmentDetailScreen({
         setPayment(null);
       }
     } catch {
-      setNotice('Could not load appointment details.');
+      setNotice('Không thể tải chi tiết lịch hẹn.');
     } finally {
       setIsLoading(false);
     }
@@ -222,9 +214,9 @@ export function AppointmentDetailScreen({
     try {
       const updated = await cancelAppointment(appointmentId);
       setAppointment(updated);
-      setNotice('Appointment canceled successfully.');
+      setNotice('Đã hủy lịch hẹn thành công.');
     } catch {
-      setNotice('Could not cancel appointment.');
+      setNotice('Không thể hủy lịch hẹn.');
     } finally {
       setCanceling(false);
     }
@@ -233,7 +225,7 @@ export function AppointmentDetailScreen({
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top + 60 }]}>
-        <ActivityIndicator size="large" color={systemColors.blue} />
+        <ActivityIndicator size="large" color={figmaColors.primary} />
       </View>
     );
   }
@@ -244,17 +236,17 @@ export function AppointmentDetailScreen({
         <MaterialCommunityIcons
           name="alert-circle-outline"
           size={48}
-          color={systemColors.gray3}
+          color={figmaColors.textMuted}
         />
-        <Text style={styles.errorText}>Appointment not found</Text>
+        <Text style={styles.errorText}>Không tìm thấy lịch hẹn</Text>
         <Button
           mode="contained"
           onPress={() => router.back()}
-          buttonColor={systemColors.blue}
+          buttonColor={figmaColors.primary}
           textColor="#fff"
           style={{ marginTop: 16, borderRadius: 12 }}
         >
-          Go back
+          Quay lại
         </Button>
       </View>
     );
@@ -279,8 +271,8 @@ export function AppointmentDetailScreen({
     >
       {/* Header */}
       <GradientHeader
-        title="Appointment Details"
-        colors={[systemColors.blue, '#0055CC']}
+        title="Chi tiết lịch hẹn"
+        colors={[figmaColors.primary, figmaColors.primaryDark]}
         leftSlot={
           <TouchableOpacity
             onPress={() => router.back()}
@@ -327,13 +319,13 @@ export function AppointmentDetailScreen({
                       <MaterialCommunityIcons
                         name="doctor"
                         size={18}
-                        color={systemColors.blue}
+                        color={figmaColors.primary}
                       />
-                      <Text style={styles.sectionTitle}>Doctor</Text>
+                      <Text style={styles.sectionTitle}>Bác sĩ</Text>
                       <MaterialCommunityIcons
                         name="chevron-right"
                         size={18}
-                        color={systemColors.gray3}
+                        color={figmaColors.textMuted}
                         style={{ marginLeft: 'auto' }}
                       />
                     </View>
@@ -341,7 +333,7 @@ export function AppointmentDetailScreen({
                       <View style={styles.avatarContainer}>
                         <Image
                           source={{
-                            uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=007AFF&color=fff&size=80`,
+                            uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=1565C0&color=fff&size=80`,
                           }}
                           style={styles.avatar}
                         />
@@ -351,7 +343,7 @@ export function AppointmentDetailScreen({
                           {doctor.name}
                         </Text>
                         <Text style={styles.specialtyText} numberOfLines={1}>
-                          {doctor.specialty?.name ?? 'Specialist'}
+                          {doctor.specialty?.name ?? 'Chuyên khoa'}
                         </Text>
                         {doctor.clinic && (
                           <Text style={styles.clinicSmallText} numberOfLines={1}>
@@ -374,25 +366,25 @@ export function AppointmentDetailScreen({
                   <MaterialCommunityIcons
                     name="calendar-clock"
                     size={18}
-                    color={systemColors.orange}
+                    color={ORANGE}
                   />
-                  <Text style={styles.sectionTitle}>Schedule</Text>
+                  <Text style={styles.sectionTitle}>Lịch khám</Text>
                 </View>
                 <InfoRow
                   icon="calendar"
-                  iconColor={systemColors.orange}
-                  label="Date"
-                  value={formatDate(timeSlot?.date)}
+                  iconColor={ORANGE}
+                  label="Ngày"
+                  value={formatLongDate(timeSlot?.date)}
                 />
                 <View style={styles.divider} />
                 <InfoRow
                   icon="clock-outline"
-                  iconColor={systemColors.indigo}
-                  label="Time"
+                  iconColor={INDIGO}
+                  label="Giờ"
                   value={
                     timeSlot
                       ? `${timeSlot.startTime} - ${timeSlot.endTime}`
-                      : 'Not scheduled'
+                      : 'Chưa xếp lịch'
                   }
                 />
                 {doctor?.clinic && (
@@ -400,8 +392,8 @@ export function AppointmentDetailScreen({
                     <View style={styles.divider} />
                     <InfoRow
                       icon="map-marker"
-                      iconColor={systemColors.red}
-                      label="Location"
+                      iconColor={figmaColors.error}
+                      label="Phòng khám"
                       value={doctor.clinic.address}
                     />
                   </>
@@ -419,28 +411,28 @@ export function AppointmentDetailScreen({
                     <MaterialCommunityIcons
                       name="medical-bag"
                       size={18}
-                      color={systemColors.teal}
+                      color={figmaColors.info}
                     />
-                    <Text style={styles.sectionTitle}>Services</Text>
+                    <Text style={styles.sectionTitle}>Dịch vụ</Text>
                   </View>
                   {services.map((svc, idx) => (
                     <View key={svc.id}>
                       {idx > 0 && <View style={styles.divider} />}
                       <View style={styles.serviceRow}>
                         <Text style={styles.serviceName} numberOfLines={1}>
-                          {svc.service?.name ?? 'Service'}
+                          {svc.service?.name ?? 'Dịch vụ'}
                         </Text>
                         <Text style={styles.servicePrice}>
-                          {svc.price.toLocaleString()} VND
+                          {formatVND(svc.price)}
                         </Text>
                       </View>
                     </View>
                   ))}
                   <View style={styles.divider} />
                   <View style={styles.serviceRow}>
-                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalLabel}>Tổng tiền</Text>
                     <Text style={styles.totalAmount}>
-                      {appointment.totalAmount.toLocaleString()} VND
+                      {formatVND(appointment.totalAmount)}
                     </Text>
                   </View>
                 </View>
@@ -457,14 +449,14 @@ export function AppointmentDetailScreen({
                     <MaterialCommunityIcons
                       name="cash"
                       size={18}
-                      color={systemColors.green}
+                      color={figmaColors.success}
                     />
-                    <Text style={styles.sectionTitle}>Amount</Text>
+                    <Text style={styles.sectionTitle}>Tổng tiền</Text>
                   </View>
                   <View style={styles.serviceRow}>
-                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalLabel}>Tổng tiền</Text>
                     <Text style={styles.totalAmount}>
-                      {appointment.totalAmount.toLocaleString()} VND
+                      {formatVND(appointment.totalAmount)}
                     </Text>
                   </View>
                 </View>
@@ -480,27 +472,27 @@ export function AppointmentDetailScreen({
                   <MaterialCommunityIcons
                     name="credit-card-outline"
                     size={18}
-                    color={systemColors.indigo}
+                    color={INDIGO}
                   />
-                  <Text style={styles.sectionTitle}>Payment</Text>
+                  <Text style={styles.sectionTitle}>Thanh toán</Text>
                 </View>
                 {payment ? (
                   <View style={styles.paymentContent}>
                     <View style={styles.paymentRow}>
-                      <Text style={styles.paymentLabel}>Method</Text>
+                      <Text style={styles.paymentLabel}>Phương thức</Text>
                       <Text style={styles.paymentValue}>
-                        {payment.method}
+                        {PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}
                       </Text>
                     </View>
                     <View style={styles.paymentRow}>
-                      <Text style={styles.paymentLabel}>Status</Text>
+                      <Text style={styles.paymentLabel}>Trạng thái</Text>
                       <View
                         style={[
                           styles.paymentBadge,
                           {
                             backgroundColor:
                               (PAYMENT_STATUS_CONFIG[payment.status]?.color ??
-                                systemColors.gray) + '18',
+                                figmaColors.textSecondary) + '18',
                           },
                         ]}
                       >
@@ -510,7 +502,7 @@ export function AppointmentDetailScreen({
                             {
                               color:
                                 PAYMENT_STATUS_CONFIG[payment.status]?.color ??
-                                systemColors.gray,
+                                figmaColors.textSecondary,
                             },
                           ]}
                         >
@@ -521,7 +513,7 @@ export function AppointmentDetailScreen({
                     </View>
                     {payment.paidAt && (
                       <View style={styles.paymentRow}>
-                        <Text style={styles.paymentLabel}>Paid on</Text>
+                        <Text style={styles.paymentLabel}>Ngày thanh toán</Text>
                         <Text style={styles.paymentValue}>
                           {formatShortDate(payment.paidAt)}
                         </Text>
@@ -531,7 +523,7 @@ export function AppointmentDetailScreen({
                 ) : (
                   <View style={styles.paymentContent}>
                     <Text style={styles.noPaymentText}>
-                      No payment recorded yet.
+                      Chưa có thông tin thanh toán.
                     </Text>
                     {canCancel && (
                       <Button
@@ -542,12 +534,12 @@ export function AppointmentDetailScreen({
                             params: { appointmentId: appointment.id },
                           })
                         }
-                        buttonColor={systemColors.green}
+                        buttonColor={figmaColors.success}
                         textColor="#fff"
                         icon="credit-card"
                         style={styles.payNowBtn}
                       >
-                        Pay now
+                        Thanh toán ngay
                       </Button>
                     )}
                   </View>
@@ -565,9 +557,9 @@ export function AppointmentDetailScreen({
                     <MaterialCommunityIcons
                       name="note-text-outline"
                       size={18}
-                      color={systemColors.purple}
+                      color={PURPLE}
                     />
-                    <Text style={styles.sectionTitle}>Patient Notes</Text>
+                    <Text style={styles.sectionTitle}>Ghi chú của bệnh nhân</Text>
                   </View>
                   <Text style={styles.notesText}>{appointment.notes}</Text>
                 </View>
@@ -584,9 +576,9 @@ export function AppointmentDetailScreen({
                     <MaterialCommunityIcons
                       name="stethoscope"
                       size={18}
-                      color={systemColors.green}
+                      color={figmaColors.success}
                     />
-                    <Text style={styles.sectionTitle}>Diagnosis</Text>
+                    <Text style={styles.sectionTitle}>Chẩn đoán</Text>
                   </View>
                   <Text style={styles.notesText}>{appointment.diagnosis}</Text>
                 </View>
@@ -603,9 +595,9 @@ export function AppointmentDetailScreen({
                     <MaterialCommunityIcons
                       name="star"
                       size={18}
-                      color={systemColors.yellow}
+                      color={figmaColors.warning}
                     />
-                    <Text style={styles.sectionTitle}>Your Review</Text>
+                    <Text style={styles.sectionTitle}>Đánh giá của bạn</Text>
                   </View>
                   <StarRating rating={review.rating} />
                   {review.comment && (
@@ -626,13 +618,13 @@ export function AppointmentDetailScreen({
                 <Button
                   mode="contained"
                   onPress={() => router.push(`/reschedule?id=${appointment.id}`)}
-                  buttonColor={systemColors.purple}
+                  buttonColor={PURPLE}
                   textColor="#fff"
                   icon="calendar-refresh-outline"
                   style={styles.rescheduleBtn}
                   contentStyle={styles.actionBtnContent}
                 >
-                  Reschedule
+                  Đổi lịch
                 </Button>
               )}
               {canCancel && (
@@ -641,12 +633,12 @@ export function AppointmentDetailScreen({
                   onPress={handleCancel}
                   loading={canceling}
                   disabled={canceling}
-                  textColor={systemColors.red}
+                  textColor={figmaColors.error}
                   icon="close-circle-outline"
                   style={styles.cancelBtn}
                   contentStyle={styles.actionBtnContent}
                 >
-                  Cancel Appointment
+                  Hủy lịch hẹn
                 </Button>
               )}
 
@@ -659,13 +651,13 @@ export function AppointmentDetailScreen({
                       params: { appointmentId: appointment.id },
                     })
                   }
-                  buttonColor={systemColors.yellow}
+                  buttonColor={figmaColors.warning}
                   textColor="#000"
                   icon="star-outline"
                   style={styles.reviewBtn}
                   contentStyle={styles.actionBtnContent}
                 >
-                  Write a Review
+                  Viết đánh giá
                 </Button>
               )}
             </View>
@@ -697,7 +689,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     fontWeight: '600',
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     marginTop: 12,
   },
   backBtn: {
@@ -744,11 +736,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: systemColors.gray4,
+    backgroundColor: figmaColors.border,
   },
   // Doctor
   doctorRow: {
@@ -761,7 +753,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    backgroundColor: systemColors.gray5,
+    backgroundColor: figmaColors.surfaceMuted,
   },
   avatar: {
     width: 56,
@@ -774,16 +766,16 @@ const styles = StyleSheet.create({
   doctorName: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   specialtyText: {
     fontSize: 14,
-    color: systemColors.blue,
+    color: figmaColors.primary,
     fontWeight: '500',
   },
   clinicSmallText: {
     fontSize: 13,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   // Services
   serviceRow: {
@@ -794,23 +786,23 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     fontSize: 14,
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     flex: 1,
   },
   servicePrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   totalLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   totalAmount: {
     fontSize: 15,
     fontWeight: '700',
-    color: systemColors.green,
+    color: figmaColors.success,
   },
   // Payment
   paymentContent: {
@@ -823,12 +815,12 @@ const styles = StyleSheet.create({
   },
   paymentLabel: {
     fontSize: 14,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   paymentValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
   },
   paymentBadge: {
     paddingHorizontal: 10,
@@ -841,7 +833,7 @@ const styles = StyleSheet.create({
   },
   noPaymentText: {
     fontSize: 14,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     fontStyle: 'italic',
   },
   payNowBtn: {
@@ -851,19 +843,19 @@ const styles = StyleSheet.create({
   // Notes / Diagnosis
   notesText: {
     fontSize: 14,
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     lineHeight: 20,
   },
   // Review
   reviewComment: {
     fontSize: 14,
-    color: theme.colors.onSurface,
+    color: figmaColors.textPrimary,
     lineHeight: 20,
     fontStyle: 'italic',
   },
   reviewDate: {
     fontSize: 12,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   // Actions
   actionsSection: {
@@ -871,7 +863,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cancelBtn: {
-    borderColor: systemColors.red + '40',
+    borderColor: figmaColors.error + '40',
     borderRadius: 14,
   },
   rescheduleBtn: {

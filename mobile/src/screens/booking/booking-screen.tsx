@@ -1,24 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Button, RadioButton, Snackbar, Text, TextInput } from 'react-native-paper';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { getErrorMessage } from '../../utils/format';
+import { FadeInView, GradientHeader, ScreenContainer } from '../../components/shared';
+import { formatLongDate, formatVND, getErrorMessage } from '../../utils/format';
 import { router, useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { theme, systemColors } from '../../constants/theme';
+import { figmaColors, theme } from '../../constants/theme';
 import { getSpecialties, getClinics } from '../../services/specialties.service';
 import {
   createAppointment,
@@ -28,22 +24,18 @@ import {
 import { createPayment, type CreatePaymentResponse } from '../../services/payment.service';
 import type { Specialty, Clinic, Appointment } from '../../types';
 
+// Local color tokens (figmaColors doesn't include these accents)
+const ACCENT_ORANGE = '#F57C00';
+const ACCENT_PURPLE = '#7C4DFF';
+const ACCENT_INDIGO = '#5856D6';
+const ACCENT_PINK = '#FF2D55';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function getTodayDate(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -53,8 +45,6 @@ function formatDate(dateStr: string): string {
 const H_MARGIN = 16;
 const SECTION_GAP = 20;
 const ELEMENT_GAP = 12;
-const FADE_DURATION = 350;
-const SLIDE_DISTANCE = 30;
 
 const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
   cardiology: 'heart-pulse',
@@ -69,15 +59,15 @@ const SPECIALTY_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphM
 };
 
 const SPECIALTY_COLORS: string[] = [
-  systemColors.red,
-  systemColors.blue,
-  systemColors.purple,
-  systemColors.orange,
-  systemColors.teal,
-  systemColors.green,
-  systemColors.indigo,
-  systemColors.pink,
-  systemColors.yellow,
+  figmaColors.error,
+  figmaColors.primary,
+  ACCENT_PURPLE,
+  ACCENT_ORANGE,
+  figmaColors.info,
+  figmaColors.success,
+  ACCENT_INDIGO,
+  ACCENT_PINK,
+  figmaColors.warning,
 ];
 
 function getSpecialtyIcon(name: string): keyof typeof MaterialCommunityIcons.glyphMap {
@@ -93,38 +83,18 @@ function getSpecialtyColor(index: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// FadeInView — animated section reveal
+// Conditional reveal wrapper (uses shared FadeInView when visible)
 // ---------------------------------------------------------------------------
 
-interface FadeInViewProps {
+interface RevealProps {
   visible: boolean;
   delay?: number;
   children: React.ReactNode;
 }
 
-function FadeInView({ visible, delay = 0, children }: FadeInViewProps) {
-  const translateY = useRef(new Animated.Value(SLIDE_DISTANCE)).current;
-
-  useEffect(() => {
-    if (visible) {
-      translateY.setValue(SLIDE_DISTANCE);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: FADE_DURATION,
-        delay,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, delay, translateY]);
-
+function Reveal({ visible, delay = 0, children }: RevealProps) {
   if (!visible) return null;
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
+  return <FadeInView delay={delay}>{children}</FadeInView>;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,7 +221,7 @@ const specCardStyles = StyleSheet.create({
   },
   desc: {
     fontSize: 11,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     lineHeight: 15,
   },
   checkBadge: {
@@ -284,36 +254,36 @@ function ClinicCard({ clinic, selected, onPress }: ClinicCardProps) {
         style={[
           clinicCardStyles.card,
           selected && {
-            borderColor: systemColors.teal,
-            backgroundColor: systemColors.teal + '10',
+            borderColor: figmaColors.info,
+            backgroundColor: figmaColors.info + '10',
           },
         ]}
       >
         <View
           style={[
             clinicCardStyles.iconCircle,
-            { backgroundColor: (isAny ? systemColors.blue : systemColors.teal) + '18' },
+            { backgroundColor: (isAny ? figmaColors.primary : figmaColors.info) + '18' },
           ]}
         >
           <MaterialCommunityIcons
             name={isAny ? 'map-marker-radius-outline' : 'hospital-building'}
             size={22}
-            color={isAny ? systemColors.blue : systemColors.teal}
+            color={isAny ? figmaColors.primary : figmaColors.info}
           />
         </View>
         <View style={clinicCardStyles.textCol}>
           <Text
-            style={[clinicCardStyles.name, selected && { color: systemColors.teal }]}
+            style={[clinicCardStyles.name, selected && { color: figmaColors.info }]}
             numberOfLines={1}
           >
-            {isAny ? 'Any clinic' : clinic.name}
+            {isAny ? 'Bất kỳ phòng khám nào' : clinic.name}
           </Text>
           <Text style={clinicCardStyles.address} numberOfLines={1}>
-            {isAny ? 'System will assign the best match' : clinic.address}
+            {isAny ? 'Hệ thống sẽ tự động chọn phòng khám phù hợp' : clinic.address}
           </Text>
         </View>
         {selected && (
-          <MaterialCommunityIcons name="check-circle" size={22} color={systemColors.teal} />
+          <MaterialCommunityIcons name="check-circle" size={22} color={figmaColors.info} />
         )}
       </View>
     </TouchableOpacity>
@@ -328,7 +298,7 @@ const clinicCardStyles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     borderWidth: 1.5,
-    borderColor: systemColors.gray5,
+    borderColor: figmaColors.border,
     gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -353,7 +323,7 @@ const clinicCardStyles = StyleSheet.create({
   },
   address: {
     fontSize: 12,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     marginTop: 2,
   },
 });
@@ -375,20 +345,20 @@ function SlotCard({ slot, selected, onPress }: SlotCardProps) {
         style={[
           slotCardStyles.card,
           selected && {
-            borderColor: systemColors.green,
-            backgroundColor: systemColors.green + '10',
+            borderColor: figmaColors.success,
+            backgroundColor: figmaColors.success + '10',
           },
         ]}
       >
-        <Text style={[slotCardStyles.time, selected && { color: systemColors.green }]}>
+        <Text style={[slotCardStyles.time, selected && { color: figmaColors.success }]}>
           {slot.startTime}
         </Text>
         <Text style={slotCardStyles.dash}>-</Text>
-        <Text style={[slotCardStyles.endTime, selected && { color: systemColors.green }]}>
+        <Text style={[slotCardStyles.endTime, selected && { color: figmaColors.success }]}>
           {slot.endTime}
         </Text>
         <View style={slotCardStyles.availBadge}>
-          <Text style={slotCardStyles.availText}>{slot.availableCount} avail.</Text>
+          <Text style={slotCardStyles.availText}>Còn {slot.availableCount}</Text>
         </View>
         {selected && (
           <View style={slotCardStyles.checkDot}>
@@ -409,7 +379,7 @@ const slotCardStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderWidth: 1.5,
-    borderColor: systemColors.gray5,
+    borderColor: figmaColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -424,17 +394,17 @@ const slotCardStyles = StyleSheet.create({
   },
   dash: {
     fontSize: 11,
-    color: systemColors.gray2,
+    color: figmaColors.textMuted,
     marginVertical: 1,
   },
   endTime: {
     fontSize: 13,
     fontWeight: '500',
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   availBadge: {
     marginTop: 6,
-    backgroundColor: systemColors.gray6,
+    backgroundColor: figmaColors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -442,7 +412,7 @@ const slotCardStyles = StyleSheet.create({
   availText: {
     fontSize: 10,
     fontWeight: '600',
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   checkDot: {
     position: 'absolute',
@@ -451,7 +421,7 @@ const slotCardStyles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: systemColors.green,
+    backgroundColor: figmaColors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -501,7 +471,7 @@ const summaryStyles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   value: {
     fontSize: 15,
@@ -528,24 +498,24 @@ interface PaymentMethodInfo {
 const PAYMENT_METHODS: PaymentMethodInfo[] = [
   {
     value: 'CASH',
-    label: 'Cash',
+    label: 'Tiền mặt',
     icon: 'cash',
-    color: systemColors.green,
-    desc: 'Pay at the clinic',
+    color: figmaColors.success,
+    desc: 'Thanh toán tại phòng khám',
   },
   {
     value: 'VNPAY',
     label: 'VNPAY',
     icon: 'bank-outline',
-    color: systemColors.blue,
-    desc: 'Online banking via VNPAY',
+    color: figmaColors.primary,
+    desc: 'Thanh toán qua cổng VNPAY',
   },
   {
     value: 'MOMO',
     label: 'Momo',
     icon: 'wallet-outline',
-    color: systemColors.pink,
-    desc: 'Pay with Momo e-wallet',
+    color: ACCENT_PINK,
+    desc: 'Thanh toán qua ví Momo',
   },
 ];
 
@@ -563,9 +533,7 @@ interface BookingResult {
 // ---------------------------------------------------------------------------
 
 export function BookingScreen() {
-  const insets = useSafeAreaInsets();
   const { specialtyId } = useLocalSearchParams<{ specialtyId?: string }>();
-  const scrollRef = useRef<ScrollView>(null);
 
   // --- Data state ---
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
@@ -596,7 +564,7 @@ export function BookingScreen() {
         setSpecialties(specs);
         setClinics(cls);
       })
-      .catch(() => setNotice('Could not load data. Please try again.'))
+      .catch(() => setNotice('Không thể tải dữ liệu. Vui lòng thử lại.'))
       .finally(() => setInitialLoading(false));
   }, []);
 
@@ -644,7 +612,7 @@ export function BookingScreen() {
   // --- Book + Pay ---
   async function handleConfirm(): Promise<void> {
     if (!selectedSpecialty || !selectedTime) {
-      setNotice('Please select a specialty and time slot.');
+      setNotice('Vui lòng chọn chuyên khoa và khung giờ khám.');
       return;
     }
 
@@ -684,7 +652,7 @@ export function BookingScreen() {
   const selectedSpecObj = specialties.find((s) => s.id === selectedSpecialty);
   const selectedClinicObj = clinics.find((c) => c.id === selectedClinic);
   const selectedSlot = slots.find((s) => s.startTime === selectedTime);
-  const estimatedFee = '150,000 VND'; // placeholder — real value would come from doctor/service
+  const estimatedFee = formatVND(150000); // placeholder — real value would come from doctor/service
 
   const showClinic = Boolean(selectedSpecialty);
   const showDate = Boolean(selectedSpecialty);
@@ -701,40 +669,39 @@ export function BookingScreen() {
           loop
           style={{ width: 120, height: 120 }}
         />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </View>
     );
   }
 
   return (
-    <ScreenBackground>
-    <View style={styles.root}>
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color={systemColors.blue} />
+    <>
+    <ScreenContainer
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <GradientHeader
+        title="Đặt lịch khám"
+        subtitle="Hoàn thành các bước để xác nhận lịch khám"
+        colors={[figmaColors.primary, figmaColors.primaryDark]}
+        leftSlot={
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={28} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerTextCol}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Book Appointment
-            </Text>
-            <Text style={styles.subtitle}>Complete each step to schedule your visit</Text>
-          </View>
-        </View>
-
+        }
+      />
+      <View style={styles.content}>
         {/* Step 1: Specialty Selection */}
-        <FadeInView visible delay={0}>
+        <Reveal visible delay={0}>
           <SectionHeader
             step={1}
             icon="stethoscope"
-            iconColor={systemColors.blue}
-            title="Select Specialty"
+            iconColor={figmaColors.primary}
+            title="Chọn chuyên khoa"
           />
           <View style={styles.specialtyGrid}>
             {specialties.map((spec, i) => (
@@ -750,15 +717,15 @@ export function BookingScreen() {
               />
             ))}
           </View>
-        </FadeInView>
+        </Reveal>
 
         {/* Step 2: Clinic Selection */}
-        <FadeInView visible={showClinic} delay={100}>
+        <Reveal visible={showClinic} delay={100}>
           <SectionHeader
             step={2}
             icon="hospital-building"
-            iconColor={systemColors.teal}
-            title="Choose Clinic"
+            iconColor={figmaColors.info}
+            title="Chọn phòng khám"
           />
           <View style={styles.clinicList}>
             <ClinicCard
@@ -775,15 +742,15 @@ export function BookingScreen() {
               />
             ))}
           </View>
-        </FadeInView>
+        </Reveal>
 
         {/* Step 3: Date Selection */}
-        <FadeInView visible={showDate} delay={200}>
+        <Reveal visible={showDate} delay={200}>
           <SectionHeader
             step={3}
             icon="calendar"
-            iconColor={systemColors.orange}
-            title="Pick a Date"
+            iconColor={ACCENT_ORANGE}
+            title="Chọn ngày khám"
           />
           <GlassCard style={styles.card} glassStyle="regular">
             <DateTimePicker
@@ -793,17 +760,18 @@ export function BookingScreen() {
               minimumDate={new Date()}
               onChange={onDateChange}
               themeVariant="light"
+              locale="vi-VN"
             />
           </GlassCard>
-        </FadeInView>
+        </Reveal>
 
         {/* Step 4: Time Slot Selection */}
-        <FadeInView visible={showSlots} delay={300}>
+        <Reveal visible={showSlots} delay={300}>
           <SectionHeader
             step={4}
             icon="clock-outline"
-            iconColor={systemColors.indigo}
-            title="Select Time Slot"
+            iconColor={ACCENT_INDIGO}
+            title="Chọn giờ khám"
           />
           {slotsLoading ? (
             <View style={styles.slotsLoadingContainer}>
@@ -813,7 +781,7 @@ export function BookingScreen() {
                 loop
                 style={{ width: 80, height: 80 }}
               />
-              <Text style={styles.loadingText}>Finding available slots...</Text>
+              <Text style={styles.loadingText}>Đang tìm khung giờ trống...</Text>
             </View>
           ) : slots.length > 0 ? (
             <View style={styles.slotsGrid}>
@@ -832,77 +800,77 @@ export function BookingScreen() {
                 <MaterialCommunityIcons
                   name="calendar-remove"
                   size={40}
-                  color={systemColors.gray3}
+                  color={figmaColors.textMuted}
                 />
                 <Text style={styles.emptyText}>
-                  No slots available for this date.
+                  Không có khung giờ trống cho ngày này.
                 </Text>
                 <Text style={styles.emptyHint}>
-                  Try selecting a different date or clinic.
+                  Vui lòng chọn ngày khác hoặc phòng khám khác.
                 </Text>
               </View>
             </GlassCard>
           )}
-        </FadeInView>
+        </Reveal>
 
         {/* Step 5: Notes */}
-        <FadeInView visible={showReview} delay={100}>
+        <Reveal visible={showReview} delay={100}>
           <SectionHeader
             step={5}
             icon="text-box-outline"
-            iconColor={systemColors.purple}
-            title="Notes (Optional)"
+            iconColor={ACCENT_PURPLE}
+            title="Triệu chứng / Ghi chú"
           />
           <TextInput
             mode="outlined"
             multiline
             numberOfLines={3}
-            placeholder="Describe your symptoms or add any notes for the doctor..."
+            placeholder="Mô tả triệu chứng hoặc ghi chú thêm cho bác sĩ..."
             value={notes}
             onChangeText={setNotes}
-            outlineColor={systemColors.gray4}
-            activeOutlineColor={systemColors.purple}
+            outlineColor={figmaColors.border}
+            activeOutlineColor={ACCENT_PURPLE}
             outlineStyle={{ borderRadius: 14 }}
             style={styles.notesInput}
           />
-        </FadeInView>
+        </Reveal>
 
         {/* Step 6: Review & Payment */}
-        <FadeInView visible={showReview} delay={200}>
+        <Reveal visible={showReview} delay={200}>
           <SectionHeader
             step={6}
             icon="check-decagram"
-            iconColor={systemColors.green}
-            title="Review & Payment"
+            iconColor={figmaColors.success}
+            title="Xác nhận & Thanh toán"
           />
           <GlassCard style={styles.card} glassStyle="regular">
             {/* Summary */}
             <View style={styles.summaryCard}>
               <SummaryRow
                 icon="stethoscope"
-                iconColor={systemColors.blue}
-                label="Specialty"
+                iconColor={figmaColors.primary}
+                label="Chuyên khoa"
                 value={selectedSpecObj?.name ?? '--'}
               />
               <View style={styles.divider} />
               <SummaryRow
                 icon="hospital-building"
-                iconColor={systemColors.teal}
-                label="Clinic"
-                value={selectedClinicObj?.name ?? 'Any clinic'}
+                iconColor={figmaColors.info}
+                label="Phòng khám"
+                value={selectedClinicObj?.name ?? 'Bất kỳ phòng khám nào'}
               />
               <View style={styles.divider} />
               <SummaryRow
                 icon="calendar"
-                iconColor={systemColors.orange}
-                label="Date"
-                value={formatDate(date)}
+                iconColor={ACCENT_ORANGE}
+                label="Ngày khám"
+                value={formatLongDate(date)}
               />
               <View style={styles.divider} />
               <SummaryRow
                 icon="clock-outline"
-                iconColor={systemColors.indigo}
-                label="Time"
+                iconColor={ACCENT_INDIGO}
+                label="Giờ khám"
                 value={
                   selectedSlot
                     ? `${selectedSlot.startTime} - ${selectedSlot.endTime}`
@@ -912,14 +880,14 @@ export function BookingScreen() {
               <View style={styles.divider} />
               <SummaryRow
                 icon="cash"
-                iconColor={systemColors.green}
-                label="Estimated Fee"
+                iconColor={figmaColors.success}
+                label="Tổng tiền dự kiến"
                 value={estimatedFee}
               />
             </View>
 
             {/* Payment method */}
-            <Text style={styles.paymentTitle}>Payment Method</Text>
+            <Text style={styles.paymentTitle}>Phương thức thanh toán</Text>
             <View style={styles.paymentMethods}>
               {PAYMENT_METHODS.map((method) => (
                 <Pressable
@@ -968,17 +936,17 @@ export function BookingScreen() {
               loading={submitting}
               disabled={submitting}
               icon="check-circle"
-              buttonColor={systemColors.green}
+              buttonColor={figmaColors.success}
               textColor="#fff"
               contentStyle={styles.confirmBtnContent}
               labelStyle={styles.confirmBtnLabel}
               style={styles.confirmBtn}
             >
-              {submitting ? 'Booking...' : 'Confirm & Pay'}
+              {submitting ? 'Đang xử lý...' : 'Xác nhận & Thanh toán'}
             </Button>
           </GlassCard>
-        </FadeInView>
-      </ScrollView>
+        </Reveal>
+      </View>
 
       {/* Success Modal */}
       <Modal visible={showSuccess} animationType="fade" transparent statusBarTranslucent>
@@ -990,9 +958,9 @@ export function BookingScreen() {
               loop={false}
               style={successStyles.lottie}
             />
-            <Text style={successStyles.title}>Appointment Booked!</Text>
+            <Text style={successStyles.title}>Đặt lịch thành công</Text>
             <Text style={successStyles.subtitle}>
-              Your appointment has been confirmed successfully.
+              Lịch hẹn của bạn đã được xác nhận thành công.
             </Text>
 
             {bookingResult?.appointment && (
@@ -1000,25 +968,25 @@ export function BookingScreen() {
                 {bookingResult.appointment.doctor && (
                   <SummaryRow
                     icon="doctor"
-                    iconColor={systemColors.blue}
-                    label="Doctor"
+                    iconColor={figmaColors.primary}
+                    label="Bác sĩ"
                     value={bookingResult.appointment.doctor.name}
                   />
                 )}
                 <SummaryRow
                   icon="calendar"
-                  iconColor={systemColors.orange}
-                  label="Date"
+                  iconColor={ACCENT_ORANGE}
+                  label="Ngày khám"
                   value={
                     bookingResult.appointment.timeSlot
-                      ? formatDate(bookingResult.appointment.timeSlot.date)
-                      : formatDate(date)
+                      ? formatLongDate(bookingResult.appointment.timeSlot.date)
+                      : formatLongDate(date)
                   }
                 />
                 <SummaryRow
                   icon="clock-outline"
-                  iconColor={systemColors.indigo}
-                  label="Time"
+                  iconColor={ACCENT_INDIGO}
+                  label="Giờ khám"
                   value={
                     bookingResult.appointment.timeSlot
                       ? `${bookingResult.appointment.timeSlot.startTime} - ${bookingResult.appointment.timeSlot.endTime}`
@@ -1041,13 +1009,13 @@ export function BookingScreen() {
                 }
               }}
               icon="eye-outline"
-              buttonColor={systemColors.blue}
+              buttonColor={figmaColors.primary}
               textColor="#fff"
               contentStyle={{ paddingVertical: 4 }}
               labelStyle={{ fontWeight: '700', fontSize: 15 }}
               style={{ borderRadius: 14, width: '100%' }}
             >
-              View Appointment
+              Xem chi tiết lịch hẹn
             </Button>
 
             <Button
@@ -1056,26 +1024,26 @@ export function BookingScreen() {
                 setShowSuccess(false);
                 router.replace('/(tabs)/home' as never);
               }}
-              textColor={systemColors.gray}
+              textColor={figmaColors.textSecondary}
               labelStyle={{ fontSize: 14 }}
               style={{ marginTop: 4 }}
             >
-              Back to Home
+              Quay về trang chủ
             </Button>
           </View>
         </View>
       </Modal>
 
-      <Snackbar
-        visible={Boolean(notice)}
-        onDismiss={() => setNotice('')}
-        duration={3500}
-        action={{ label: 'OK', onPress: () => setNotice('') }}
-      >
-        {notice}
-      </Snackbar>
-    </View>
-    </ScreenBackground>
+    </ScreenContainer>
+    <Snackbar
+      visible={Boolean(notice)}
+      onDismiss={() => setNotice('')}
+      duration={3500}
+      action={{ label: 'OK', onPress: () => setNotice('') }}
+    >
+      {notice}
+    </Snackbar>
+    </>
   );
 }
 
@@ -1086,6 +1054,7 @@ export function BookingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: figmaColors.background,
   },
   centered: {
     alignItems: 'center',
@@ -1093,14 +1062,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: H_MARGIN,
-    paddingBottom: 120,
+    paddingTop: 16,
+    paddingBottom: 32,
     gap: SECTION_GAP,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
   },
   backBtn: {
     width: 36,
@@ -1108,18 +1072,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTextCol: {
-    flex: 1,
-  },
-  title: {
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: systemColors.gray,
-    marginTop: 2,
   },
   card: {
     shadowColor: '#000',
@@ -1155,7 +1107,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     marginTop: 4,
   },
   emptyContainer: {
@@ -1166,18 +1118,18 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     fontWeight: '600',
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
   },
   emptyHint: {
     fontSize: 13,
-    color: systemColors.gray2,
+    color: figmaColors.textMuted,
   },
   notesInput: {
     backgroundColor: '#fff',
     fontSize: 14,
   },
   summaryCard: {
-    backgroundColor: systemColors.gray6,
+    backgroundColor: figmaColors.surfaceMuted,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
@@ -1185,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: systemColors.gray4,
+    backgroundColor: figmaColors.border,
   },
   paymentTitle: {
     fontSize: 15,
@@ -1200,7 +1152,7 @@ const styles = StyleSheet.create({
   paymentOption: {
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: systemColors.gray5,
+    borderColor: figmaColors.border,
     backgroundColor: '#fff',
     padding: 12,
   },
@@ -1226,7 +1178,7 @@ const styles = StyleSheet.create({
   },
   paymentDesc: {
     fontSize: 12,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     marginTop: 1,
   },
   confirmBtn: {
@@ -1275,13 +1227,13 @@ const successStyles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: systemColors.gray,
+    color: figmaColors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 16,
   },
   detailCard: {
-    backgroundColor: systemColors.gray6,
+    backgroundColor: figmaColors.surfaceMuted,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
