@@ -9,7 +9,7 @@ import {
   GradientHeader,
   ScreenContainer,
 } from '../../components/shared';
-import { systemColors, spacing, theme } from '../../constants/theme';
+import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
 import {
   getMyNotifications,
   markAsRead,
@@ -27,13 +27,22 @@ const NOTIFICATION_ICONS: Record<NotificationType, keyof typeof MaterialCommunit
   SYSTEM: 'bell',
 };
 
-const NOTIFICATION_COLORS: Record<NotificationType, string> = {
-  APPOINTMENT_REMINDER: systemColors.blue,
-  APPOINTMENT_CONFIRMED: systemColors.green,
-  APPOINTMENT_CANCELED: systemColors.red,
-  MEDICINE_REMINDER: systemColors.teal,
-  HEALTH_ALERT: systemColors.orange,
-  SYSTEM: systemColors.purple,
+const NOTIFICATION_COLORS: Record<NotificationType, { color: string; bg: string }> = {
+  APPOINTMENT_REMINDER: { color: figmaColors.primary, bg: figmaColors.pastelBlue },
+  APPOINTMENT_CONFIRMED: { color: figmaColors.success, bg: figmaColors.successBg },
+  APPOINTMENT_CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg },
+  MEDICINE_REMINDER: { color: figmaColors.info, bg: figmaColors.infoBg },
+  HEALTH_ALERT: { color: '#C93400', bg: figmaColors.pastelOrange },
+  SYSTEM: { color: '#7C4DFF', bg: figmaColors.pastelPurple },
+};
+
+const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+  APPOINTMENT_REMINDER: 'Nhắc lịch hẹn',
+  APPOINTMENT_CONFIRMED: 'Lịch hẹn được xác nhận',
+  APPOINTMENT_CANCELED: 'Lịch hẹn bị hủy',
+  MEDICINE_REMINDER: 'Nhắc uống thuốc',
+  HEALTH_ALERT: 'Cảnh báo sức khỏe',
+  SYSTEM: 'Hệ thống',
 };
 
 function formatRelativeTime(dateString: string): string {
@@ -44,11 +53,11 @@ function formatRelativeTime(dateString: string): string {
   const diffHour = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
 
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return new Date(dateString).toLocaleDateString();
+  if (diffMin < 1) return 'Vừa xong';
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  if (diffHour < 24) return `${diffHour} giờ trước`;
+  if (diffDay < 7) return `${diffDay} ngày trước`;
+  return new Date(dateString).toLocaleDateString('vi-VN');
 }
 
 export function NotificationScreen() {
@@ -108,18 +117,17 @@ export function NotificationScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={systemColors.orange} />
+        <ActivityIndicator size="large" color={figmaColors.warning} />
       </View>
     );
   }
 
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
-      {/* Gradient Header */}
       <GradientHeader
-        title="Notifications"
-        subtitle={unreadCount > 0 ? `${unreadCount} unread` : undefined}
-        colors={['#FF9500', '#C93400']}
+        title="Thông báo"
+        subtitle={unreadCount > 0 ? `${unreadCount} chưa đọc` : undefined}
+        colors={[figmaColors.warning, '#C93400']}
         rightSlot={
           unreadCount > 0 ? (
             <Button
@@ -131,80 +139,73 @@ export function NotificationScreen() {
               style={styles.markAllBtn}
               buttonColor="rgba(255,255,255,0.25)"
               textColor="#fff"
+              labelStyle={styles.markAllLabel}
             >
-              Read All
+              Đánh dấu tất cả là đã đọc
             </Button>
           ) : undefined
         }
       />
 
-      {/* Notification List */}
       {notifications.length === 0 ? (
         <EmptyState
           icon="bell-off-outline"
-          title="No notifications"
-          message="You'll see updates about appointments, reminders, and more here."
+          title="Chưa có thông báo nào"
+          message="Bạn sẽ nhận được thông báo khi có cập nhật mới"
         />
       ) : (
-          <View style={styles.listContainer}>
-            {notifications.map((notification, index) => (
+        <View style={styles.listContainer}>
+          {notifications.map((notification, index) => {
+            const cfg = NOTIFICATION_COLORS[notification.type];
+            return (
               <FadeInView key={notification.id} delay={index * 60}>
                 <GlassCard style={styles.notificationCard}>
-                  <View>
-                    <View
-                      style={styles.notificationRow}
-                      onTouchEnd={() => handleMarkAsRead(notification)}
-                    >
-                      {/* Unread dot */}
-                      {!notification.isRead && <View style={styles.unreadDot} />}
+                  <View
+                    style={styles.notificationRow}
+                    onTouchEnd={() => handleMarkAsRead(notification)}
+                  >
+                    {!notification.isRead && <View style={styles.unreadDot} />}
 
-                      {/* Icon */}
-                      <View
+                    <View style={[styles.iconContainer, { backgroundColor: cfg.bg }]}>
+                      <MaterialCommunityIcons
+                        name={NOTIFICATION_ICONS[notification.type]}
+                        size={22}
+                        color={cfg.color}
+                      />
+                    </View>
+
+                    <View style={styles.notificationContent}>
+                      <Text
                         style={[
-                          styles.iconContainer,
-                          {
-                            backgroundColor: `${NOTIFICATION_COLORS[notification.type]}15`,
-                          },
+                          styles.typeLabel,
+                          { color: cfg.color },
                         ]}
                       >
-                        <MaterialCommunityIcons
-                          name={NOTIFICATION_ICONS[notification.type]}
-                          size={24}
-                          color={NOTIFICATION_COLORS[notification.type]}
-                        />
-                      </View>
-
-                      {/* Content */}
-                      <View style={styles.notificationContent}>
-                        <Text
-                          variant="titleSmall"
-                          style={[
-                            styles.notificationTitle,
-                            !notification.isRead && styles.notificationTitleUnread,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {notification.title}
-                        </Text>
-                        <Text
-                          variant="bodySmall"
-                          style={styles.notificationBody}
-                          numberOfLines={2}
-                        >
-                          {notification.body}
-                        </Text>
-                        <Text variant="labelSmall" style={styles.notificationTime}>
-                          {formatRelativeTime(notification.createdAt)}
-                        </Text>
-                      </View>
+                        {NOTIFICATION_TYPE_LABELS[notification.type]}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.notificationTitle,
+                          !notification.isRead && styles.notificationTitleUnread,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {notification.title}
+                      </Text>
+                      <Text style={styles.notificationBody} numberOfLines={2}>
+                        {notification.body}
+                      </Text>
+                      <Text style={styles.notificationTime}>
+                        {formatRelativeTime(notification.createdAt)}
+                      </Text>
                     </View>
                   </View>
                 </GlassCard>
               </FadeInView>
-            ))}
-          </View>
-        )}
-
+            );
+          })}
+        </View>
+      )}
     </ScreenContainer>
   );
 }
@@ -214,55 +215,69 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: figmaColors.background,
   },
   markAllBtn: {
-    borderRadius: 20,
+    borderRadius: figmaRadius.pill,
   },
-  // List
+  markAllLabel: {
+    fontSize: figmaFonts.sizes.xs,
+    fontWeight: figmaFonts.weights.semibold,
+  },
   listContainer: {
-    marginTop: spacing.md,
+    marginTop: figmaSpacing.md,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.sm,
   },
   notificationCard: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    padding: figmaSpacing.md,
   },
   notificationRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
+    gap: figmaSpacing.md,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: systemColors.blue,
-    marginTop: 8,
+    backgroundColor: figmaColors.primary,
+    marginTop: 10,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: figmaRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   notificationContent: {
     flex: 1,
+    gap: 2,
+  },
+  typeLabel: {
+    fontSize: figmaFonts.sizes.xs,
+    fontWeight: figmaFonts.weights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   notificationTitle: {
-    fontWeight: '500',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.medium,
+    color: figmaColors.textPrimary,
   },
   notificationTitleUnread: {
-    fontWeight: '700',
+    fontWeight: figmaFonts.weights.bold,
   },
   notificationBody: {
-    color: theme.colors.onSurfaceVariant,
-    marginTop: 2,
+    fontSize: figmaFonts.sizes.base,
+    color: figmaColors.textSecondary,
     lineHeight: 18,
+    marginTop: 2,
   },
   notificationTime: {
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.xs,
+    color: figmaColors.textMuted,
     marginTop: 4,
   },
 });

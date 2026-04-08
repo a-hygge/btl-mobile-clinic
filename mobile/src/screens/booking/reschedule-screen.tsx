@@ -14,23 +14,33 @@ import LottieView from 'lottie-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { GlassCard } from '../../components/ui/GlassCard';
 import {
+  AppointmentCard,
   EmptyState,
   FadeInView,
   GradientHeader,
   ScreenContainer,
 } from '../../components/shared';
-import { systemColors, theme } from '../../constants/theme';
+import {
+  figmaColors,
+  figmaFonts,
+  figmaRadius,
+  figmaShadows,
+  figmaSpacing,
+} from '../../constants/theme';
 import { api, extractData } from '../../services/api';
 import {
   getAvailableSlots,
   rescheduleAppointment,
   type AvailableSlot,
 } from '../../services/appointments.service';
+import { formatLongDate, formatShortDate, getErrorMessage } from '../../utils/format';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const RESCHEDULE_GRADIENT = ['#7C4DFF', '#5E35B1'] as const;
 
 function getTodayDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -41,16 +51,6 @@ function toDateOnly(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function formatLongDate(value?: string): string {
-  if (!value) return '';
-  return new Date(value + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -70,20 +70,24 @@ function SlotButton({ slot, selected, onPress }: SlotButtonProps) {
         style={[
           slotStyles.card,
           selected && {
-            borderColor: systemColors.green,
-            backgroundColor: systemColors.green + '14',
+            borderColor: RESCHEDULE_GRADIENT[0],
+            backgroundColor: `${RESCHEDULE_GRADIENT[0]}14`,
           },
         ]}
       >
-        <Text style={[slotStyles.time, selected && { color: systemColors.green }]}>
+        <Text
+          style={[slotStyles.time, selected && { color: RESCHEDULE_GRADIENT[1] }]}
+        >
           {slot.startTime}
         </Text>
         <Text style={slotStyles.dash}>-</Text>
-        <Text style={[slotStyles.endTime, selected && { color: systemColors.green }]}>
+        <Text
+          style={[slotStyles.endTime, selected && { color: RESCHEDULE_GRADIENT[1] }]}
+        >
           {slot.endTime}
         </Text>
         <View style={slotStyles.availBadge}>
-          <Text style={slotStyles.availText}>{slot.availableCount} avail.</Text>
+          <Text style={slotStyles.availText}>Còn {slot.availableCount}</Text>
         </View>
         {selected && (
           <View style={slotStyles.checkDot}>
@@ -102,45 +106,41 @@ const slotStyles = StyleSheet.create({
   card: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: figmaColors.surface,
+    borderRadius: figmaRadius.md,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderWidth: 1.5,
-    borderColor: systemColors.gray5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: figmaColors.border,
     position: 'relative',
+    ...figmaShadows.card,
   },
   time: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
   },
   dash: {
     fontSize: 11,
-    color: systemColors.gray2,
+    color: figmaColors.textMuted,
     marginVertical: 1,
   },
   endTime: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.base,
+    fontWeight: figmaFonts.weights.medium,
+    color: figmaColors.textSecondary,
   },
   availBadge: {
     marginTop: 6,
-    backgroundColor: systemColors.gray6,
-    borderRadius: 8,
+    backgroundColor: figmaColors.surfaceMuted,
+    borderRadius: figmaRadius.sm,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   availText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: systemColors.gray,
+    fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textSecondary,
   },
   checkDot: {
     position: 'absolute',
@@ -149,7 +149,7 @@ const slotStyles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: systemColors.green,
+    backgroundColor: RESCHEDULE_GRADIENT[0],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -176,10 +176,8 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
   const [success, setSuccess] = useState(false);
   const [notice, setNotice] = useState('');
 
-  // Button press animation
   const [buttonScale] = useState(() => new Animated.Value(1));
 
-  // Load appointment
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -189,7 +187,6 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
         );
         if (!mounted) return;
         setAppointment(data);
-        // Default picker date to today (or current appt date if in future)
         const apptDate = data.timeSlot?.date;
         if (apptDate) {
           const d = new Date(apptDate + 'T00:00:00');
@@ -199,7 +196,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
           }
         }
       } catch {
-        if (mounted) setNotice('Could not load appointment.');
+        if (mounted) setNotice('Không thể tải lịch hẹn.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -209,7 +206,6 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
     };
   }, [appointmentId]);
 
-  // Load slots when date or appointment changes
   const loadSlots = useCallback(async () => {
     if (!appointment?.doctor?.specialty?.id) return;
     setSlotsLoading(true);
@@ -223,7 +219,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
       setSlots(data);
     } catch {
       setSlots([]);
-      setNotice('Could not load slots for this date.');
+      setNotice('Không thể tải khung giờ cho ngày này.');
     } finally {
       setSlotsLoading(false);
     }
@@ -260,7 +256,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
 
   async function handleConfirm() {
     if (!selectedSlot) {
-      setNotice('Please pick a time slot first.');
+      setNotice('Vui lòng chọn ngày và giờ mới');
       return;
     }
     setSubmitting(true);
@@ -274,9 +270,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
         router.back();
       }, 1400);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Could not reschedule appointment.';
-      setNotice(message);
+      setNotice(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -285,7 +279,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top + 60 }]}>
-        <ActivityIndicator size="large" color={systemColors.blue} />
+        <ActivityIndicator size="large" color={RESCHEDULE_GRADIENT[0]} />
       </View>
     );
   }
@@ -295,9 +289,9 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
       <View style={[styles.loadingContainer, { paddingTop: insets.top + 60 }]}>
         <EmptyState
           icon="alert-circle-outline"
-          title="Appointment not found"
-          message="We could not load this appointment."
-          action={{ label: 'Go back', onPress: () => router.back() }}
+          title="Không tìm thấy lịch hẹn"
+          message="Chúng tôi không thể tải lịch hẹn này."
+          action={{ label: 'Quay lại', onPress: () => router.back() }}
         />
       </View>
     );
@@ -312,9 +306,9 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
           loop={false}
           style={styles.successLottie}
         />
-        <Text style={styles.successText}>Appointment Rescheduled</Text>
+        <Text style={styles.successText}>Đổi lịch thành công</Text>
         <Text style={styles.successSub}>
-          {formatLongDate(date)} at {selectedSlot?.startTime}
+          {formatLongDate(date)} lúc {selectedSlot?.startTime}
         </Text>
       </View>
     );
@@ -330,9 +324,9 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
     <>
       <ScreenContainer showsVerticalScrollIndicator={false}>
         <GradientHeader
-          title="Reschedule"
-          subtitle="Pick a new date and time"
-          colors={[systemColors.purple, '#5E2BFF']}
+          title="Đổi lịch hẹn"
+          subtitle="Chọn ngày và giờ mới"
+          colors={RESCHEDULE_GRADIENT}
           leftSlot={
             <TouchableOpacity
               onPress={() => router.back()}
@@ -345,69 +339,26 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
         />
 
         <View style={styles.body}>
-          {/* Current appointment card */}
+          {/* Current appointment */}
           <FadeInView delay={0}>
-            <GlassCard style={styles.card} glassStyle="regular">
-              <View style={styles.cardInner}>
-                <View style={styles.sectionHeader}>
-                  <MaterialCommunityIcons
-                    name="calendar-clock"
-                    size={18}
-                    color={systemColors.blue}
-                  />
-                  <Text style={styles.sectionTitle}>Current Appointment</Text>
-                </View>
-                {doctor && (
-                  <View style={styles.row}>
-                    <MaterialCommunityIcons
-                      name="doctor"
-                      size={16}
-                      color={systemColors.blue}
-                    />
-                    <Text style={styles.rowText}>
-                      {doctor.name}
-                      {doctor.specialty?.name ? `  -  ${doctor.specialty.name}` : ''}
-                    </Text>
-                  </View>
-                )}
-                {currentSlot && (
-                  <>
-                    <View style={styles.row}>
-                      <MaterialCommunityIcons
-                        name="calendar"
-                        size={16}
-                        color={systemColors.orange}
-                      />
-                      <Text style={styles.rowText}>{formatLongDate(currentSlot.date)}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <MaterialCommunityIcons
-                        name="clock-outline"
-                        size={16}
-                        color={systemColors.indigo}
-                      />
-                      <Text style={styles.rowText}>
-                        {currentSlot.startTime} - {currentSlot.endTime}
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            </GlassCard>
+            <Text style={styles.sectionLabel}>Lịch hẹn hiện tại</Text>
+            {doctor && currentSlot ? (
+              <AppointmentCard
+                doctorName={doctor.name}
+                specialty={doctor.specialty?.name ?? ''}
+                date={formatShortDate(currentSlot.date)}
+                startTime={currentSlot.startTime}
+                endTime={currentSlot.endTime}
+                status={appointment.status}
+              />
+            ) : null}
           </FadeInView>
 
           {/* Date picker */}
           <FadeInView delay={80}>
+            <Text style={styles.sectionLabel}>Chọn ngày mới</Text>
             <GlassCard style={styles.card} glassStyle="regular">
               <View style={styles.cardInner}>
-                <View style={styles.sectionHeader}>
-                  <MaterialCommunityIcons
-                    name="calendar-month-outline"
-                    size={18}
-                    color={systemColors.purple}
-                  />
-                  <Text style={styles.sectionTitle}>Pick a new date</Text>
-                </View>
                 <View style={styles.pickerWrap}>
                   <DateTimePicker
                     value={pickerDate}
@@ -416,7 +367,7 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
                     minimumDate={minDate}
                     maximumDate={maxDate}
                     onChange={handleDateChange}
-                    accentColor={systemColors.purple}
+                    accentColor={RESCHEDULE_GRADIENT[0]}
                   />
                 </View>
                 <Text style={styles.dateLabel}>{formatLongDate(date)}</Text>
@@ -426,34 +377,31 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
 
           {/* Slots */}
           <FadeInView delay={160}>
+            <Text style={styles.sectionLabel}>Chọn giờ mới</Text>
             <GlassCard style={styles.card} glassStyle="regular">
               <View style={styles.cardInner}>
-                <View style={styles.sectionHeader}>
-                  <MaterialCommunityIcons
-                    name="clock-time-four-outline"
-                    size={18}
-                    color={systemColors.green}
-                  />
-                  <Text style={styles.sectionTitle}>Available time slots</Text>
-                </View>
-
                 {slotsLoading ? (
                   <View style={styles.slotsLoading}>
-                    <ActivityIndicator color={systemColors.green} />
+                    <ActivityIndicator color={RESCHEDULE_GRADIENT[0]} />
                   </View>
                 ) : slots.length === 0 ? (
                   <View style={styles.slotsEmpty}>
                     <MaterialCommunityIcons
                       name="calendar-remove-outline"
                       size={40}
-                      color={systemColors.gray3}
+                      color={figmaColors.textMuted}
                     />
-                    <Text style={styles.emptyText}>No slots available for this date</Text>
+                    <Text style={styles.emptyText}>
+                      Không có khung giờ trống cho ngày này
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.slotsGrid}>
                     {slots.map((slot, i) => (
-                      <FadeInView key={`${slot.startTime}-${slot.endTime}`} delay={i * 40}>
+                      <FadeInView
+                        key={`${slot.startTime}-${slot.endTime}`}
+                        delay={i * 40}
+                      >
                         <SlotButton
                           slot={slot}
                           selected={
@@ -480,14 +428,14 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
                 onPressOut={pressOutButton}
                 loading={submitting}
                 disabled={submitting || !selectedSlot}
-                buttonColor={systemColors.purple}
+                buttonColor={RESCHEDULE_GRADIENT[0]}
                 textColor="#fff"
                 icon="calendar-check"
                 style={styles.confirmBtn}
                 contentStyle={styles.confirmBtnContent}
                 labelStyle={styles.confirmBtnLabel}
               >
-                Confirm Reschedule
+                Xác nhận đổi lịch
               </Button>
             </Animated.View>
           </FadeInView>
@@ -508,25 +456,25 @@ export function RescheduleScreen({ appointmentId }: RescheduleScreenProps) {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: figmaColors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: figmaSpacing['2xl'],
   },
   successLottie: {
     width: 180,
     height: 180,
   },
   successText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-    marginTop: 12,
+    fontSize: figmaFonts.sizes['2xl'],
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    marginTop: figmaSpacing.md,
   },
   successSub: {
-    fontSize: 14,
-    color: systemColors.gray,
-    marginTop: 4,
+    fontSize: figmaFonts.sizes.md,
+    color: figmaColors.textSecondary,
+    marginTop: figmaSpacing.xs,
   },
   backBtn: {
     width: 36,
@@ -536,48 +484,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: {
-    paddingHorizontal: 16,
-    gap: 14,
-    marginTop: 16,
+    paddingHorizontal: figmaSpacing.lg,
+    gap: figmaSpacing.lg,
+    marginTop: figmaSpacing.lg,
+  },
+  sectionLabel: {
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
+    color: figmaColors.textPrimary,
+    marginBottom: figmaSpacing.sm,
   },
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
+    ...figmaShadows.card,
   },
   cardInner: {
-    gap: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.onSurface,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  rowText: {
-    fontSize: 14,
-    color: theme.colors.onSurface,
-    fontWeight: '500',
-    flex: 1,
+    gap: figmaSpacing.sm,
   },
   pickerWrap: {
     marginHorizontal: -8,
   },
   dateLabel: {
-    fontSize: 13,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.base,
+    color: figmaColors.textSecondary,
     textAlign: 'center',
   },
   slotsGrid: {
@@ -586,27 +514,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   slotsLoading: {
-    paddingVertical: 24,
+    paddingVertical: figmaSpacing['2xl'],
     alignItems: 'center',
   },
   slotsEmpty: {
-    paddingVertical: 24,
+    paddingVertical: figmaSpacing['2xl'],
     alignItems: 'center',
-    gap: 8,
+    gap: figmaSpacing.sm,
   },
   emptyText: {
-    fontSize: 13,
-    color: systemColors.gray,
+    fontSize: figmaFonts.sizes.base,
+    color: figmaColors.textSecondary,
   },
   confirmBtn: {
-    borderRadius: 14,
-    marginTop: 4,
+    borderRadius: figmaRadius.md,
+    marginTop: figmaSpacing.xs,
   },
   confirmBtnContent: {
     paddingVertical: 6,
   },
   confirmBtnLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.bold,
   },
 });
