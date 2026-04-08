@@ -19,27 +19,27 @@ export default function AppLayout() {
     <NativeTabs minimizeBehavior="onScrollDown">
       <NativeTabs.Trigger name="home">
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
-        <Label>Home</Label>
+        <Label>Trang chủ</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="booking">
         <Icon sf={{ default: 'calendar.badge.plus', selected: 'calendar.badge.plus' }} />
-        <Label>Book</Label>
+        <Label>Đặt lịch</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="appointments">
         <Icon sf={{ default: 'list.clipboard', selected: 'list.clipboard.fill' }} />
-        <Label>Appointments</Label>
+        <Label>Lịch hẹn</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }} />
-        <Label>AI Chat</Label>
+        <Label>Chat AI</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: 'person', selected: 'person.fill' }} />
-        <Label>Profile</Label>
+        <Label>Cá nhân</Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="doctor-search" hidden />
