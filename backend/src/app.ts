@@ -43,6 +43,19 @@ app.use('/api/v1/reviews', reviewsRouter);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/health-metrics', healthMetricsRouter);
 
+// Public services list (authenticated users can view)
+app.get('/api/v1/services', async (_req, res, next) => {
+  try {
+    const services = await prisma.service.findMany({
+      where: { deletedAt: null },
+      orderBy: { category: 'asc' },
+    });
+    res.json({ success: true, data: services });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use('/api/v1/admin', adminRouter);
 
 app.use('/api/v1/payments', paymentRoutes);

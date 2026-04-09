@@ -161,21 +161,22 @@ export function DoctorHomeScreen() {
 
   const fetchAppointments = useCallback(async () => {
     try {
-      const [apptRes, svcRes] = await Promise.all([
-        api.get('/appointments/me', { params: { limit: 50, sort: 'date', order: 'asc' } }),
-        api.get('/services'),
-      ]);
+      const apptRes = await api.get('/appointments/me', { params: { limit: 50, sort: 'date', order: 'asc' } });
       const { data } = extractPaginatedData<Appointment[]>(apptRes);
+      console.log('[doctor-home] fetched', data.length, 'appointments');
       setAppointments(data);
-      try {
-        const svcData = extractData<{ id: string; name: string; price: number; category: string }[]>(svcRes);
-        setAllServices(Array.isArray(svcData) ? svcData : []);
-      } catch { /* ignore */ }
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.error('[doctor-home] fetch appointments failed:', err);
     } finally {
       setLoading(false);
     }
+
+    // Fetch services separately (don't block appointments)
+    try {
+      const svcRes = await api.get('/services');
+      const svcData = extractData<{ id: string; name: string; price: number; category: string }[]>(svcRes);
+      setAllServices(Array.isArray(svcData) ? svcData : []);
+    } catch { /* ignore — services list optional */ }
   }, []);
 
   useEffect(() => {
@@ -272,6 +273,8 @@ export function DoctorHomeScreen() {
   const displayAppointments = [...pendingAll, ...todayNonPending];
   const todayCompleted = displayAppointments.filter((a) => a.status === 'COMPLETED' || a.status === 'AWAITING_PAYMENT').length;
   const todayPending = pendingAll.length;
+
+  console.log('[doctor-home] appointments total:', appointments.length, 'pending:', pendingAll.length, 'display:', displayAppointments.length);
 
   // -----------------------------------------------------------------------
   // Render
@@ -547,7 +550,7 @@ export function DoctorHomeScreen() {
 
       <FadeInView delay={400}>
         <View style={styles.sectionWrap}>
-          <SectionTitle title="Lịch khám hôm nay" />
+          <SectionTitle title="Lịch hẹn" />
         </View>
       </FadeInView>
 
