@@ -55,6 +55,9 @@ function getRecordingOptions() {
     isMeteringEnabled: false,
     android: {
       extension: '.wav',
+      // Android 10+ supports PCM/WAV via MPEG_2_TS workaround is unreliable;
+      // use AAC in MP4 container — backend will detect and convert if needed,
+      // but most modern Android devices handle DEFAULT as PCM when extension is .wav
       outputFormat: Audio.AndroidOutputFormat.DEFAULT,
       audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
       sampleRate: 16000,
@@ -92,6 +95,7 @@ export function ChatScreen() {
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<any>(null);
   const soundRef = useRef<any>(null);
+  const playingRef = useRef(false);
 
   // ── Video player for avatar (may be null if expo-video unavailable) ──
   const player = useVideoPlayer ? useVideoPlayer(WAITING_VIDEO, (p: any) => {
@@ -164,12 +168,14 @@ export function ChatScreen() {
           break;
 
         case 'audio_response':
+          playingRef.current = true;
           setState('AI_SPEAKING');
+          setSubtitle('');
           playAudio(msg.audio);
           break;
 
         case 'turn_complete':
-          if (!soundRef.current) {
+          if (!playingRef.current) {
             setState('IDLE');
           }
           break;
@@ -235,10 +241,9 @@ export function ChatScreen() {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
           soundRef.current = null;
+          playingRef.current = false;
           FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
           setState('IDLE');
-          // Keep subtitle visible briefly then clear
-          setTimeout(() => setSubtitle(''), 3000);
         }
       });
 
@@ -246,11 +251,13 @@ export function ChatScreen() {
     } catch (err) {
       console.error('[VoiceChat] Playback error:', err);
       soundRef.current = null;
+      playingRef.current = false;
       setState('IDLE');
     }
   };
 
   const stopPlayback = async () => {
+    playingRef.current = false;
     if (soundRef.current) {
       try {
         await soundRef.current.stopAsync();
