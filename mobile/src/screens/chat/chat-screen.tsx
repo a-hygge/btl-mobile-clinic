@@ -8,7 +8,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { Video, ResizeMode, Audio } from 'expo-av';
+import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,9 +21,7 @@ import {
   figmaRadius,
 } from '../../constants/theme';
 
-// Assets — MP4 avatar animations
-const TALKING_VIDEO = require('../../../asset/talking_avatar.mp4');
-const WAITING_VIDEO = require('../../../asset/waiting_avatar.mp4');
+// Avatar animations removed — using Lottie + icon fallback instead
 
 // Derive WS URL from API URL
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
@@ -299,15 +297,15 @@ export function ChatScreen() {
       />
 
       <View style={styles.content}>
-        {/* Video Avatar */}
+        {/* Avatar */}
         <View style={styles.avatarContainer}>
-          <Video
-            source={isTalking ? TALKING_VIDEO : WAITING_VIDEO}
-            style={styles.avatar}
-            resizeMode={ResizeMode.CONTAIN}
-            isLooping
-            shouldPlay
-          />
+          <View style={styles.avatar}>
+            <MaterialCommunityIcons
+              name={isTalking ? 'account-voice' : 'robot-outline'}
+              size={80}
+              color={isTalking ? figmaColors.primary : figmaColors.textMuted}
+            />
+          </View>
           {state === 'CONNECTING' && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>Đang kết nối...</Text>
