@@ -316,17 +316,41 @@ export function ChatScreen() {
 
   // ── Send text ───────────────────────────────────────────
 
-  const sendText = useCallback(() => {
+  const sendText = useCallback(async () => {
     const text = textInput.trim();
     if (!text || state !== 'IDLE') return;
 
+    setTextInput('');
+    setState('PROCESSING');
+    setSubtitle('');
+
+    // Try WS first
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'text', content: text }));
-      setTextInput('');
-      setState('PROCESSING');
-      setSubtitle('');
+      return;
     }
-  }, [textInput, state]);
+
+    // Fallback: REST API for text chat
+    try {
+      const baseUrl = API_URL.includes('/api/v1') ? API_URL : `${API_URL}/api/v1`;
+      const res = await fetch(`${baseUrl}/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: text }),
+      });
+      const json = await res.json();
+      const reply = json?.data?.aiMessage?.content ?? json?.data?.reply ?? 'Không có phản hồi.';
+      setSubtitle(reply);
+      setState('IDLE');
+    } catch (err) {
+      console.error('[Chat] REST fallback error:', err);
+      setSubtitle('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      setState('IDLE');
+    }
+  }, [textInput, state, token]);
 
   // ── End session ─────────────────────────────────────────
 
