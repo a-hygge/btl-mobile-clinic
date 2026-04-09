@@ -265,6 +265,14 @@ export function ChatScreen() {
   const startRecording = async () => {
     if (!Audio) return;
     try {
+      // Clean up any existing recording first
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch { /* ignore */ }
+        recordingRef.current = null;
+      }
+
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
 

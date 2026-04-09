@@ -259,7 +259,7 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
       console.log('[BE-WS] ✅ Gemini WS open, sending setup config');
       geminiWs.send(JSON.stringify({
         setup: {
-          model: 'models/gemini-2.0-flash-live-001',
+          model: 'models/gemini-3.1-flash-live-preview',
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
