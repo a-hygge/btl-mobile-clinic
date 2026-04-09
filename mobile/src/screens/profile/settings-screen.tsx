@@ -61,23 +61,6 @@ export function SettingsScreen() {
     ]);
   }, []);
 
-  const handleClearCache = useCallback(() => {
-    Alert.alert(
-      'Xóa bộ nhớ đệm',
-      'Bạn có chắc muốn xóa bộ nhớ đệm? Ứng dụng có thể tải chậm hơn trong lần tiếp theo.',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Đã xóa', 'Bộ nhớ đệm đã được xóa thành công.');
-          },
-        },
-      ],
-    );
-  }, []);
-
   const appVersion = Application.nativeApplicationVersion ?? '1.0.0';
   const buildVersion = Application.nativeBuildVersion ?? '1';
 
@@ -151,38 +134,8 @@ export function SettingsScreen() {
           </GlassCard>
         </FadeInView>
 
-        {/* Quyền riêng tư & Bảo mật */}
-        <FadeInView delay={240}>
-          <SectionTitle title="Quyền riêng tư" />
-          <GlassCard style={styles.card}>
-            <ListRow
-              icon="🔒"
-              iconBgColor={figmaColors.pastelRed}
-              title="Đổi mật khẩu"
-              subtitle="Cập nhật mật khẩu tài khoản"
-              onPress={() => showComingSoon('Đổi mật khẩu')}
-            />
-            <View style={styles.divider} />
-            <ListRow
-              icon="🛡️"
-              iconBgColor={figmaColors.pastelPurple}
-              title="Quyền ứng dụng"
-              subtitle="Camera, thông báo, vị trí"
-              onPress={() => Linking.openSettings()}
-            />
-            <View style={styles.divider} />
-            <ListRow
-              icon="🗑️"
-              iconBgColor={figmaColors.errorBg}
-              title="Xóa bộ nhớ đệm"
-              subtitle="Giải phóng dung lượng"
-              onPress={handleClearCache}
-            />
-          </GlassCard>
-        </FadeInView>
-
         {/* Hỗ trợ */}
-        <FadeInView delay={320}>
+        <FadeInView delay={240}>
           <SectionTitle title="Hỗ trợ" />
           <GlassCard style={styles.card}>
             <ListRow

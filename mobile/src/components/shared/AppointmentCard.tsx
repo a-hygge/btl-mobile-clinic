@@ -1,18 +1,19 @@
 /**
- * AppointmentCard - Appointment card with border-left + status chip + date/time row
- * Matches Figma `div.appt-card` pattern.
+ * AppointmentCard - Compact minimalist appointment card.
+ * Single-row layout: status dot + doctor + time + status badge.
  */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { figmaColors, figmaFonts, figmaRadius, figmaShadows } from '../../constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { figmaColors, figmaFonts, figmaRadius } from '../../constants/theme';
 
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
 
 interface AppointmentCardProps {
   doctorName: string;
   specialty: string;
-  date: string; // formatted date string e.g. "28/02/2026"
-  startTime: string; // "14:00"
-  endTime?: string; // "14:30"
+  date: string;
+  startTime: string;
+  endTime?: string;
   status: AppointmentStatus;
   avatarText?: string;
   avatarBgColor?: string;
@@ -23,15 +24,15 @@ interface AppointmentCardProps {
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  COMPLETED: 'Đã hoàn thành',
+  COMPLETED: 'Hoàn thành',
   CANCELED: 'Đã hủy',
 };
 
-const STATUS_COLORS: Record<AppointmentStatus, { color: string; bg: string; border: string }> = {
-  PENDING: { color: '#F57C00', bg: '#FFF3E0', border: '#FB8C00' },
-  CONFIRMED: { color: figmaColors.success, bg: figmaColors.successBg, border: figmaColors.success },
-  COMPLETED: { color: figmaColors.info, bg: figmaColors.infoBg, border: figmaColors.info },
-  CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, border: figmaColors.error },
+const STATUS_CFG: Record<AppointmentStatus, { color: string; bg: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = {
+  PENDING: { color: '#F57C00', bg: '#FFF3E0', icon: 'clock-outline' },
+  CONFIRMED: { color: figmaColors.success, bg: figmaColors.successBg, icon: 'check-circle-outline' },
+  COMPLETED: { color: figmaColors.info, bg: figmaColors.infoBg, icon: 'checkbox-marked-circle-outline' },
+  CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, icon: 'close-circle-outline' },
 };
 
 export function AppointmentCard({
@@ -41,13 +42,9 @@ export function AppointmentCard({
   startTime,
   endTime,
   status,
-  avatarText,
-  avatarBgColor = figmaColors.pastelBlue,
-  avatarTextColor = figmaColors.primary,
   onPress,
 }: AppointmentCardProps) {
-  const initials = avatarText || doctorName.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
-  const statusCfg = STATUS_COLORS[status];
+  const cfg = STATUS_CFG[status];
 
   return (
     <Pressable
@@ -55,121 +52,113 @@ export function AppointmentCard({
         console.log('[AppointmentCard] press:', doctorName);
         onPress?.();
       }}
-      style={({ pressed }) => pressed && styles.pressed}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-        <View style={[styles.card, { borderLeftColor: statusCfg.border }]}>
-          <View style={styles.topRow}>
-            <View style={styles.left}>
-              <View style={[styles.avatar, { backgroundColor: avatarBgColor }]}>
-                <Text style={[styles.avatarText, { color: avatarTextColor }]}>{initials}</Text>
-              </View>
-              <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1}>{doctorName}</Text>
-                <Text style={styles.specialty} numberOfLines={1}>{specialty}</Text>
-              </View>
-            </View>
-            <View style={[styles.chip, { backgroundColor: statusCfg.bg }]}>
-              <Text style={[styles.chipText, { color: statusCfg.color }]}>{STATUS_LABELS[status]}</Text>
-            </View>
+      {/* Status accent */}
+      <View style={[styles.accent, { backgroundColor: cfg.color }]} />
+
+      <View style={styles.body}>
+        {/* Row 1: doctor + status */}
+        <View style={styles.topRow}>
+          <View style={styles.doctorInfo}>
+            <Text style={styles.name} numberOfLines={1}>{doctorName}</Text>
+            <Text style={styles.specialty} numberOfLines={1}>{specialty}</Text>
           </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>📅</Text>
-              <Text style={styles.metaText}>{date}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>🕐</Text>
-              <Text style={styles.metaText}>
-                {startTime}
-                {endTime ? ` - ${endTime}` : ''}
-              </Text>
-            </View>
+          <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
+            <MaterialCommunityIcons name={cfg.icon} size={12} color={cfg.color} />
+            <Text style={[styles.badgeText, { color: cfg.color }]}>{STATUS_LABELS[status]}</Text>
           </View>
         </View>
+
+        {/* Row 2: date + time */}
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <MaterialCommunityIcons name="calendar-outline" size={14} color={figmaColors.textMuted} />
+            <Text style={styles.metaText}>{date}</Text>
+          </View>
+          <View style={styles.dot} />
+          <View style={styles.metaItem}>
+            <MaterialCommunityIcons name="clock-outline" size={14} color={figmaColors.textMuted} />
+            <Text style={styles.metaText}>
+              {startTime}{endTime ? ` – ${endTime}` : ''}
+            </Text>
+          </View>
+        </View>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    backgroundColor: figmaColors.surface,
+    borderRadius: figmaRadius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: figmaColors.border,
+  },
   pressed: {
     opacity: 0.7,
   },
-  card: {
-    backgroundColor: figmaColors.surface,
-    borderRadius: figmaRadius.lg,
-    borderLeftWidth: 4,
-    paddingVertical: 16,
-    paddingLeft: 20,
-    paddingRight: 16,
-    gap: 12,
-    ...figmaShadows.card,
+  accent: {
+    width: 3,
+  },
+  body: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 8,
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
   },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  doctorInfo: {
     flex: 1,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: figmaRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: figmaFonts.sizes.md,
-    fontWeight: figmaFonts.weights.bold,
-  },
-  info: {
-    flex: 1,
+    gap: 1,
   },
   name: {
-    fontSize: figmaFonts.sizes.lg,
+    fontSize: figmaFonts.sizes.md,
     fontWeight: figmaFonts.weights.semibold,
     color: figmaColors.textPrimary,
   },
   specialty: {
-    fontSize: figmaFonts.sizes.base,
+    fontSize: figmaFonts.sizes.sm,
     color: figmaColors.textSecondary,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: figmaRadius.pill,
   },
-  chipText: {
-    fontSize: figmaFonts.sizes.sm,
+  badgeText: {
+    fontSize: figmaFonts.sizes.xs,
     fontWeight: figmaFonts.weights.semibold,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: figmaColors.border,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 8,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  metaIcon: {
-    fontSize: figmaFonts.sizes.lg,
+    gap: 4,
   },
   metaText: {
-    fontSize: figmaFonts.sizes.base,
-    color: figmaColors.textPrimary,
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: figmaColors.textMuted,
   },
 });

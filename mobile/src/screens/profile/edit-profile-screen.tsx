@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import {
-  ActivityIndicator,
   Avatar,
   Button,
   Snackbar,
@@ -125,21 +124,8 @@ export function EditProfileScreen() {
       <ScreenContainer showsVerticalScrollIndicator={false}>
         <GradientHeader
           title="Chỉnh sửa hồ sơ"
+          showBack
           colors={[figmaColors.primary, figmaColors.primaryDark]}
-          leftSlot={
-            <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
-              <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-            </Pressable>
-          }
-          rightSlot={
-            <Pressable onPress={handleSave} hitSlop={12} disabled={saving} style={styles.headerBtn}>
-              {saving ? (
-                <ActivityIndicator size={20} color="#fff" />
-              ) : (
-                <Text style={styles.headerSave}>Lưu</Text>
-              )}
-            </Pressable>
-          }
         />
 
         {/* Avatar */}

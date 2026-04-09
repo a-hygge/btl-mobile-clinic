@@ -29,17 +29,12 @@ interface SpecialtyVisual {
 }
 
 const SPECIALTY_VISUALS: Record<string, SpecialtyVisual> = {
-  'Tim mach': { icon: '🫀', bgColor: figmaColors.pastelRed },
   'Tim mạch': { icon: '🫀', bgColor: figmaColors.pastelRed },
-  'Than kinh': { icon: '🧠', bgColor: figmaColors.pastelTeal },
   'Thần kinh': { icon: '🧠', bgColor: figmaColors.pastelTeal },
-  'Tieu hoa': { icon: '🫃', bgColor: figmaColors.pastelOrange },
   'Tiêu hóa': { icon: '🫃', bgColor: figmaColors.pastelOrange },
-  'Da lieu': { icon: '🧴', bgColor: figmaColors.pastelPurple },
   'Da liễu': { icon: '🧴', bgColor: figmaColors.pastelPurple },
   'Nhi khoa': { icon: '👶', bgColor: figmaColors.pastelGreen },
-  Mat: { icon: '👁️', bgColor: figmaColors.pastelOrange },
-  Mắt: { icon: '👁️', bgColor: figmaColors.pastelOrange },
+  'Mắt': { icon: '👁️', bgColor: figmaColors.pastelOrange },
 };
 
 const DEFAULT_SPECIALTY: SpecialtyVisual = {
@@ -143,7 +138,7 @@ export function HomeScreen() {
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       {/* Greeting Header */}
-      <View style={[styles.header, { paddingTop: insets.top + figmaSpacing.lg }]}>
+      <View style={[styles.header, { paddingTop: insets.top + figmaSpacing.lg + 60, marginTop: -60 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.greetingHi}>Xin chào,</Text>
           <Text style={styles.greetingName}>{userName} 👋</Text>

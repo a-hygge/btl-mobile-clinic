@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, View, Pressable } from 'react-native';
+import { Alert, Linking, StyleSheet, View, Pressable } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -123,6 +123,14 @@ export function ProfileScreen() {
               subtitle="Bảo mật tài khoản"
               onPress={() => router.push('/settings')}
             />
+            <View style={styles.divider} />
+            <ListRow
+              icon="🛡️"
+              iconBgColor={figmaColors.pastelPurple}
+              title="Quyền ứng dụng"
+              subtitle="Camera, thông báo, vị trí"
+              onPress={() => Linking.openSettings()}
+            />
           </GlassCard>
         </FadeInView>
 
@@ -134,7 +142,7 @@ export function ProfileScreen() {
               icon="⚙️"
               iconBgColor={figmaColors.surfaceMuted}
               title="Cài đặt"
-              subtitle="Ngôn ngữ, giao diện, quyền riêng tư"
+              subtitle="Thông báo, giao diện, hỗ trợ"
               onPress={() => router.push('/settings')}
             />
             {user?.role === 'ADMIN' ? (

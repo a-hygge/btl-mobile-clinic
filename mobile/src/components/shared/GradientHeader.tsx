@@ -50,7 +50,7 @@ export function GradientHeader({
       colors={colors}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[styles.root, { paddingTop: insets.top + 16 }]}
+      style={[styles.root, { paddingTop: insets.top + 16 + 60, marginTop: -60 }]}
     >
       <View style={styles.row}>
         {resolvedLeft}

@@ -42,22 +42,22 @@ async function main() {
   // ====== SPECIALTIES ======
   const specialties = await Promise.all([
     prisma.specialty.create({
-      data: { name: 'Tim mach', description: 'Cardiology', symptoms: ['dau nguc', 'kho tho', 'nhip tim nhanh'] },
+      data: { name: 'Tim mạch', description: 'Chuyên khoa Tim mạch', symptoms: ['đau ngực', 'khó thở', 'nhịp tim nhanh'] },
     }),
     prisma.specialty.create({
-      data: { name: 'Than kinh', description: 'Neurology', symptoms: ['dau dau', 'chong mat', 'mat ngu'] },
+      data: { name: 'Thần kinh', description: 'Chuyên khoa Thần kinh', symptoms: ['đau đầu', 'chóng mặt', 'mất ngủ'] },
     }),
     prisma.specialty.create({
-      data: { name: 'Tieu hoa', description: 'Gastroenterology', symptoms: ['dau bung', 'buon non', 'tieu chay'] },
+      data: { name: 'Tiêu hóa', description: 'Chuyên khoa Tiêu hóa', symptoms: ['đau bụng', 'buồn nôn', 'tiêu chảy'] },
     }),
     prisma.specialty.create({
-      data: { name: 'Da lieu', description: 'Dermatology', symptoms: ['ngua', 'phat ban', 'mun'] },
+      data: { name: 'Da liễu', description: 'Chuyên khoa Da liễu', symptoms: ['ngứa', 'phát ban', 'mụn'] },
     }),
     prisma.specialty.create({
-      data: { name: 'Nhi khoa', description: 'Pediatrics', symptoms: ['sot', 'ho', 'so mui'] },
+      data: { name: 'Nhi khoa', description: 'Chuyên khoa Nhi', symptoms: ['sốt', 'ho', 'sổ mũi'] },
     }),
     prisma.specialty.create({
-      data: { name: 'Mat', description: 'Ophthalmology', symptoms: ['mo mat', 'dau mat', 'nhin khong ro'] },
+      data: { name: 'Mắt', description: 'Chuyên khoa Mắt', symptoms: ['mờ mắt', 'đau mắt', 'nhìn không rõ'] },
     }),
   ]);
 
@@ -72,8 +72,8 @@ async function main() {
   const clinics = await Promise.all([
     prisma.clinic.create({
       data: {
-        name: 'Phong kham Da khoa Sai Gon',
-        address: '123 Nguyen Trai, Thanh Xuan, Ha Noi',
+        name: 'Phòng khám Đa khoa Sài Gòn',
+        address: '123 Nguyễn Trãi, Thanh Xuân, Hà Nội',
         lat: 21.0028,
         lng: 105.82,
         phone: '024-1234-5678',
@@ -82,8 +82,8 @@ async function main() {
     }),
     prisma.clinic.create({
       data: {
-        name: 'Phong kham Quoc te Ha Noi',
-        address: '456 Le Van Luong, Cau Giay, Ha Noi',
+        name: 'Phòng khám Quốc tế Hà Nội',
+        address: '456 Lê Văn Lương, Cầu Giấy, Hà Nội',
         lat: 21.0122,
         lng: 105.7918,
         phone: '024-8765-4321',
@@ -92,8 +92,8 @@ async function main() {
     }),
     prisma.clinic.create({
       data: {
-        name: 'Phong kham Hong Ngoc',
-        address: '55 Yen Ninh, Hai Ba Trung, Ha Noi',
+        name: 'Phòng khám Hồng Ngọc',
+        address: '55 Yên Ninh, Hai Bà Trưng, Hà Nội',
         lat: 21.0285,
         lng: 105.8542,
         phone: '024-3927-5568',
@@ -102,8 +102,8 @@ async function main() {
     }),
     prisma.clinic.create({
       data: {
-        name: 'Benh vien Bach Mai',
-        address: '78 Giai Phong, Dong Da, Ha Noi',
+        name: 'Bệnh viện Bạch Mai',
+        address: '78 Giải Phóng, Đống Đa, Hà Nội',
         lat: 20.9999,
         lng: 105.8412,
         phone: '024-3869-3731',
@@ -112,8 +112,8 @@ async function main() {
     }),
     prisma.clinic.create({
       data: {
-        name: 'Phong kham Vinmec',
-        address: '458 Minh Khai, Long Bien, Ha Noi',
+        name: 'Phòng khám Vinmec',
+        address: '458 Minh Khai, Long Biên, Hà Nội',
         lat: 21.0451,
         lng: 105.8997,
         phone: '024-3974-3556',
@@ -124,52 +124,52 @@ async function main() {
 
   // ====== SERVICES ======
   const services = await Promise.all([
-    prisma.service.create({ data: { name: 'Kham tong quat', price: 200000, category: 'Kham' } }),
-    prisma.service.create({ data: { name: 'Xet nghiem mau', price: 150000, category: 'Xet nghiem' } }),
-    prisma.service.create({ data: { name: 'Chup X-quang', price: 300000, category: 'Chan doan hinh anh' } }),
-    prisma.service.create({ data: { name: 'Sieu am', price: 250000, category: 'Chan doan hinh anh' } }),
-    prisma.service.create({ data: { name: 'Dien tam do', price: 180000, category: 'Xet nghiem' } }),
-    prisma.service.create({ data: { name: 'Kham chuyen khoa', price: 250000, category: 'Kham' } }),
-    prisma.service.create({ data: { name: 'Tu van dinh duong', price: 150000, category: 'Tu van' } }),
-    prisma.service.create({ data: { name: 'Noi soi da day', price: 500000, category: 'Chan doan' } }),
-    prisma.service.create({ data: { name: 'Chup cong huong tu', price: 1500000, category: 'Chan doan hinh anh' } }),
-    prisma.service.create({ data: { name: 'Test di ung', price: 300000, category: 'Xet nghiem' } }),
-    prisma.service.create({ data: { name: 'Kham nha khoa', price: 200000, category: 'Nha khoa' } }),
-    prisma.service.create({ data: { name: 'Lam sach rang', price: 350000, category: 'Nha khoa' } }),
+    prisma.service.create({ data: { name: 'Khám tổng quát', price: 200000, category: 'Khám' } }),
+    prisma.service.create({ data: { name: 'Xét nghiệm máu', price: 150000, category: 'Xét nghiệm' } }),
+    prisma.service.create({ data: { name: 'Chụp X-quang', price: 300000, category: 'Chẩn đoán hình ảnh' } }),
+    prisma.service.create({ data: { name: 'Siêu âm', price: 250000, category: 'Chẩn đoán hình ảnh' } }),
+    prisma.service.create({ data: { name: 'Điện tâm đồ', price: 180000, category: 'Xét nghiệm' } }),
+    prisma.service.create({ data: { name: 'Khám chuyên khoa', price: 250000, category: 'Khám' } }),
+    prisma.service.create({ data: { name: 'Tư vấn dinh dưỡng', price: 150000, category: 'Tư vấn' } }),
+    prisma.service.create({ data: { name: 'Nội soi dạ dày', price: 500000, category: 'Chẩn đoán' } }),
+    prisma.service.create({ data: { name: 'Chụp cộng hưởng từ', price: 1500000, category: 'Chẩn đoán hình ảnh' } }),
+    prisma.service.create({ data: { name: 'Test dị ứng', price: 300000, category: 'Xét nghiệm' } }),
+    prisma.service.create({ data: { name: 'Khám nha khoa', price: 200000, category: 'Nha khoa' } }),
+    prisma.service.create({ data: { name: 'Làm sạch răng', price: 350000, category: 'Nha khoa' } }),
   ]);
 
   // ====== DOCTOR USERS ======
   const doctorUsers = await Promise.all([
     prisma.user.create({
-      data: { email: 'doctor1@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Nguyen Van A', phone: '0901111111' },
+      data: { email: 'doctor1@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Nguyễn Văn An', phone: '0901111111' },
     }),
     prisma.user.create({
-      data: { email: 'doctor2@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Tran Thi B', phone: '0902222222' },
+      data: { email: 'doctor2@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Trần Thị Bình', phone: '0902222222' },
     }),
     prisma.user.create({
-      data: { email: 'doctor3@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Le Van C', phone: '0903333333' },
+      data: { email: 'doctor3@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Lê Văn Cường', phone: '0903333333' },
     }),
     prisma.user.create({
-      data: { email: 'doctor4@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Pham Thi D', phone: '0904444444' },
+      data: { email: 'doctor4@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Phạm Thị Dung', phone: '0904444444' },
     }),
     prisma.user.create({
-      data: { email: 'doctor5@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Hoang Van E', phone: '0905555555' },
+      data: { email: 'doctor5@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Hoàng Văn Em', phone: '0905555555' },
     }),
     prisma.user.create({
-      data: { email: 'doctor6@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Vu Thi F', phone: '0906666666' },
+      data: { email: 'doctor6@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Vũ Thị Phương', phone: '0906666666' },
     }),
     prisma.user.create({
-      data: { email: 'doctor7@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Dang Van G', phone: '0907777777' },
+      data: { email: 'doctor7@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Đặng Văn Giang', phone: '0907777777' },
     }),
     prisma.user.create({
-      data: { email: 'doctor8@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Bui Thi H', phone: '0908888888' },
+      data: { email: 'doctor8@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Bùi Thị Hạnh', phone: '0908888888' },
     }),
     // Pending doctors
     prisma.user.create({
-      data: { email: 'doctor9@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Ly Van I', phone: '0909999991' },
+      data: { email: 'doctor9@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Lý Văn Ích', phone: '0909999991' },
     }),
     prisma.user.create({
-      data: { email: 'doctor10@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Truong Thi K', phone: '0909999992' },
+      data: { email: 'doctor10@healthcare.com', password: passwordHash, role: Role.DOCTOR, name: 'BS. Trương Thị Kim', phone: '0909999992' },
     }),
   ]);
 
@@ -180,7 +180,7 @@ async function main() {
         specialtyId: specTimMach.id,
         clinicId: clinics[0].id,
         experienceYears: 12,
-        bio: 'Bac si chuyen khoa Tim mach voi hon 12 nam kinh nghiem dieu tri benh ly tim mach.',
+        bio: 'Bác sĩ chuyên khoa Tim mạch với hơn 12 năm kinh nghiệm điều trị bệnh lý tim mạch.',
         consultationFee: 350000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-001',
@@ -192,7 +192,7 @@ async function main() {
         specialtyId: specThanKinh.id,
         clinicId: clinics[0].id,
         experienceYears: 8,
-        bio: 'Chuyen gia Than kinh, tot nghiep Dai hoc Y Ha Noi voi nhieu thanh tuu nghien cuu.',
+        bio: 'Chuyên gia Thần kinh, tốt nghiệp Đại học Y Hà Nội với nhiều thành tựu nghiên cứu.',
         consultationFee: 350000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-002',
@@ -204,7 +204,7 @@ async function main() {
         specialtyId: specTieuHoa.id,
         clinicId: clinics[1].id,
         experienceYears: 6,
-        bio: 'Bac si Tieu hoa, chuyen dieu tri cac benh ly duong ruot va da day.',
+        bio: 'Bác sĩ Tiêu hóa, chuyên điều trị các bệnh lý đường ruột và dạ dày.',
         consultationFee: 250000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-003',
@@ -216,7 +216,7 @@ async function main() {
         specialtyId: specDaLieu.id,
         clinicId: clinics[2].id,
         experienceYears: 9,
-        bio: 'Bac si Da lieu giau kinh nghiem, chuyen dieu tri mun, vay nen va cac benh ngoai da.',
+        bio: 'Bác sĩ Da liễu giàu kinh nghiệm, chuyên điều trị mụn, vẩy nến và các bệnh ngoài da.',
         consultationFee: 300000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-004',
@@ -228,7 +228,7 @@ async function main() {
         specialtyId: specNhiKhoa.id,
         clinicId: clinics[3].id,
         experienceYears: 11,
-        bio: 'Bac si Nhi khoa tan tam, hon 10 nam kham va dieu tri cho tre em moi lua tuoi.',
+        bio: 'Bác sĩ Nhi khoa tận tâm, hơn 10 năm khám và điều trị cho trẻ em mọi lứa tuổi.',
         consultationFee: 280000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-005',
@@ -240,7 +240,7 @@ async function main() {
         specialtyId: specMat.id,
         clinicId: clinics[4].id,
         experienceYears: 7,
-        bio: 'Bac si Mat chuyen khoa II, kinh nghiem trong phau thuat khuc xa va dieu tri can thi.',
+        bio: 'Bác sĩ Mắt chuyên khoa II, kinh nghiệm trong phẫu thuật khúc xạ và điều trị cận thị.',
         consultationFee: 320000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-006',
@@ -252,7 +252,7 @@ async function main() {
         specialtyId: specTimMach.id,
         clinicId: clinics[3].id,
         experienceYears: 15,
-        bio: 'Truong khoa Tim mach Benh vien Bach Mai, 15 nam kinh nghiem can thiep tim mach.',
+        bio: 'Trưởng khoa Tim mạch Bệnh viện Bạch Mai, 15 năm kinh nghiệm can thiệp tim mạch.',
         consultationFee: 500000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-007',
@@ -264,7 +264,7 @@ async function main() {
         specialtyId: specTieuHoa.id,
         clinicId: clinics[4].id,
         experienceYears: 10,
-        bio: 'Bac si Tieu hoa noi soi, chuyen dieu tri viem loet da day va trao nguoc.',
+        bio: 'Bác sĩ Tiêu hóa nội soi, chuyên điều trị viêm loét dạ dày và trào ngược.',
         consultationFee: 380000,
         status: DoctorStatus.ACTIVE,
         licenseNumber: 'BS-008',
@@ -277,7 +277,7 @@ async function main() {
         specialtyId: specDaLieu.id,
         clinicId: clinics[2].id,
         experienceYears: 4,
-        bio: 'Bac si tre, vua hoan thanh chuyen khoa I tai Dai hoc Y Duoc TP HCM.',
+        bio: 'Bác sĩ trẻ, vừa hoàn thành chuyên khoa I tại Đại học Y Dược TP HCM.',
         consultationFee: 220000,
         status: DoctorStatus.PENDING,
         licenseNumber: 'BS-009',
@@ -289,7 +289,7 @@ async function main() {
         specialtyId: specNhiKhoa.id,
         clinicId: clinics[1].id,
         experienceYears: 5,
-        bio: 'Chuyen Nhi khoa, mong muon dem lai dich vu kham chua benh tot nhat cho tre em.',
+        bio: 'Chuyên Nhi khoa, mong muốn đem lại dịch vụ khám chữa bệnh tốt nhất cho trẻ em.',
         consultationFee: 240000,
         status: DoctorStatus.PENDING,
         licenseNumber: 'BS-010',
@@ -303,10 +303,10 @@ async function main() {
   // ====== PATIENTS ======
   const patients = await Promise.all([
     prisma.user.create({
-      data: { email: 'patient1@gmail.com', password: passwordHash, role: Role.PATIENT, name: 'Nguyen Van Patient', phone: '0911111111', address: 'Ha Noi' },
+      data: { email: 'patient1@gmail.com', password: passwordHash, role: Role.PATIENT, name: 'Nguyễn Văn Minh', phone: '0911111111', address: 'Hà Nội' },
     }),
     prisma.user.create({
-      data: { email: 'patient2@gmail.com', password: passwordHash, role: Role.PATIENT, name: 'Tran Thi Patient', phone: '0922222222', address: 'Ha Noi' },
+      data: { email: 'patient2@gmail.com', password: passwordHash, role: Role.PATIENT, name: 'Trần Thị Lan', phone: '0922222222', address: 'Hà Nội' },
     }),
     prisma.user.create({
       data: { email: 'patient3@gmail.com', password: passwordHash, role: Role.PATIENT, name: 'Le Thi M', phone: '0933333333', address: 'Ha Noi' },
@@ -515,19 +515,19 @@ async function main() {
   const completedAppts = createdAppts.filter((a) => a.def.status === AppointmentStatus.COMPLETED);
 
   const reviewComments: { rating: number; comment: string }[] = [
-    { rating: 5, comment: 'Bac si rat tan tam va nhiet tinh, giai thich rat ro rang ve benh.' },
-    { rating: 5, comment: 'Kham rat ky, dua ra phac do dieu tri hieu qua. Toi se quay lai.' },
-    { rating: 4, comment: 'Bac si gioi, phong kham sach se. Cho doi hoi lau mot chut.' },
-    { rating: 5, comment: 'Bac si chuyen mon cao, thai do an can voi benh nhan.' },
-    { rating: 4, comment: 'Trai nghiem tot, nhan vien ho tro nhiet tinh.' },
-    { rating: 3, comment: 'Bac si tot nhung phong kham hoi dong, can cai thien.' },
-    { rating: 5, comment: 'Rat hai long voi dich vu, toi se gioi thieu cho ban be.' },
-    { rating: 5, comment: 'Bac si tu van rat chi tiet, giup toi hieu ro tinh trang suc khoe.' },
-    { rating: 4, comment: 'Kham nhanh chong, ket qua chinh xac.' },
-    { rating: 5, comment: 'Tuyet voi! Bac si rat co tam.' },
-    { rating: 4, comment: 'Bac si than thien, dieu tri hieu qua.' },
-    { rating: 3, comment: 'Tam on, giai thich them duoc thi tot hon.' },
-    { rating: 5, comment: 'Cam on bac si da giup toi rat nhieu, suc khoe da on dinh.' },
+    { rating: 5, comment: 'Bác sĩ rất tận tâm và nhiệt tình, giải thích rất rõ ràng về bệnh.' },
+    { rating: 5, comment: 'Khám rất kỹ, đưa ra phác đồ điều trị hiệu quả. Tôi sẽ quay lại.' },
+    { rating: 4, comment: 'Bác sĩ giỏi, phòng khám sạch sẽ. Chờ đợi hơi lâu một chút.' },
+    { rating: 5, comment: 'Bác sĩ chuyên môn cao, thái độ ân cần với bệnh nhân.' },
+    { rating: 4, comment: 'Trải nghiệm tốt, nhân viên hỗ trợ nhiệt tình.' },
+    { rating: 3, comment: 'Bác sĩ tốt nhưng phòng khám hơi đông, cần cải thiện.' },
+    { rating: 5, comment: 'Rất hài lòng với dịch vụ, tôi sẽ giới thiệu cho bạn bè.' },
+    { rating: 5, comment: 'Bác sĩ tư vấn rất chi tiết, giúp tôi hiểu rõ tình trạng sức khỏe.' },
+    { rating: 4, comment: 'Khám nhanh chóng, kết quả chính xác.' },
+    { rating: 5, comment: 'Tuyệt vời! Bác sĩ rất có tâm.' },
+    { rating: 4, comment: 'Bác sĩ thân thiện, điều trị hiệu quả.' },
+    { rating: 3, comment: 'Tạm ổn, giải thích thêm được thì tốt hơn.' },
+    { rating: 5, comment: 'Cảm ơn bác sĩ đã giúp tôi rất nhiều, sức khỏe đã ổn định.' },
   ];
 
   for (let i = 0; i < completedAppts.length && i < reviewComments.length; i++) {
@@ -550,17 +550,17 @@ async function main() {
   const day = 24 * 60 * 60 * 1000;
 
   const notifs: { title: string; body: string; type: NotificationType; isRead: boolean; daysAgo: number }[] = [
-    { title: 'Nhac lich kham', body: 'Ban co lich kham voi BS. Le Van C vao ngay mai luc 08:00.', type: NotificationType.APPOINTMENT_REMINDER, isRead: false, daysAgo: 0 },
-    { title: 'Lich kham da xac nhan', body: 'Lich kham voi BS. Pham Thi D da duoc xac nhan.', type: NotificationType.APPOINTMENT_CONFIRMED, isRead: false, daysAgo: 0 },
-    { title: 'Canh bao huyet ap', body: 'Huyet ap cua ban dang o muc cao. Vui long kiem tra.', type: NotificationType.HEALTH_ALERT, isRead: false, daysAgo: 1 },
-    { title: 'Nhac uong thuoc', body: 'Den gio uong thuoc Amlodipine 5mg.', type: NotificationType.MEDICINE_REMINDER, isRead: false, daysAgo: 1 },
-    { title: 'Cap nhat he thong', body: 'Ung dung vua duoc cap nhat phien ban moi voi nhieu tinh nang.', type: NotificationType.SYSTEM, isRead: true, daysAgo: 2 },
-    { title: 'Lich kham da xac nhan', body: 'Lich kham voi BS. Nguyen Van A da duoc xac nhan.', type: NotificationType.APPOINTMENT_CONFIRMED, isRead: true, daysAgo: 3 },
-    { title: 'Nhac uong thuoc', body: 'Den gio uong thuoc buoi sang.', type: NotificationType.MEDICINE_REMINDER, isRead: true, daysAgo: 3 },
-    { title: 'Lich kham bi huy', body: 'Lich kham ngay 28/03 da bi huy.', type: NotificationType.APPOINTMENT_CANCELED, isRead: true, daysAgo: 4 },
-    { title: 'Ket qua xet nghiem', body: 'Ket qua xet nghiem mau cua ban da co.', type: NotificationType.SYSTEM, isRead: true, daysAgo: 5 },
-    { title: 'Nhac kham dinh ky', body: 'Da den thoi gian kham suc khoe dinh ky hang quy.', type: NotificationType.APPOINTMENT_REMINDER, isRead: true, daysAgo: 6 },
-    { title: 'Canh bao nhip tim', body: 'Nhip tim cua ban hoi cao trong 24h qua.', type: NotificationType.HEALTH_ALERT, isRead: true, daysAgo: 7 },
+    { title: 'Nhắc lịch khám', body: 'Bạn có lịch khám với BS. Lê Văn Cường vào ngày mai lúc 08:00.', type: NotificationType.APPOINTMENT_REMINDER, isRead: false, daysAgo: 0 },
+    { title: 'Lịch khám đã xác nhận', body: 'Lịch khám với BS. Phạm Thị Dung đã được xác nhận.', type: NotificationType.APPOINTMENT_CONFIRMED, isRead: false, daysAgo: 0 },
+    { title: 'Cảnh báo huyết áp', body: 'Huyết áp của bạn đang ở mức cao. Vui lòng kiểm tra.', type: NotificationType.HEALTH_ALERT, isRead: false, daysAgo: 1 },
+    { title: 'Nhắc uống thuốc', body: 'Đến giờ uống thuốc Amlodipine 5mg.', type: NotificationType.MEDICINE_REMINDER, isRead: false, daysAgo: 1 },
+    { title: 'Cập nhật hệ thống', body: 'Ứng dụng vừa được cập nhật phiên bản mới với nhiều tính năng.', type: NotificationType.SYSTEM, isRead: true, daysAgo: 2 },
+    { title: 'Lịch khám đã xác nhận', body: 'Lịch khám với BS. Nguyễn Văn An đã được xác nhận.', type: NotificationType.APPOINTMENT_CONFIRMED, isRead: true, daysAgo: 3 },
+    { title: 'Nhắc uống thuốc', body: 'Đến giờ uống thuốc buổi sáng.', type: NotificationType.MEDICINE_REMINDER, isRead: true, daysAgo: 3 },
+    { title: 'Lịch khám bị hủy', body: 'Lịch khám ngày 28/03 đã bị hủy.', type: NotificationType.APPOINTMENT_CANCELED, isRead: true, daysAgo: 4 },
+    { title: 'Kết quả xét nghiệm', body: 'Kết quả xét nghiệm máu của bạn đã có.', type: NotificationType.SYSTEM, isRead: true, daysAgo: 5 },
+    { title: 'Nhắc khám định kỳ', body: 'Đã đến thời gian khám sức khỏe định kỳ hàng quý.', type: NotificationType.APPOINTMENT_REMINDER, isRead: true, daysAgo: 6 },
+    { title: 'Cảnh báo nhịp tim', body: 'Nhịp tim của bạn hơi cao trong 24h qua.', type: NotificationType.HEALTH_ALERT, isRead: true, daysAgo: 7 },
   ];
 
   for (const n of notifs) {
@@ -685,7 +685,7 @@ async function main() {
   // ====== CHAT SESSIONS for patient1 ======
   const chatTopics = [
     {
-      title: 'Toi bi dau dau va sot',
+      title: 'Tôi bị đau đầu và sốt',
       messages: [
         { role: ChatMessageRole.USER, content: 'Toi bi dau dau va sot 38.5 do tu sang nay, co nen di kham khong?' },
         { role: ChatMessageRole.ASSISTANT, content: 'Voi cac trieu chung dau dau va sot 38.5, ban nen nghi ngoi va theo doi them. Neu sot keo dai tren 2 ngay hoac kem cac trieu chung khac, ban nen di kham bac si.' },
@@ -696,7 +696,7 @@ async function main() {
       ],
     },
     {
-      title: 'Dau bung vung duoi',
+      title: 'Đau bụng vùng dưới',
       messages: [
         { role: ChatMessageRole.USER, content: 'Toi bi dau bung vung duoi ben phai tu hom qua' },
         { role: ChatMessageRole.ASSISTANT, content: 'Dau bung vung ho chau phai co the la dau hieu cua viem ruot thua, day la tinh trang nguy hiem. Ban can di kham ngay neu dau tang dan, kem sot, buon non.' },
@@ -705,7 +705,7 @@ async function main() {
       ],
     },
     {
-      title: 'Cao huyet ap',
+      title: 'Cao huyết áp',
       messages: [
         { role: ChatMessageRole.USER, content: 'Huyet ap cua toi gan day cao 145/90, co nguy hiem khong?' },
         { role: ChatMessageRole.ASSISTANT, content: 'Huyet ap 145/90 nam o muc tang huyet ap do 1. Day la muc can theo doi va dieu chinh loi song.' },

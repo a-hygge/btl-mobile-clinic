@@ -18,7 +18,7 @@
 
 /* Begin PBXFileReference section */
 		0896FFE12FEA3411EEF84EE3 /* Pods-BTLHealthcare.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BTLHealthcare.debug.xcconfig"; path = "Target Support Files/Pods-BTLHealthcare/Pods-BTLHealthcare.debug.xcconfig"; sourceTree = "<group>"; };
-		1397F773F223E86EBBD06555 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = BTLHealthcare/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		1397F773F223E86EBBD06555 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = BTLHealthcare/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* BTLHealthcare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BTLHealthcare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = BTLHealthcare/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = BTLHealthcare/Info.plist; sourceTree = "<group>"; };
@@ -128,7 +128,6 @@
 				0896FFE12FEA3411EEF84EE3 /* Pods-BTLHealthcare.debug.xcconfig */,
 				8C5F826BDB0E851B6968A52E /* Pods-BTLHealthcare.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -391,6 +390,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = BTLHealthcare/BTLHealthcare.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F87PRKQBP;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -427,6 +427,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = BTLHealthcare/BTLHealthcare.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F87PRKQBP;
 				INFOPLIST_FILE = BTLHealthcare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (

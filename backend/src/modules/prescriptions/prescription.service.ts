@@ -71,7 +71,7 @@ export class PrescriptionService {
     }
 
     return {
-      imageUrl: dataUri,
+      imageUrl: 'local://prescription-scan',
       medicines: parsed.medicines ?? [],
       rawText: parsed.rawText ?? aiResponse,
     };
