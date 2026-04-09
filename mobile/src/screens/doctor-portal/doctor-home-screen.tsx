@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
@@ -21,7 +21,7 @@ import {
   ScreenContainer,
   SectionTitle,
 } from '../../components/shared';
-import { api, extractData, extractPaginatedData } from '../../services/api';
+import { api, extractPaginatedData } from '../../services/api';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -153,10 +153,6 @@ export function DoctorHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [diagnosisInput, setDiagnosisInput] = useState('');
-  const [prescriptionNote, setPrescriptionNote] = useState('');
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [allServices, setAllServices] = useState<{ id: string; name: string; price: number; category: string }[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
@@ -171,12 +167,6 @@ export function DoctorHomeScreen() {
       setLoading(false);
     }
 
-    // Fetch services separately (don't block appointments)
-    try {
-      const svcRes = await api.get('/services');
-      const svcData = extractData<{ id: string; name: string; price: number; category: string }[]>(svcRes);
-      setAllServices(Array.isArray(svcData) ? svcData : []);
-    } catch { /* ignore — services list optional */ }
   }, []);
 
   useEffect(() => {
@@ -232,34 +222,6 @@ export function DoctorHomeScreen() {
     );
   };
 
-  const handleComplete = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await api.put(`/appointments/${id}/complete`, {
-        diagnosis: diagnosisInput || undefined,
-        serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
-      });
-      setDiagnosisInput('');
-      setPrescriptionNote('');
-      setSelectedServiceIds([]);
-      setExpandedId(null);
-      await fetchAppointments();
-    } catch {
-      // silently handle
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const toggleService = (serviceId: string) => {
-    setSelectedServiceIds((prev) =>
-      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
-    );
-  };
-
-  const selectedServicesTotal = allServices
-    .filter((s) => selectedServiceIds.includes(s.id))
-    .reduce((sum, s) => sum + (s.price ?? 0), 0);
 
   // -----------------------------------------------------------------------
   // Computed
@@ -408,80 +370,16 @@ export function DoctorHomeScreen() {
                   </View>
                 )}
 
-                {item.status === 'CONFIRMED' && (
-                  <View style={styles.completeSection}>
-                    <TextInput
-                      mode="outlined"
-                      label="Chẩn đoán..."
-                      value={diagnosisInput}
-                      onChangeText={setDiagnosisInput}
-                      style={styles.diagnosisInput}
-                      outlineColor={figmaColors.border}
-                      activeOutlineColor={figmaColors.info}
-                      multiline
-                      numberOfLines={2}
-                    />
-
-                    <TextInput
-                      mode="outlined"
-                      label="Ghi chú đơn thuốc (nếu có)"
-                      value={prescriptionNote}
-                      onChangeText={setPrescriptionNote}
-                      style={styles.diagnosisInput}
-                      outlineColor={figmaColors.border}
-                      activeOutlineColor={figmaColors.info}
-                      multiline
-                      numberOfLines={2}
-                    />
-
-                    {/* Service picker */}
-                    <Text style={styles.servicePickerLabel}>Dịch vụ đã sử dụng:</Text>
-                    <View style={styles.serviceChips}>
-                      {allServices.map((svc) => {
-                        const isSelected = selectedServiceIds.includes(svc.id);
-                        return (
-                          <Pressable
-                            key={svc.id}
-                            onPress={() => toggleService(svc.id)}
-                            style={[
-                              styles.serviceChip,
-                              isSelected && styles.serviceChipActive,
-                            ]}
-                          >
-                            <MaterialCommunityIcons
-                              name={isSelected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
-                              size={16}
-                              color={isSelected ? figmaColors.primary : figmaColors.textMuted}
-                            />
-                            <Text style={[styles.serviceChipText, isSelected && styles.serviceChipTextActive]}>
-                              {svc.name}
-                            </Text>
-                            <Text style={styles.serviceChipPrice}>
-                              {svc.price.toLocaleString('vi-VN')}đ
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
-                    {selectedServiceIds.length > 0 && (
-                      <Text style={styles.totalText}>
-                        Tổng: {selectedServicesTotal.toLocaleString('vi-VN')}đ
-                      </Text>
-                    )}
-
-                    <Button
-                      mode="contained"
-                      onPress={() => handleComplete(item.id)}
-                      loading={isProcessing}
-                      disabled={isProcessing}
-                      style={styles.actionButton}
-                      buttonColor={figmaColors.success}
-                      icon="check-circle"
-                    >
-                      Hoàn thành ca khám
-                    </Button>
-                  </View>
+                {(item.status === 'CONFIRMED' || item.status === 'AWAITING_PAYMENT') && (
+                  <Button
+                    mode="contained"
+                    onPress={() => router.push(`/doctor-exam?id=${item.id}`)}
+                    style={styles.actionButton}
+                    buttonColor={item.status === 'CONFIRMED' ? figmaColors.info : '#7C4DFF'}
+                    icon={item.status === 'CONFIRMED' ? 'stethoscope' : 'eye'}
+                  >
+                    {item.status === 'CONFIRMED' ? 'Khám bệnh' : 'Xem chi tiết'}
+                  </Button>
                 )}
               </View>
             )}
