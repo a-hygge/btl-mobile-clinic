@@ -8,7 +8,16 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+// expo-video loaded lazily — may not be in native build
+let VideoView: any = null;
+let useVideoPlayer: any = null;
+try {
+  const mod = require('expo-video');
+  VideoView = mod.VideoView;
+  useVideoPlayer = mod.useVideoPlayer;
+} catch {
+  console.warn('[Chat] expo-video not available');
+}
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -84,11 +93,11 @@ export function ChatScreen() {
   const recordingRef = useRef<any>(null);
   const soundRef = useRef<any>(null);
 
-  // ── Video player for avatar ─────────────────────────────
-  const player = useVideoPlayer(WAITING_VIDEO, (p) => {
+  // ── Video player for avatar (may be null if expo-video unavailable) ──
+  const player = useVideoPlayer ? useVideoPlayer(WAITING_VIDEO, (p: any) => {
     p.loop = true;
     p.play();
-  });
+  }) : null;
 
   // ── Load token from SecureStore ──────────────────────────
 
@@ -104,6 +113,7 @@ export function ChatScreen() {
 
   // ── Switch avatar video on state change ──────────────────
   useEffect(() => {
+    if (!player) return;
     const source = isTalking ? TALKING_VIDEO : WAITING_VIDEO;
     player.replace(source);
     player.loop = true;
@@ -329,12 +339,22 @@ export function ChatScreen() {
       <View style={styles.content}>
         {/* Video Avatar */}
         <View style={styles.avatarContainer}>
-          <VideoView
-            player={player}
-            style={styles.avatar}
-            nativeControls={false}
-            contentFit="cover"
-          />
+          {VideoView && player ? (
+            <VideoView
+              player={player}
+              style={styles.avatar}
+              nativeControls={false}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: figmaColors.pastelBlue }]}>
+              <MaterialCommunityIcons
+                name={isTalking ? 'account-voice' : 'robot-outline'}
+                size={80}
+                color={isTalking ? figmaColors.primary : figmaColors.textMuted}
+              />
+            </View>
+          )}
           {state === 'CONNECTING' && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>Đang kết nối...</Text>
