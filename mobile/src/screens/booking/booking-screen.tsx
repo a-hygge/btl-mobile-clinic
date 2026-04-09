@@ -982,7 +982,7 @@ export function BookingScreen() {
               mode="text"
               onPress={() => {
                 setShowSuccess(false);
-                router.replace('/home');
+                router.dismissAll();
               }}
               textColor={figmaColors.textSecondary}
               labelStyle={{ fontSize: 14 }}

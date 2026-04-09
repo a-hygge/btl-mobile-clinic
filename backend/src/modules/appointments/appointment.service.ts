@@ -368,12 +368,37 @@ export async function getMyAppointments(
 
   if (context.role === Role.PATIENT) {
     where.patientId = context.userId;
+    if (query.status) {
+      where.status = query.status;
+    }
   } else if (context.role === Role.DOCTOR) {
-    where.doctorId = await getDoctorIdForUser(context.userId);
-  }
+    const myDoctorId = await getDoctorIdForUser(context.userId);
+    const myDoctor = await prisma.doctor.findUnique({
+      where: { id: myDoctorId },
+      select: { specialtyId: true },
+    });
 
-  if (query.status) {
-    where.status = query.status;
+    if (query.status) {
+      where.status = query.status;
+      where.doctorId = myDoctorId;
+    } else {
+      // Show: all PENDING in my specialty + my own non-PENDING
+      where.OR = [
+        {
+          status: AppointmentStatus.PENDING,
+          doctor: { specialtyId: myDoctor!.specialtyId },
+        },
+        {
+          doctorId: myDoctorId,
+          status: { not: AppointmentStatus.PENDING },
+        },
+      ];
+    }
+  } else {
+    // ADMIN sees all
+    if (query.status) {
+      where.status = query.status;
+    }
   }
 
   const [items, total] = await prisma.$transaction([
@@ -443,6 +468,11 @@ export async function cancelAppointment(
   return mapAppointment(canceled);
 }
 
+/**
+ * Any doctor in the same specialty can confirm a PENDING appointment.
+ * First to confirm wins (optimistic lock on status).
+ * Reassigns the appointment to the confirming doctor.
+ */
 export async function confirmAppointment(
   context: AppointmentUserContext,
   appointmentId: string
@@ -452,32 +482,53 @@ export async function confirmAppointment(
   }
 
   const doctorId = await getDoctorIdForUser(context.userId);
+
+  // Get confirming doctor's specialty
+  const confirmingDoctor = await prisma.doctor.findUnique({
+    where: { id: doctorId },
+    select: { specialtyId: true },
+  });
+  if (!confirmingDoctor) throw AppError.notFound('Doctor not found');
+
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: appointmentInclude,
+    include: {
+      ...appointmentInclude,
+      doctor: { include: { specialty: true, clinic: true, user: true } },
+    },
   });
 
-  if (!appointment) {
-    throw AppError.notFound('Appointment not found');
-  }
+  if (!appointment) throw AppError.notFound('Appointment not found');
 
-  if (appointment.doctorId !== doctorId) {
-    throw AppError.forbidden('You can only confirm your own appointments');
+  // Must be same specialty
+  if (appointment.doctor.specialtyId !== confirmingDoctor.specialtyId) {
+    throw AppError.forbidden('Appointment is not in your specialty');
   }
 
   if (appointment.status !== AppointmentStatus.PENDING) {
-    throw AppError.conflict('Only pending appointments can be confirmed');
+    throw AppError.conflict('Lịch hẹn này đã được bác sĩ khác nhận hoặc đã bị hủy.');
   }
 
-  const confirmed = await prisma.appointment.update({
-    where: { id: appointmentId },
+  // Optimistic lock: only update if still PENDING
+  const result = await prisma.appointment.updateMany({
+    where: { id: appointmentId, status: AppointmentStatus.PENDING },
     data: {
       status: AppointmentStatus.CONFIRMED,
+      doctorId, // reassign to confirming doctor
     },
+  });
+
+  if (result.count === 0) {
+    throw AppError.conflict('Lịch hẹn này đã được bác sĩ khác nhận.');
+  }
+
+  // Fetch updated record
+  const confirmed = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
     include: appointmentInclude,
   });
 
-  return mapAppointment(confirmed);
+  return mapAppointment(confirmed!);
 }
 
 /**
@@ -505,11 +556,8 @@ export async function rescheduleAppointment(
     throw AppError.forbidden('You can only reschedule your own appointment');
   }
 
-  if (
-    original.status !== AppointmentStatus.PENDING &&
-    original.status !== AppointmentStatus.CONFIRMED
-  ) {
-    throw AppError.conflict('Only pending or confirmed appointments can be rescheduled');
+  if (original.status !== AppointmentStatus.PENDING) {
+    throw AppError.conflict('Chỉ có thể đổi lịch khi trạng thái là chờ xác nhận');
   }
 
   const dateFilter = new Date(input.date + 'T00:00:00.000Z');

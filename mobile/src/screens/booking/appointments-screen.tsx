@@ -11,6 +11,7 @@ import {
   SkeletonCard,
   TabSwitcher,
 } from '../../components/shared';
+import { figmaColors } from '../../constants/theme';
 import { formatDate } from '../../utils/format';
 import type { Appointment } from '../../types';
 
@@ -79,7 +80,7 @@ export function AppointmentsScreen() {
       <GradientHeader
         title="Lịch hẹn của tôi"
         subtitle={`${appointments.length} lịch hẹn · ${upcomingAppointments.length} sắp tới`}
-        colors={['#FF9500', '#C93400']}
+        colors={[figmaColors.primary, figmaColors.primaryDark]}
       />
 
       <TabSwitcher<TabKey>
@@ -119,7 +120,7 @@ export function AppointmentsScreen() {
           {displayedAppointments.map((appt, i) => (
             <FadeInView key={appt.id} delay={i * 60}>
               <AppointmentCard
-                doctorName={appt.doctor?.name ?? 'Bác sĩ'}
+                doctorName={appt.status === 'PENDING' ? 'Chờ bác sĩ nhận' : (appt.doctor?.name ?? 'Bác sĩ')}
                 specialty={appt.doctor?.specialty?.name ?? 'Chuyên khoa'}
                 date={formatDate(appt.timeSlot?.date)}
                 startTime={appt.timeSlot?.startTime ?? ''}

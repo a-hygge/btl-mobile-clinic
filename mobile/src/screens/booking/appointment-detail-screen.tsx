@@ -306,6 +306,7 @@ export function AppointmentDetailScreen({
   const review = appointment.review;
   const canCancel =
     appointment.status === 'PENDING' || appointment.status === 'CONFIRMED';
+  const canReschedule = appointment.status === 'PENDING';
   const canPay = appointment.status === 'AWAITING_PAYMENT';
   const canReview =
     appointment.status === 'COMPLETED' && !review;
@@ -349,8 +350,8 @@ export function AppointmentDetailScreen({
         </FadeInView>
 
         <View style={styles.cardList}>
-          {/* Doctor Card */}
-          {doctor && (
+          {/* Doctor Card — hide when PENDING (no doctor assigned yet) */}
+          {doctor && appointment.status !== 'PENDING' && (
             <FadeInView delay={60}>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -644,7 +645,7 @@ export function AppointmentDetailScreen({
           {/* Actions */}
           <FadeInView delay={480}>
             <View style={styles.actionsSection}>
-              {canCancel && (
+              {canReschedule && (
                 <Button
                   mode="contained"
                   onPress={() => router.push(`/reschedule?id=${appointment.id}`)}
