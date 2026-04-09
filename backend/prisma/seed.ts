@@ -454,30 +454,30 @@ async function main() {
 
   const apptDefs: ApptDef[] = [
     // patient1 - 8 appointments
-    { patientId: patient1.id, doctorIdx: 0, dayOffset: 2, status: AppointmentStatus.PENDING, notes: 'Toi bi dau nguc va kho tho khi gang suc', serviceIdxs: [0, 4] },
-    { patientId: patient1.id, doctorIdx: 1, dayOffset: 5, status: AppointmentStatus.PENDING, notes: 'Dau dau keo dai 1 tuan, mat ngu', serviceIdxs: [0] },
-    { patientId: patient1.id, doctorIdx: 2, dayOffset: 1, status: AppointmentStatus.CONFIRMED, notes: 'Dau bung am i vung tren ron', serviceIdxs: [0, 1] },
-    { patientId: patient1.id, doctorIdx: 3, dayOffset: 3, status: AppointmentStatus.CONFIRMED, notes: 'Phat ban ngua o tay', serviceIdxs: [0, 9] },
-    { patientId: patient1.id, doctorIdx: 0, dayOffset: -7, status: AppointmentStatus.COMPLETED, diagnosis: 'Tang huyet ap do 1, can theo doi va dieu chinh che do an', serviceIdxs: [0, 4] },
-    { patientId: patient1.id, doctorIdx: 2, dayOffset: -14, status: AppointmentStatus.COMPLETED, diagnosis: 'Viem da day nhe, can dung thuoc giam tiet acid', serviceIdxs: [0, 1] },
-    { patientId: patient1.id, doctorIdx: 1, dayOffset: -21, status: AppointmentStatus.COMPLETED, diagnosis: 'Roi loan giac ngu, stress nghe nghiep', serviceIdxs: [0] },
-    { patientId: patient1.id, doctorIdx: 5, dayOffset: -10, status: AppointmentStatus.CANCELED, notes: 'Khong the den theo lich', serviceIdxs: [0] },
+    { patientId: patient1.id, doctorIdx: 0, dayOffset: 2, status: AppointmentStatus.PENDING, notes: 'Tôi bị đau ngực và khó thở khi gắng sức', serviceIdxs: [0, 4] },
+    { patientId: patient1.id, doctorIdx: 1, dayOffset: 5, status: AppointmentStatus.PENDING, notes: 'Đau đầu kéo dài 1 tuần, mất ngủ', serviceIdxs: [0] },
+    { patientId: patient1.id, doctorIdx: 2, dayOffset: 1, status: AppointmentStatus.CONFIRMED, notes: 'Đau bụng âm ỉ vùng trên rốn', serviceIdxs: [0, 1] },
+    { patientId: patient1.id, doctorIdx: 3, dayOffset: 3, status: AppointmentStatus.CONFIRMED, notes: 'Phát ban ngứa ở tay', serviceIdxs: [0, 9] },
+    { patientId: patient1.id, doctorIdx: 0, dayOffset: -7, status: AppointmentStatus.COMPLETED, diagnosis: 'Tăng huyết áp độ 1, cần theo dõi và điều chỉnh chế độ ăn', serviceIdxs: [0, 4] },
+    { patientId: patient1.id, doctorIdx: 2, dayOffset: -14, status: AppointmentStatus.COMPLETED, diagnosis: 'Viêm dạ dày nhẹ, cần dùng thuốc giảm tiết acid', serviceIdxs: [0, 1] },
+    { patientId: patient1.id, doctorIdx: 1, dayOffset: -21, status: AppointmentStatus.COMPLETED, diagnosis: 'Rối loạn giấc ngủ, stress nghề nghiệp', serviceIdxs: [0] },
+    { patientId: patient1.id, doctorIdx: 5, dayOffset: -10, status: AppointmentStatus.CANCELED, notes: 'Không thể đến theo lịch', serviceIdxs: [0] },
 
     // patient2 - 4 appointments
-    { patientId: patient2.id, doctorIdx: 4, dayOffset: 4, status: AppointmentStatus.PENDING, notes: 'Con bi sot va ho', serviceIdxs: [0] },
-    { patientId: patient2.id, doctorIdx: 3, dayOffset: 2, status: AppointmentStatus.CONFIRMED, notes: 'Mun trung ca nang', serviceIdxs: [0, 5] },
-    { patientId: patient2.id, doctorIdx: 0, dayOffset: -5, status: AppointmentStatus.COMPLETED, diagnosis: 'Tim mach binh thuong, can luyen tap dieu do', serviceIdxs: [0, 4] },
-    { patientId: patient2.id, doctorIdx: 6, dayOffset: -12, status: AppointmentStatus.CANCELED, notes: 'Co viec dot xuat', serviceIdxs: [0] },
+    { patientId: patient2.id, doctorIdx: 4, dayOffset: 4, status: AppointmentStatus.PENDING, notes: 'Con bị sốt và ho', serviceIdxs: [0] },
+    { patientId: patient2.id, doctorIdx: 3, dayOffset: 2, status: AppointmentStatus.CONFIRMED, notes: 'Mụn trứng cá nặng', serviceIdxs: [0, 5] },
+    { patientId: patient2.id, doctorIdx: 0, dayOffset: -5, status: AppointmentStatus.COMPLETED, diagnosis: 'Tim mạch bình thường, cần luyện tập điều độ', serviceIdxs: [0, 4] },
+    { patientId: patient2.id, doctorIdx: 6, dayOffset: -12, status: AppointmentStatus.CANCELED, notes: 'Có việc đột xuất', serviceIdxs: [0] },
 
     // Other patients - mostly completed for review data
-    { patientId: patient3.id, doctorIdx: 0, dayOffset: -3, status: AppointmentStatus.COMPLETED, diagnosis: 'Roi loan nhip tim nhe', serviceIdxs: [0, 4] },
-    { patientId: patient3.id, doctorIdx: 1, dayOffset: -8, status: AppointmentStatus.COMPLETED, diagnosis: 'Chong mat tu the lanh tinh', serviceIdxs: [0] },
-    { patientId: patient4.id, doctorIdx: 0, dayOffset: -4, status: AppointmentStatus.COMPLETED, diagnosis: 'Tang huyet ap do 1', serviceIdxs: [0, 4] },
-    { patientId: patient4.id, doctorIdx: 2, dayOffset: -9, status: AppointmentStatus.COMPLETED, diagnosis: 'Hoi chung ruot kich thich', serviceIdxs: [0, 1] },
-    { patientId: patient5.id, doctorIdx: 0, dayOffset: -6, status: AppointmentStatus.COMPLETED, diagnosis: 'Suy tim do 1', serviceIdxs: [0, 4] },
-    { patientId: patient5.id, doctorIdx: 3, dayOffset: -11, status: AppointmentStatus.COMPLETED, diagnosis: 'Viem da co dia', serviceIdxs: [0] },
-    { patientId: patient6.id, doctorIdx: 0, dayOffset: -2, status: AppointmentStatus.COMPLETED, diagnosis: 'Kham suc khoe dinh ky binh thuong', serviceIdxs: [0] },
-    { patientId: patient6.id, doctorIdx: 6, dayOffset: -15, status: AppointmentStatus.COMPLETED, diagnosis: 'Theo doi tang huyet ap', serviceIdxs: [0, 4] },
+    { patientId: patient3.id, doctorIdx: 0, dayOffset: -3, status: AppointmentStatus.COMPLETED, diagnosis: 'Rối loạn nhịp tim nhẹ', serviceIdxs: [0, 4] },
+    { patientId: patient3.id, doctorIdx: 1, dayOffset: -8, status: AppointmentStatus.COMPLETED, diagnosis: 'Chóng mặt tư thế lành tính', serviceIdxs: [0] },
+    { patientId: patient4.id, doctorIdx: 0, dayOffset: -4, status: AppointmentStatus.COMPLETED, diagnosis: 'Tăng huyết áp độ 1', serviceIdxs: [0, 4] },
+    { patientId: patient4.id, doctorIdx: 2, dayOffset: -9, status: AppointmentStatus.COMPLETED, diagnosis: 'Hội chứng ruột kích thích', serviceIdxs: [0, 1] },
+    { patientId: patient5.id, doctorIdx: 0, dayOffset: -6, status: AppointmentStatus.COMPLETED, diagnosis: 'Suy tim độ 1', serviceIdxs: [0, 4] },
+    { patientId: patient5.id, doctorIdx: 3, dayOffset: -11, status: AppointmentStatus.COMPLETED, diagnosis: 'Viêm da cơ địa', serviceIdxs: [0] },
+    { patientId: patient6.id, doctorIdx: 0, dayOffset: -2, status: AppointmentStatus.COMPLETED, diagnosis: 'Khám sức khỏe định kỳ bình thường', serviceIdxs: [0] },
+    { patientId: patient6.id, doctorIdx: 6, dayOffset: -15, status: AppointmentStatus.COMPLETED, diagnosis: 'Theo dõi tăng huyết áp', serviceIdxs: [0, 4] },
   ];
 
   const createdAppts: { id: string; def: ApptDef }[] = [];
@@ -618,7 +618,7 @@ async function main() {
       {
         userId: patient1.id,
         metricType: HealthMetricType.BLOOD_PRESSURE_SYSTOLIC,
-        message: 'Huyet ap tam thu cua ban dat 145 mmHg, vuot nguong an toan.',
+        message: 'Huyết áp tâm thu của bạn đạt 145 mmHg, vượt ngưỡng an toàn.',
         severity: AlertSeverity.HIGH,
         isRead: false,
         createdAt: new Date(now - 1 * day),
@@ -626,7 +626,7 @@ async function main() {
       {
         userId: patient1.id,
         metricType: HealthMetricType.BLOOD_PRESSURE_SYSTOLIC,
-        message: 'Huyet ap tam thu lien tuc cao trong 3 ngay, can theo doi.',
+        message: 'Huyết áp tâm thu liên tục cao trong 3 ngày, cần theo dõi.',
         severity: AlertSeverity.MEDIUM,
         isRead: false,
         createdAt: new Date(now - 3 * day),
@@ -634,7 +634,7 @@ async function main() {
       {
         userId: patient1.id,
         metricType: HealthMetricType.HEART_RATE,
-        message: 'Nhip tim luc nghi cao hon binh thuong.',
+        message: 'Nhịp tim lúc nghỉ cao hơn bình thường.',
         severity: AlertSeverity.LOW,
         isRead: true,
         createdAt: new Date(now - 5 * day),
@@ -656,11 +656,11 @@ async function main() {
         imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/prescriptions/sample1.jpg',
         ocrData: {
           medicines: [
-            { name: 'Amlodipine', dosage: '5mg', frequency: '1 lan/ngay', duration: '30 ngay' },
-            { name: 'Aspirin', dosage: '81mg', frequency: '1 lan/ngay', duration: '30 ngay' },
+            { name: 'Amlodipine', dosage: '5mg', frequency: '1 lần/ngày', duration: '30 ngày' },
+            { name: 'Aspirin', dosage: '81mg', frequency: '1 lần/ngày', duration: '30 ngày' },
           ],
-          diagnosis: 'Tang huyet ap do 1',
-          notes: 'Uong thuoc deu, tai kham sau 1 thang',
+          diagnosis: 'Tăng huyết áp độ 1',
+          notes: 'Uống thuốc đều, tái khám sau 1 tháng',
         },
       },
     });
@@ -672,11 +672,11 @@ async function main() {
         imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/prescriptions/sample2.jpg',
         ocrData: {
           medicines: [
-            { name: 'Omeprazole', dosage: '20mg', frequency: '2 lan/ngay', duration: '14 ngay' },
-            { name: 'Domperidone', dosage: '10mg', frequency: '3 lan/ngay', duration: '7 ngay' },
+            { name: 'Omeprazole', dosage: '20mg', frequency: '2 lần/ngày', duration: '14 ngày' },
+            { name: 'Domperidone', dosage: '10mg', frequency: '3 lần/ngày', duration: '7 ngày' },
           ],
-          diagnosis: 'Viem da day',
-          notes: 'Tranh do an cay nong, an dung gio',
+          diagnosis: 'Viêm dạ dày',
+          notes: 'Tránh đồ ăn cay nóng, ăn đúng giờ',
         },
       },
     });
@@ -687,32 +687,32 @@ async function main() {
     {
       title: 'Tôi bị đau đầu và sốt',
       messages: [
-        { role: ChatMessageRole.USER, content: 'Toi bi dau dau va sot 38.5 do tu sang nay, co nen di kham khong?' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Voi cac trieu chung dau dau va sot 38.5, ban nen nghi ngoi va theo doi them. Neu sot keo dai tren 2 ngay hoac kem cac trieu chung khac, ban nen di kham bac si.' },
-        { role: ChatMessageRole.USER, content: 'Toi co nen uong thuoc ha sot khong?' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Ban co the dung Paracetamol 500mg de ha sot, uong cach nhau toi thieu 4-6 tieng. Khong qua 4g/ngay. Nho uong nhieu nuoc va nghi ngoi.' },
-        { role: ChatMessageRole.USER, content: 'Cam on bac si!' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Khong co gi. Neu trieu chung nang hon, hay den co so y te ngay. Chuc ban som khoe!' },
+        { role: ChatMessageRole.USER, content: 'Tôi bị đau đầu và sốt 38.5 độ từ sáng nay, có nên đi khám không?' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Với các triệu chứng đau đầu và sốt 38.5, bạn nên nghỉ ngơi và theo dõi thêm. Nếu sốt kéo dài trên 2 ngày hoặc kèm các triệu chứng khác, bạn nên đi khám bác sĩ.' },
+        { role: ChatMessageRole.USER, content: 'Tôi có nên uống thuốc hạ sốt không?' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Bạn có thể dùng Paracetamol 500mg để hạ sốt, uống cách nhau tối thiểu 4-6 tiếng. Không quá 4g/ngày. Nhớ uống nhiều nước và nghỉ ngơi.' },
+        { role: ChatMessageRole.USER, content: 'Cảm ơn bác sĩ!' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Không có gì. Nếu triệu chứng nặng hơn, hãy đến cơ sở y tế ngay. Chúc bạn sớm khỏe!' },
       ],
     },
     {
       title: 'Đau bụng vùng dưới',
       messages: [
-        { role: ChatMessageRole.USER, content: 'Toi bi dau bung vung duoi ben phai tu hom qua' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Dau bung vung ho chau phai co the la dau hieu cua viem ruot thua, day la tinh trang nguy hiem. Ban can di kham ngay neu dau tang dan, kem sot, buon non.' },
-        { role: ChatMessageRole.USER, content: 'Hien tai toi co buon non nhe' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Voi trieu chung dau bung phai kem buon non, ban nen den benh vien gan nhat ngay de duoc kham va lam xet nghiem. Khong nen tu y dung thuoc giam dau.' },
+        { role: ChatMessageRole.USER, content: 'Tôi bị đau bụng vùng dưới bên phải từ hôm qua' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Đau bụng vùng hố chậu phải có thể là dấu hiệu của viêm ruột thừa, đây là tình trạng nguy hiểm. Bạn cần đi khám ngay nếu đau tăng dần, kèm sốt, buồn nôn.' },
+        { role: ChatMessageRole.USER, content: 'Hiện tại tôi có buồn nôn nhẹ' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Với triệu chứng đau bụng phải kèm buồn nôn, bạn nên đến bệnh viện gần nhất ngay để được khám và làm xét nghiệm. Không nên tự ý dùng thuốc giảm đau.' },
       ],
     },
     {
       title: 'Cao huyết áp',
       messages: [
-        { role: ChatMessageRole.USER, content: 'Huyet ap cua toi gan day cao 145/90, co nguy hiem khong?' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Huyet ap 145/90 nam o muc tang huyet ap do 1. Day la muc can theo doi va dieu chinh loi song.' },
-        { role: ChatMessageRole.USER, content: 'Toi nen lam gi de giam huyet ap?' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Mot so cach: 1) Giam muoi trong khau phan, 2) Tap the duc deu dan 30 phut/ngay, 3) Han che ruou bia, 4) Tranh stress, 5) Theo doi huyet ap hang ngay. Neu khong cai thien, can gap bac si tim mach.' },
-        { role: ChatMessageRole.USER, content: 'Co can uong thuoc ngay khong?' },
-        { role: ChatMessageRole.ASSISTANT, content: 'Voi tang huyet ap do 1, bac si thuong khuyen thay doi loi song truoc. Neu sau 3-6 thang khong cai thien moi can dung thuoc. Ban nen den kham bac si tim mach de duoc tu van cu the.' },
+        { role: ChatMessageRole.USER, content: 'Huyết áp của tôi gần đây cao 145/90, có nguy hiểm không?' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Huyết áp 145/90 nằm ở mức tăng huyết áp độ 1. Đây là mức cần theo dõi và điều chỉnh lối sống.' },
+        { role: ChatMessageRole.USER, content: 'Tôi nên làm gì để giảm huyết áp?' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Một số cách: 1) Giảm muối trong khẩu phần, 2) Tập thể dục đều đặn 30 phút/ngày, 3) Hạn chế rượu bia, 4) Tránh stress, 5) Theo dõi huyết áp hàng ngày. Nếu không cải thiện, cần gặp bác sĩ tim mạch.' },
+        { role: ChatMessageRole.USER, content: 'Có cần uống thuốc ngay không?' },
+        { role: ChatMessageRole.ASSISTANT, content: 'Với tăng huyết áp độ 1, bác sĩ thường khuyên thay đổi lối sống trước. Nếu sau 3-6 tháng không cải thiện mới cần dùng thuốc. Bạn nên đến khám bác sĩ tim mạch để được tư vấn cụ thể.' },
       ],
     },
   ];

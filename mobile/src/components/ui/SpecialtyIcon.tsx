@@ -12,12 +12,12 @@ interface SpecialtyIconProps {
 }
 
 const SPECIALTY_ICON_MAP: Record<string, IconName> = {
-  'Tim mach': 'heart-pulse',
-  'Than kinh': 'brain',
-  'Tieu hoa': 'stomach',
-  'Da lieu': 'face-woman',
+  'Tim mạch': 'heart-pulse',
+  'Thần kinh': 'brain',
+  'Tiêu hóa': 'stomach',
+  'Da liễu': 'face-woman',
   'Nhi khoa': 'baby-face',
-  'Mat': 'eye',
+  'Mắt': 'eye',
 };
 
 const FALLBACK_ICON: IconName = 'medical-bag';
