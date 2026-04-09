@@ -258,21 +258,19 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     geminiWs.on('open', () => {
       console.log('[BE-WS] ✅ Gemini WS open, sending setup config');
       geminiWs.send(JSON.stringify({
-        config: {
-          model: 'models/gemini-3.1-flash-live-preview',
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
+        setup: {
+          model: 'models/gemini-2.0-flash-live-001',
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Kore' },
+              },
             },
           },
           systemInstruction: {
             parts: [{ text: VOICE_SYSTEM_PROMPT }],
           },
-          realtimeInputConfig: {
-            inputAudioTranscription: {},
-          },
-          outputAudioTranscription: {},
         },
       }));
 
