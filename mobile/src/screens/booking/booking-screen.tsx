@@ -23,6 +23,8 @@ import {
 } from '../../services/appointments.service';
 import type { CreatePaymentResponse } from '../../services/payment.service';
 import type { Specialty, Clinic, Appointment } from '../../types';
+import { ClinicMapView } from '../../components/maps/ClinicMapView';
+import { useUserLocation } from '../../hooks/use-user-location';
 
 // Local color tokens (figmaColors doesn't include these accents)
 const ACCENT_ORANGE = '#F57C00';
@@ -541,6 +543,8 @@ export function BookingScreen() {
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  const { location: userLocation } = useUserLocation();
+
   // --- Selection state ---
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>(specialtyId ?? '');
   const [selectedClinic, setSelectedClinic] = useState<string>('');
@@ -715,6 +719,12 @@ export function BookingScreen() {
             icon="hospital-building"
             iconColor={figmaColors.info}
             title="Chọn phòng khám"
+          />
+          <ClinicMapView
+            clinics={clinics}
+            selectedClinicId={selectedClinic}
+            onSelectClinic={setSelectedClinic}
+            userLocation={userLocation}
           />
           <View style={styles.clinicList}>
             <ClinicCard

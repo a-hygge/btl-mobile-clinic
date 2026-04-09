@@ -18,6 +18,7 @@ import { paymentRoutes } from './modules/payments/payment.routes';
 import { prescriptionRoutes } from './modules/prescriptions/prescription.routes';
 import { notificationRoutes } from './modules/notifications/notification.routes';
 import { NotificationScheduler } from './modules/notifications/notification.scheduler';
+import { mapsRouter } from './modules/maps/maps.routes';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/v1/payments', paymentRoutes);
 
 app.use('/api/v1/prescriptions', prescriptionRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/maps', mapsRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);
