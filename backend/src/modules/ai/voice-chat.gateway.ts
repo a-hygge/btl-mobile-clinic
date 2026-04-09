@@ -179,9 +179,12 @@ function handleClientMessage(raw: Buffer | string, session: ClientSession) {
   if (msg.type === 'audio') {
     const pcmBase64 = audioToRawPcm(msg.data);
     console.log('[BE-WS] sending audio to Gemini, pcm size:', pcmBase64.length);
+    // Manual VAD: signal speech boundaries so Gemini knows when to respond
+    gemini.sendRealtimeInput({ activityStart: {} });
     gemini.sendRealtimeInput({
       audio: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' },
     });
+    gemini.sendRealtimeInput({ activityEnd: {} });
   } else if (msg.type === 'text') {
     prisma.chatMessage
       .create({
@@ -310,6 +313,10 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
           },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          // Disable automatic VAD — we use push-to-talk with manual activity markers
+          realtimeInputConfig: {
+            automaticActivityDetection: { disabled: true },
+          },
         },
         callbacks: {
           onopen: () => {
