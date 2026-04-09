@@ -8,7 +8,16 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+// expo-video loaded lazily — may not be in native build
+let VideoView: any = null;
+let useVideoPlayer: any = null;
+try {
+  const mod = require('expo-video');
+  VideoView = mod.VideoView;
+  useVideoPlayer = mod.useVideoPlayer;
+} catch {
+  console.warn('[Chat] expo-video not available');
+}
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -84,11 +93,11 @@ export function ChatScreen() {
   const recordingRef = useRef<any>(null);
   const soundRef = useRef<any>(null);
 
-  // ── Video player for avatar ─────────────────────────────
-  const player = useVideoPlayer(WAITING_VIDEO, (p) => {
+  // ── Video player for avatar (may be null if expo-video unavailable) ──
+  const player = useVideoPlayer ? useVideoPlayer(WAITING_VIDEO, (p: any) => {
     p.loop = true;
     p.play();
-  });
+  }) : null;
 
   // ── Load token from SecureStore ──────────────────────────
 
@@ -104,6 +113,7 @@ export function ChatScreen() {
 
   // ── Switch avatar video on state change ──────────────────
   useEffect(() => {
+    if (!player) return;
     const source = isTalking ? TALKING_VIDEO : WAITING_VIDEO;
     player.replace(source);
     player.loop = true;
@@ -167,14 +177,26 @@ export function ChatScreen() {
     };
 
     ws.onclose = () => {
-      setState('CONNECTING');
+      // Don't go back to CONNECTING — allow text input
+      console.log('[VoiceChat] WS closed');
     };
 
     ws.onerror = (err) => {
       console.error('[VoiceChat] WS error:', err);
+      setState('IDLE');
+      setSubtitle('Kết nối voice không thành công. Bạn có thể nhập tin nhắn bằng văn bản.');
     };
 
+    // Fallback: if not ready after 5s, go IDLE for text-only mode
+    const timeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN || state === 'CONNECTING') {
+        setState('IDLE');
+        setSubtitle('Đang chờ kết nối voice... Bạn có thể nhập tin nhắn.');
+      }
+    }, 5000);
+
     return () => {
+      clearTimeout(timeout);
       ws.close();
     };
   }, [token]);
@@ -198,7 +220,7 @@ export function ChatScreen() {
       const { sound } = await Audio.Sound.createAsync({ uri: fileUri });
       soundRef.current = sound;
 
-      sound.setOnPlaybackStatusUpdate((status) => {
+      sound.setOnPlaybackStatusUpdate((status: any) => {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
           soundRef.current = null;
@@ -247,6 +269,8 @@ export function ChatScreen() {
       setState('LISTENING');
     } catch (err) {
       console.error('[VoiceChat] Recording start error:', err);
+      setState('IDLE');
+      setSubtitle('Không thể ghi âm. Vui lòng nhập tin nhắn bằng văn bản.');
     }
   };
 
@@ -292,17 +316,41 @@ export function ChatScreen() {
 
   // ── Send text ───────────────────────────────────────────
 
-  const sendText = useCallback(() => {
+  const sendText = useCallback(async () => {
     const text = textInput.trim();
     if (!text || state !== 'IDLE') return;
 
+    setTextInput('');
+    setState('PROCESSING');
+    setSubtitle('');
+
+    // Try WS first
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'text', content: text }));
-      setTextInput('');
-      setState('PROCESSING');
-      setSubtitle('');
+      return;
     }
-  }, [textInput, state]);
+
+    // Fallback: REST API for text chat
+    try {
+      const baseUrl = API_URL.includes('/api/v1') ? API_URL : `${API_URL}/api/v1`;
+      const res = await fetch(`${baseUrl}/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: text }),
+      });
+      const json = await res.json();
+      const reply = json?.data?.aiMessage?.content ?? json?.data?.reply ?? 'Không có phản hồi.';
+      setSubtitle(reply);
+      setState('IDLE');
+    } catch (err) {
+      console.error('[Chat] REST fallback error:', err);
+      setSubtitle('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      setState('IDLE');
+    }
+  }, [textInput, state, token]);
 
   // ── End session ─────────────────────────────────────────
 
@@ -329,12 +377,22 @@ export function ChatScreen() {
       <View style={styles.content}>
         {/* Video Avatar */}
         <View style={styles.avatarContainer}>
-          <VideoView
-            player={player}
-            style={styles.avatar}
-            nativeControls={false}
-            contentFit="cover"
-          />
+          {VideoView && player ? (
+            <VideoView
+              player={player}
+              style={styles.avatar}
+              nativeControls={false}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: figmaColors.pastelBlue }]}>
+              <MaterialCommunityIcons
+                name={isTalking ? 'account-voice' : 'robot-outline'}
+                size={80}
+                color={isTalking ? figmaColors.primary : figmaColors.textMuted}
+              />
+            </View>
+          )}
           {state === 'CONNECTING' && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>Đang kết nối...</Text>

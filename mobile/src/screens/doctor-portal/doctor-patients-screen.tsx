@@ -85,12 +85,13 @@ export function DoctorPatientsScreen() {
   const fetchAppointments = useCallback(async () => {
     try {
       const res = await api.get('/appointments/me', {
-        params: { limit: 200, sort: 'date', order: 'desc' },
+        params: { limit: 100, sort: 'date', order: 'desc' },
       });
       const { data } = extractPaginatedData<Appointment[]>(res);
+      console.log('[doctor-patients] fetched', data.length, 'appointments, non-PENDING:', data.filter(a => a.status !== 'PENDING').length);
       setAppointments(data);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.error('[doctor-patients] fetch error:', err);
     } finally {
       setLoading(false);
     }

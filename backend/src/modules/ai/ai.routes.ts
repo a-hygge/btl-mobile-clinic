@@ -6,6 +6,7 @@ export const aiRoutes = Router();
 
 aiRoutes.use(authenticate);
 
+aiRoutes.post('/chat', AiController.sendMessage);
 aiRoutes.get('/chat/sessions', AiController.getSessions);
 aiRoutes.get('/chat/sessions/:id', AiController.getSessionMessages);
 aiRoutes.post('/symptoms', AiController.extractSymptoms);
