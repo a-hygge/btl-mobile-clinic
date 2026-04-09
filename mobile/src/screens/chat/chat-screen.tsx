@@ -177,14 +177,26 @@ export function ChatScreen() {
     };
 
     ws.onclose = () => {
-      setState('CONNECTING');
+      // Don't go back to CONNECTING — allow text input
+      console.log('[VoiceChat] WS closed');
     };
 
     ws.onerror = (err) => {
       console.error('[VoiceChat] WS error:', err);
+      setState('IDLE');
+      setSubtitle('Kết nối voice không thành công. Bạn có thể nhập tin nhắn bằng văn bản.');
     };
 
+    // Fallback: if not ready after 5s, go IDLE for text-only mode
+    const timeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN || state === 'CONNECTING') {
+        setState('IDLE');
+        setSubtitle('Đang chờ kết nối voice... Bạn có thể nhập tin nhắn.');
+      }
+    }, 5000);
+
     return () => {
+      clearTimeout(timeout);
       ws.close();
     };
   }, [token]);
