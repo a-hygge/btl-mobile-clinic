@@ -40,6 +40,7 @@ const envSchema = z.object({
   SMTP_PASS: z.string().default(''),
 
   GOOGLE_MAPS_API_KEY: z.string().default(''),
+  GOOGLE_API_KEY: z.string().default(''),
 
   APP_URL: z.string().default('http://localhost:3000'),
   MOBILE_SCHEME: z.string().default('btlhealthcare'),

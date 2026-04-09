@@ -20,12 +20,6 @@ export interface ChatSessionItem {
   updatedAt: string;
 }
 
-export interface SendMessageResponse {
-  sessionId: string;
-  userMessage: ChatMessageItem;
-  aiMessage: ChatMessageItem;
-}
-
 export interface SessionMessagesResponse {
   session: {
     id: string;
@@ -45,14 +39,6 @@ export interface SymptomExtractionResponse {
   }[];
   urgency: string;
   reasoning: string;
-}
-
-export async function sendChatMessage(
-  message: string,
-  sessionId?: string
-): Promise<SendMessageResponse> {
-  const response = await api.post('/ai/chat', { message, sessionId });
-  return extractData<SendMessageResponse>(response);
 }
 
 export async function getChatSessions(): Promise<ChatSessionItem[]> {

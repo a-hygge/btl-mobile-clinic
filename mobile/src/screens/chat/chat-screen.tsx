@@ -1,528 +1,513 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  TextInput,
   View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Platform,
 } from 'react-native';
-import { Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode, Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LottieView from 'lottie-react-native';
+import { useRouter } from 'expo-router';
+import { GradientHeader } from '../../components/shared/GradientHeader';
 import {
   figmaColors,
   figmaFonts,
-  figmaRadius,
   figmaSpacing,
+  figmaRadius,
 } from '../../constants/theme';
-import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import {
-  sendChatMessage,
-  getSessionMessages,
-  type ChatMessageItem,
-} from '../../services/chat.service';
 
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 88 : 64;
+// Assets — MP4 avatar animations
+const TALKING_VIDEO = require('../../../asset/talking_avatar.mp4');
+const WAITING_VIDEO = require('../../../asset/waiting_avatar.mp4');
 
-const DISCLAIMER_TEXT =
-  'Tôi là trợ lý AI sức khỏe. Tôi có thể hỗ trợ đánh giá triệu chứng và gợi ý chuyên khoa. Đây không phải chẩn đoán y khoa.';
+// Derive WS URL from API URL
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const WS_URL = API_URL.replace(/^http/, 'ws').replace('/api/v1', '') + '/ws/voice-chat';
 
-const QUICK_PROMPTS = ['Đau đầu', 'Đau bụng', 'Sốt', 'Đau lưng', 'Ho'] as const;
+type VoiceState = 'CONNECTING' | 'IDLE' | 'LISTENING' | 'PROCESSING' | 'AI_SPEAKING';
 
-interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  isSystem?: boolean;
-  createdAt: Date;
-}
+// Recording config: WAV PCM 16kHz mono (iOS guaranteed, Android best-effort)
+const RECORDING_OPTIONS: Audio.RecordingOptions = {
+  isMeteringEnabled: false,
+  android: {
+    extension: '.wav',
+    outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+    audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+    sampleRate: 16000,
+    numberOfChannels: 1,
+    bitRate: 256000,
+  },
+  ios: {
+    extension: '.wav',
+    outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+    audioQuality: Audio.IOSAudioQuality.HIGH,
+    sampleRate: 16000,
+    numberOfChannels: 1,
+    bitRate: 256000,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {},
+};
 
-function toMessage(msg: ChatMessageItem): Message {
-  return {
-    id: msg.id,
-    text: msg.content,
-    isUser: msg.role === 'USER',
-    createdAt: new Date(msg.createdAt),
+/**
+ * Voice-first AI chat screen.
+ * Exported as ChatScreen to keep tab route unchanged.
+ */
+export function ChatScreen() {
+  const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+
+  const [state, setState] = useState<VoiceState>('CONNECTING');
+  const [subtitle, setSubtitle] = useState('');
+  const [textInput, setTextInput] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  // ── Load token from SecureStore ──────────────────────────
+
+  useEffect(() => {
+    SecureStore.getItemAsync('accessToken').then((t) => {
+      if (t) setToken(t);
+    });
+  }, []);
+
+  // ── WebSocket lifecycle ──────────────────────────────────
+
+  useEffect(() => {
+    if (!token) return;
+
+    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      let msg: any;
+      try {
+        msg = JSON.parse(event.data as string);
+      } catch {
+        return;
+      }
+
+      switch (msg.type) {
+        case 'ready':
+          setSessionId(msg.sessionId);
+          setState('IDLE');
+          setSubtitle('Xin chào! Tôi có thể giúp gì cho bạn?');
+          break;
+
+        case 'transcript_out':
+          setSubtitle((prev) => prev + msg.text);
+          break;
+
+        case 'transcript_in':
+          // Could display user transcription — skip for now
+          break;
+
+        case 'audio_response':
+          setState('AI_SPEAKING');
+          playAudio(msg.audio);
+          break;
+
+        case 'turn_complete':
+          // If sound is not playing (e.g. text-only response), go idle
+          if (!soundRef.current) {
+            setState('IDLE');
+          }
+          break;
+
+        case 'interrupted':
+          stopPlayback();
+          setState('IDLE');
+          setSubtitle('');
+          break;
+
+        case 'error':
+          console.warn('[VoiceChat] Server error:', msg.message);
+          setState('IDLE');
+          break;
+      }
+    };
+
+    ws.onclose = () => {
+      setState('CONNECTING');
+    };
+
+    ws.onerror = (err) => {
+      console.error('[VoiceChat] WS error:', err);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [token]);
+
+  // ── Audio playback ───────────────────────────────────────
+
+  const playAudio = async (wavBase64: string) => {
+    try {
+      await stopPlayback();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const fileUri = `${FileSystem.cacheDirectory}ai_response_${Date.now()}.wav`;
+      await FileSystem.writeAsStringAsync(fileUri, wavBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const { sound } = await Audio.Sound.createAsync({ uri: fileUri });
+      soundRef.current = sound;
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+          soundRef.current = null;
+          FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+          setState('IDLE');
+          // Keep subtitle visible briefly then clear
+          setTimeout(() => setSubtitle(''), 3000);
+        }
+      });
+
+      await sound.playAsync();
+    } catch (err) {
+      console.error('[VoiceChat] Playback error:', err);
+      soundRef.current = null;
+      setState('IDLE');
+    }
   };
-}
 
-function RelativeTime({ date }: { date: Date }) {
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
-  let label = 'vừa xong';
-  if (diff >= 1 && diff < 60) label = `${diff} phút trước`;
-  else if (diff >= 60 && diff < 1440) label = `${Math.floor(diff / 60)} giờ trước`;
-  else if (diff >= 1440) label = date.toLocaleDateString('vi-VN');
-  return <Text style={styles.time}>{label}</Text>;
-}
+  const stopPlayback = async () => {
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch { /* ignore */ }
+      soundRef.current = null;
+    }
+  };
 
-function ChatBubble({ item }: { item: Message }) {
-  if (item.isSystem) {
-    return (
-      <View style={styles.systemBubble}>
-        <MaterialCommunityIcons
-          name="information-outline"
-          size={14}
-          color={figmaColors.textSecondary}
-        />
-        <Text style={styles.systemText}>{item.text}</Text>
-      </View>
-    );
-  }
+  // ── Audio recording (push-to-talk) ──────────────────────
+
+  const startRecording = async () => {
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) return;
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(RECORDING_OPTIONS);
+      recordingRef.current = recording;
+      setState('LISTENING');
+    } catch (err) {
+      console.error('[VoiceChat] Recording start error:', err);
+    }
+  };
+
+  const stopRecording = async () => {
+    const recording = recordingRef.current;
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      recordingRef.current = null;
+
+      if (uri && wsRef.current?.readyState === WebSocket.OPEN) {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        wsRef.current.send(JSON.stringify({ type: 'audio', data: base64 }));
+        setState('PROCESSING');
+        setSubtitle('');
+      } else {
+        setState('IDLE');
+      }
+    } catch (err) {
+      console.error('[VoiceChat] Recording stop error:', err);
+      setState('IDLE');
+    }
+  };
+
+  // ── Mic toggle ──────────────────────────────────────────
+
+  const toggleMic = useCallback(() => {
+    if (state === 'LISTENING') {
+      stopRecording();
+    } else if (state === 'IDLE') {
+      startRecording();
+    } else if (state === 'AI_SPEAKING') {
+      // Interrupt AI and start listening
+      stopPlayback();
+      startRecording();
+    }
+  }, [state]);
+
+  // ── Send text ───────────────────────────────────────────
+
+  const sendText = useCallback(() => {
+    const text = textInput.trim();
+    if (!text || state !== 'IDLE') return;
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'text', content: text }));
+      setTextInput('');
+      setState('PROCESSING');
+      setSubtitle('');
+    }
+  }, [textInput, state]);
+
+  // ── End session ─────────────────────────────────────────
+
+  const endSession = useCallback(() => {
+    wsRef.current?.close();
+    router.back();
+  }, []);
+
+  // ── Derived state ───────────────────────────────────────
+
+  const isTalking = state === 'AI_SPEAKING';
+  const micDisabled = state === 'CONNECTING' || state === 'PROCESSING';
 
   return (
-    <View
-      style={[
-        styles.bubbleRow,
-        item.isUser ? styles.bubbleRowRight : styles.bubbleRowLeft,
-      ]}
-    >
-      {!item.isUser && (
-        <View style={styles.aiAvatar}>
-          <MaterialCommunityIcons
-            name="robot-happy-outline"
-            size={16}
-            color={figmaColors.primary}
+    <View style={styles.container}>
+      <GradientHeader
+        title="Chat AI"
+        showBack
+        rightSlot={
+          <TouchableOpacity
+            onPress={() => router.push('/chat-history')}
+            hitSlop={12}
+          >
+            <MaterialCommunityIcons name="history" size={24} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
+
+      <View style={styles.content}>
+        {/* Video Avatar */}
+        <View style={styles.avatarContainer}>
+          <Video
+            source={isTalking ? TALKING_VIDEO : WAITING_VIDEO}
+            style={styles.avatar}
+            resizeMode={ResizeMode.CONTAIN}
+            isLooping
+            shouldPlay
           />
+          {state === 'CONNECTING' && (
+            <View style={styles.overlay}>
+              <Text style={styles.overlayText}>Đang kết nối...</Text>
+            </View>
+          )}
+          {state === 'PROCESSING' && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>AI đang suy nghĩ...</Text>
+            </View>
+          )}
+          {state === 'LISTENING' && (
+            <View style={[styles.badge, styles.badgeRed]}>
+              <Text style={styles.badgeText}>Đang nghe...</Text>
+            </View>
+          )}
         </View>
-      )}
-      <View style={[styles.bubble, item.isUser ? styles.userBubble : styles.aiBubble]}>
-        <Text style={[styles.bubbleText, item.isUser && styles.userBubbleText]}>
-          {item.text}
-        </Text>
-        <RelativeTime date={item.createdAt} />
+
+        {/* Subtitle */}
+        {subtitle ? (
+          <View style={styles.subtitleBox}>
+            <Text style={styles.subtitleText} numberOfLines={3}>
+              {subtitle}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.subtitleBox} />
+        )}
+
+        {/* Text input */}
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Nhập tin nhắn..."
+            placeholderTextColor={figmaColors.textMuted}
+            value={textInput}
+            onChangeText={setTextInput}
+            onSubmitEditing={sendText}
+            editable={state === 'IDLE'}
+            returnKeyType="send"
+          />
+          {textInput.trim() ? (
+            <TouchableOpacity
+              style={styles.sendBtn}
+              onPress={sendText}
+              disabled={state !== 'IDLE'}
+            >
+              <MaterialCommunityIcons name="send" size={20} color="#fff" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* Action buttons */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.micBtn, state === 'LISTENING' && styles.micBtnActive]}
+            onPress={toggleMic}
+            disabled={micDisabled}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={state === 'LISTENING' ? 'stop' : 'microphone'}
+              size={32}
+              color="#fff"
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.endBtn}
+            onPress={endSession}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="phone-hangup" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 }
 
-export function ChatScreen() {
-  const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ sessionId?: string }>();
-  const flatListRef = useRef<FlatList>(null);
-  const [inputText, setInputText] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'disclaimer',
-      text: DISCLAIMER_TEXT,
-      isUser: false,
-      isSystem: true,
-      createdAt: new Date(),
-    },
-  ]);
-  const [sessionId, setSessionId] = useState<string | undefined>(params.sessionId);
-  const [isTyping, setIsTyping] = useState(false);
+// ── Styles ─────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (params.sessionId) {
-      void loadSession(params.sessionId);
-    }
-  }, [params.sessionId]);
-
-  const loadSession = async (id: string) => {
-    try {
-      const data = await getSessionMessages(id);
-      setSessionId(id);
-      setMessages(data.messages.map(toMessage));
-    } catch {
-      // stay on empty
-    }
-  };
-
-  const scrollToEnd = () => {
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-  };
-
-  const handleSend = useCallback(
-    async (text?: string) => {
-      const msg = (text ?? inputText).trim();
-      if (!msg || isTyping) return;
-
-      setInputText('');
-      const userMsg: Message = {
-        id: `user-${Date.now()}`,
-        text: msg,
-        isUser: true,
-        createdAt: new Date(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
-      scrollToEnd();
-      setIsTyping(true);
-
-      try {
-        const response = await sendChatMessage(msg, sessionId);
-        if (!sessionId) setSessionId(response.sessionId);
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: response.aiMessage.id,
-            text: response.aiMessage.content,
-            isUser: false,
-            createdAt: new Date(response.aiMessage.createdAt),
-          },
-        ]);
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `err-${Date.now()}`,
-            text: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.',
-            isUser: false,
-            createdAt: new Date(),
-          },
-        ]);
-      } finally {
-        setIsTyping(false);
-        scrollToEnd();
-      }
-    },
-    [inputText, sessionId, isTyping]
-  );
-
-  const handleNewChat = useCallback(() => {
-    setSessionId(undefined);
-    setInputText('');
-    setMessages([
-      {
-        id: 'disclaimer',
-        text: DISCLAIMER_TEXT,
-        isUser: false,
-        isSystem: true,
-        createdAt: new Date(),
-      },
-    ]);
-  }, []);
-
-  return (
-    <ScreenBackground>
-      <View style={styles.container}>
-        {/* Header */}
-        <LinearGradient
-          colors={[figmaColors.primary, figmaColors.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 12 }]}
-        >
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <View style={styles.avatar}>
-                <MaterialCommunityIcons
-                  name="robot-happy-outline"
-                  size={20}
-                  color="#fff"
-                />
-              </View>
-              <View>
-                <Text variant="titleMedium" style={styles.headerTitle}>
-                  Trợ lý AI
-                </Text>
-                <View style={styles.onlineRow}>
-                  <View style={styles.onlineDot} />
-                  <Text style={styles.onlineText}>Đang hoạt động</Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={handleNewChat}
-                hitSlop={12}
-                accessibilityLabel="Cuộc hội thoại mới"
-              >
-                <MaterialCommunityIcons
-                  name="chat-plus-outline"
-                  size={20}
-                  color="#fff"
-                />
-              </Pressable>
-              <Pressable
-                onPress={() => router.push('/chat-history' as never)}
-                hitSlop={12}
-                accessibilityLabel="Lịch sử"
-              >
-                <MaterialCommunityIcons name="history" size={20} color="#fff" />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Quick prompts */}
-          <View style={styles.promptsRow}>
-            {QUICK_PROMPTS.map((p) => (
-              <Pressable
-                key={p}
-                style={styles.promptChip}
-                onPress={() => void handleSend(`Tôi bị ${p.toLowerCase()}`)}
-              >
-                <Text style={styles.promptText}>{p}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </LinearGradient>
-
-        {/* Messages */}
-        <KeyboardAvoidingView
-          style={styles.chatArea}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
-        >
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ChatBubble item={item} />}
-            contentContainerStyle={styles.messageList}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            showsVerticalScrollIndicator={false}
-          />
-
-          {/* Typing indicator */}
-          {isTyping && (
-            <View style={styles.typingRow}>
-              <LottieView
-                source={require('../../assets/animations/loading.json')}
-                autoPlay
-                loop
-                style={{ width: 32, height: 32 }}
-              />
-              <Text style={styles.typingText}>AI đang suy nghĩ...</Text>
-            </View>
-          )}
-
-          {/* Input bar */}
-          <View style={[styles.inputBar, { marginBottom: TAB_BAR_HEIGHT }]}>
-            <TextInput
-              style={styles.textInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Mô tả triệu chứng của bạn..."
-              placeholderTextColor={figmaColors.textMuted}
-              multiline
-              maxLength={1000}
-              returnKeyType="send"
-              onSubmitEditing={() => void handleSend()}
-              blurOnSubmit={false}
-            />
-            <Pressable
-              onPress={() => void handleSend()}
-              disabled={!inputText.trim() || isTyping}
-              style={({ pressed }) => [
-                styles.sendBtn,
-                (!inputText.trim() || isTyping) && styles.sendBtnDisabled,
-                pressed && styles.sendBtnPressed,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="send"
-                size={18}
-                color={inputText.trim() && !isTyping ? '#fff' : figmaColors.textMuted}
-              />
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </ScreenBackground>
-  );
-}
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: figmaColors.background,
   },
-  header: {
-    paddingBottom: figmaSpacing.md,
-    paddingHorizontal: figmaSpacing.lg,
-  },
-  headerRow: {
-    flexDirection: 'row',
+  content: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+
+  // Avatar
+  avatarContainer: {
+    width: width * 0.85,
+    height: height * 0.42,
+    borderRadius: figmaRadius.xl,
+    overflow: 'hidden',
+    marginTop: figmaSpacing.xl,
+    backgroundColor: '#000',
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: figmaFonts.sizes.lg,
-  },
-  onlineRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: figmaColors.success,
+  overlayText: {
+    color: '#fff',
+    fontSize: figmaFonts.sizes.lg,
+    fontWeight: figmaFonts.weights.semibold,
   },
-  onlineText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: figmaFonts.sizes.xs,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  promptsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-    flexWrap: 'wrap',
-  },
-  promptChip: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  badge: {
+    position: 'absolute',
+    bottom: figmaSpacing.md,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.sm,
     borderRadius: figmaRadius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
   },
-  promptText: {
+  badgeRed: {
+    backgroundColor: 'rgba(239,68,68,0.8)',
+  },
+  badgeText: {
     color: '#fff',
     fontSize: figmaFonts.sizes.base,
-    fontWeight: '600',
+    fontWeight: figmaFonts.weights.medium,
   },
-  chatArea: {
-    flex: 1,
-  },
-  messageList: {
-    padding: figmaSpacing.lg,
-    paddingBottom: figmaSpacing['2xl'],
-    gap: figmaSpacing.sm,
-  },
-  bubbleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    maxWidth: '90%',
-  },
-  bubbleRowLeft: {
-    alignSelf: 'flex-start',
-  },
-  bubbleRowRight: {
-    alignSelf: 'flex-end',
-  },
-  aiAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: figmaColors.pastelBlue,
-    alignItems: 'center',
+
+  // Subtitle
+  subtitleBox: {
+    minHeight: 60,
+    paddingHorizontal: figmaSpacing['2xl'],
     justifyContent: 'center',
-    marginBottom: 2,
   },
-  bubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-    maxWidth: '100%',
-  },
-  userBubble: {
-    backgroundColor: figmaColors.primary,
-    borderBottomRightRadius: 4,
-  },
-  aiBubble: {
-    backgroundColor: figmaColors.surface,
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  bubbleText: {
-    fontSize: figmaFonts.sizes.md,
-    lineHeight: 21,
+  subtitleText: {
+    fontSize: figmaFonts.sizes.lg,
     color: figmaColors.textPrimary,
+    textAlign: 'center',
+    lineHeight: figmaFonts.sizes.lg * figmaFonts.lineHeights.relaxed,
   },
-  userBubbleText: {
-    color: '#fff',
-  },
-  time: {
-    fontSize: 10,
-    color: figmaColors.textMuted,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  systemBubble: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    backgroundColor: figmaColors.surfaceMuted,
-    padding: figmaSpacing.md,
-    borderRadius: figmaRadius.md,
-    marginHorizontal: figmaSpacing.sm,
-    marginBottom: 4,
-  },
-  systemText: {
-    fontSize: figmaFonts.sizes.sm,
-    color: figmaColors.textSecondary,
-    lineHeight: 18,
-    flex: 1,
-  },
-  typingRow: {
+
+  // Input
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: figmaSpacing.lg,
-    gap: 4,
-  },
-  typingText: {
-    fontSize: figmaFonts.sizes.sm,
-    color: figmaColors.textSecondary,
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: figmaSpacing.md,
-    paddingVertical: figmaSpacing.sm,
-    backgroundColor: figmaColors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: figmaColors.border,
-    gap: 8,
+    paddingHorizontal: figmaSpacing.xl,
+    gap: figmaSpacing.sm,
   },
   textInput: {
     flex: 1,
+    height: 48,
+    backgroundColor: figmaColors.surface,
+    borderRadius: figmaRadius.pill,
+    paddingHorizontal: figmaSpacing.xl,
     fontSize: figmaFonts.sizes.md,
-    lineHeight: 20,
     color: figmaColors.textPrimary,
-    backgroundColor: figmaColors.surfaceMuted,
-    borderRadius: 22,
-    paddingHorizontal: figmaSpacing.lg,
-    paddingTop: 10,
-    paddingBottom: 10,
-    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: figmaColors.border,
   },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: figmaColors.primary,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    alignItems: 'center',
   },
-  sendBtnDisabled: {
-    backgroundColor: figmaColors.border,
+
+  // Actions
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: figmaSpacing['2xl'],
   },
-  sendBtnPressed: {
-    opacity: 0.7,
+  micBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: figmaColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micBtnActive: {
+    backgroundColor: '#EF4444',
+  },
+  endBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
