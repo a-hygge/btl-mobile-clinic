@@ -35,7 +35,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: btl-tunnel
     restart: unless-stopped
-    command: tunnel run --token eyJhIjoiZDljMDVhYTJjMWFiMzdjNGM5ZWZkYTNkNjdiNWM1M2EiLCJ0IjoiOTlmY2Q4YWEtNDZmZi00YjU1LWIxMWUtZGUyMTdhNjlmNTc2IiwicyI6IllqUmhNMkUyWkRVdFl6YzRZaTAwWVRneUxUaGlabUV0TkdZMU9XRmtZamRtWW1VeCJ9
+    command: tunnel --no-autoupdate run --token eyJhIjoiMmMzNzRkZTFlMzg2ODRlYWVhZWE4YjZkNTNhMGZiNWUiLCJ0IjoiODc1M2NiOWYtNjMxNi00OTAwLThhZGQtYzA5NTM0ZGY3NDFmIiwicyI6IlpEZzNPR00yTkdNdE5UVTVZaTAwWlRCa0xUbGlPRFV0TUdWak1tRm1aVFZoWXpaayJ9
     network_mode: host
 
 volumes:
