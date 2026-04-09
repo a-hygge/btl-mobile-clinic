@@ -18,6 +18,7 @@ const SPECIALTY_ICON_MAP: Record<string, IconName> = {
   'Da liễu': 'face-woman',
   'Nhi khoa': 'baby-face',
   'Mắt': 'eye',
+  'Đa khoa': 'hospital-box-outline',
 };
 
 const FALLBACK_ICON: IconName = 'medical-bag';

@@ -36,6 +36,7 @@ const SPECIALTY_VISUALS: Record<string, SpecialtyVisual> = {
   'Da liễu': { icon: '🧴', bgColor: figmaColors.pastelPurple },
   'Nhi khoa': { icon: '👶', bgColor: figmaColors.pastelGreen },
   'Mắt': { icon: '👁️', bgColor: figmaColors.pastelOrange },
+  'Đa khoa': { icon: '🏥', bgColor: figmaColors.pastelBlue },
 };
 
 const DEFAULT_SPECIALTY: SpecialtyVisual = {

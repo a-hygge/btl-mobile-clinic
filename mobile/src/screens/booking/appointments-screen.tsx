@@ -19,7 +19,7 @@ import type { Appointment } from '../../types';
 // ---------------------------------------------------------------------------
 
 function isUpcoming(appointment: Appointment): boolean {
-  return appointment.status === 'PENDING' || appointment.status === 'CONFIRMED';
+  return appointment.status === 'PENDING' || appointment.status === 'CONFIRMED' || appointment.status === 'AWAITING_PAYMENT';
 }
 
 function isPast(appointment: Appointment): boolean {
