@@ -21,7 +21,7 @@ import {
   getAvailableSlots,
   type AvailableSlot,
 } from '../../services/appointments.service';
-import { createPayment, type CreatePaymentResponse } from '../../services/payment.service';
+import type { CreatePaymentResponse } from '../../services/payment.service';
 import type { Specialty, Clinic, Appointment } from '../../types';
 import { ClinicMapView } from '../../components/maps/ClinicMapView';
 import { useUserLocation } from '../../hooks/use-user-location';
@@ -632,18 +632,7 @@ export function BookingScreen() {
         notes: notes.trim() || undefined,
       });
 
-      // 2. Create payment
-      let payment: CreatePaymentResponse | null = null;
-      try {
-        payment = await createPayment({
-          appointmentId: appointment.id,
-          method: paymentMethod,
-        });
-      } catch {
-        // Payment creation failed, but appointment was created
-      }
-
-      setBookingResult({ appointment, payment });
+      setBookingResult({ appointment, payment: null });
       setShowSuccess(true);
     } catch (err) {
       setNotice(getErrorMessage(err));
@@ -851,7 +840,7 @@ export function BookingScreen() {
             step={6}
             icon="check-decagram"
             iconColor={figmaColors.success}
-            title="Xác nhận & Thanh toán"
+            title="Xác nhận đặt lịch"
           />
           <GlassCard style={styles.card} glassStyle="regular">
             {/* Summary */}
@@ -896,48 +885,9 @@ export function BookingScreen() {
               />
             </View>
 
-            {/* Payment method */}
-            <Text style={styles.paymentTitle}>Phương thức thanh toán</Text>
-            <View style={styles.paymentMethods}>
-              {PAYMENT_METHODS.map((method) => (
-                <Pressable
-                  key={method.value}
-                  onPress={() => setPaymentMethod(method.value)}
-                  style={[
-                    styles.paymentOption,
-                    paymentMethod === method.value && {
-                      borderColor: method.color,
-                      backgroundColor: method.color + '08',
-                    },
-                  ]}
-                >
-                  <View style={styles.paymentOptionRow}>
-                    <View
-                      style={[
-                        styles.paymentIconCircle,
-                        { backgroundColor: method.color + '18' },
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={method.icon}
-                        size={20}
-                        color={method.color}
-                      />
-                    </View>
-                    <View style={styles.paymentTextCol}>
-                      <Text style={styles.paymentLabel}>{method.label}</Text>
-                      <Text style={styles.paymentDesc}>{method.desc}</Text>
-                    </View>
-                    <RadioButton
-                      value={method.value}
-                      status={paymentMethod === method.value ? 'checked' : 'unchecked'}
-                      onPress={() => setPaymentMethod(method.value)}
-                      color={method.color}
-                    />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
+            <Text style={styles.paymentNote}>
+              Thanh toán sẽ được thực hiện sau khi bác sĩ hoàn tất khám.
+            </Text>
 
             {/* Confirm button */}
             <Button
@@ -952,7 +902,7 @@ export function BookingScreen() {
               labelStyle={styles.confirmBtnLabel}
               style={styles.confirmBtn}
             >
-              {submitting ? 'Đang xử lý...' : 'Xác nhận & Thanh toán'}
+              {submitting ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}
             </Button>
           </GlassCard>
         </Reveal>
@@ -1032,7 +982,8 @@ export function BookingScreen() {
               mode="text"
               onPress={() => {
                 setShowSuccess(false);
-                router.replace('/home');
+                // Navigate to home tab
+                router.navigate('/(tabs)/home' as never);
               }}
               textColor={figmaColors.textSecondary}
               labelStyle={{ fontSize: 14 }}
@@ -1154,6 +1105,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.onSurface,
     marginBottom: 8,
+  },
+  paymentNote: {
+    fontSize: 13,
+    color: figmaColors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 8,
   },
   paymentMethods: {
     gap: 8,

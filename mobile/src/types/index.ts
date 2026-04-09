@@ -77,7 +77,7 @@ export interface Appointment {
   patientId: string;
   doctorId: string;
   timeSlotId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
+  status: 'PENDING' | 'CONFIRMED' | 'AWAITING_PAYMENT' | 'COMPLETED' | 'CANCELED';
   notes?: string;
   diagnosis?: string;
   totalAmount: number;

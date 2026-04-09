@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   FlatList,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
@@ -41,6 +42,7 @@ function isToday(dateStr?: string): boolean {
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
   PENDING: { color: figmaColors.warning, bg: figmaColors.warningBg, label: 'Chờ xác nhận' },
   CONFIRMED: { color: figmaColors.primary, bg: figmaColors.pastelBlue, label: 'Đã xác nhận' },
+  AWAITING_PAYMENT: { color: '#7C4DFF', bg: figmaColors.pastelPurple, label: 'Chờ thanh toán' },
   COMPLETED: { color: figmaColors.success, bg: figmaColors.successBg, label: 'Hoàn thành' },
   CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, label: 'Đã hủy' },
 };
@@ -151,21 +153,20 @@ export function DoctorHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [diagnosisInput, setDiagnosisInput] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     try {
-      const res = await api.get('/appointments/me', {
-        params: { limit: 50, sort: 'date', order: 'asc' },
-      });
-      const { data } = extractPaginatedData<Appointment[]>(res);
+      const apptRes = await api.get('/appointments/me', { params: { limit: 50, sort: 'date', order: 'asc' } });
+      const { data } = extractPaginatedData<Appointment[]>(apptRes);
+      console.log('[doctor-home] fetched', data.length, 'appointments');
       setAppointments(data);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.error('[doctor-home] fetch appointments failed:', err);
     } finally {
       setLoading(false);
     }
+
   }, []);
 
   useEffect(() => {
@@ -194,33 +195,48 @@ export function DoctorHomeScreen() {
     }
   };
 
-  const handleComplete = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await api.put(`/appointments/${id}/complete`, {
-        diagnosis: diagnosisInput || undefined,
-      });
-      setDiagnosisInput('');
-      setExpandedId(null);
-      await fetchAppointments();
-    } catch {
-      // silently handle
-    } finally {
-      setActionLoading(null);
-    }
+  const handleReject = (id: string) => {
+    Alert.prompt(
+      'Từ chối lịch hẹn',
+      'Vui lòng nhập lý do từ chối:',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Từ chối',
+          style: 'destructive',
+          onPress: async (reason?: string) => {
+            if (!reason?.trim()) return;
+            setActionLoading(id);
+            try {
+              await api.put(`/appointments/${id}/reject`, { reason: reason.trim() });
+              await fetchAppointments();
+            } catch { /* ignore */ } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ],
+      'plain-text',
+      '',
+      'default'
+    );
   };
+
 
   // -----------------------------------------------------------------------
   // Computed
   // -----------------------------------------------------------------------
 
-  const todayAppointments = appointments.filter(
-    (a) => isToday(a.timeSlot?.date) && a.status !== 'CANCELED'
+  // All PENDING in specialty (any date) + today's non-PENDING non-CANCELED
+  const pendingAll = appointments.filter((a) => a.status === 'PENDING');
+  const todayNonPending = appointments.filter(
+    (a) => isToday(a.timeSlot?.date) && a.status !== 'CANCELED' && a.status !== 'PENDING'
   );
-  const todayCompleted = todayAppointments.filter((a) => a.status === 'COMPLETED').length;
-  const todayPending = todayAppointments.filter(
-    (a) => a.status === 'PENDING' || a.status === 'CONFIRMED'
-  ).length;
+  const displayAppointments = [...pendingAll, ...todayNonPending];
+  const todayCompleted = displayAppointments.filter((a) => a.status === 'COMPLETED' || a.status === 'AWAITING_PAYMENT').length;
+  const todayPending = pendingAll.length;
+
+  console.log('[doctor-home] appointments total:', appointments.length, 'pending:', pendingAll.length, 'display:', displayAppointments.length);
 
   // -----------------------------------------------------------------------
   // Render
@@ -329,44 +345,41 @@ export function DoctorHomeScreen() {
                 ) : null}
 
                 {item.status === 'PENDING' && (
-                  <Button
-                    mode="contained"
-                    onPress={() => handleConfirm(item.id)}
-                    loading={isProcessing}
-                    disabled={isProcessing}
-                    style={styles.actionButton}
-                    buttonColor={figmaColors.primary}
-                    icon="check"
-                  >
-                    Xác nhận
-                  </Button>
-                )}
-
-                {item.status === 'CONFIRMED' && (
-                  <View style={styles.completeSection}>
-                    <TextInput
-                      mode="outlined"
-                      label="Chẩn đoán..."
-                      value={diagnosisInput}
-                      onChangeText={setDiagnosisInput}
-                      style={styles.diagnosisInput}
-                      outlineColor={figmaColors.border}
-                      activeOutlineColor={figmaColors.info}
-                      multiline
-                      numberOfLines={2}
-                    />
+                  <View style={styles.actionRow}>
                     <Button
                       mode="contained"
-                      onPress={() => handleComplete(item.id)}
+                      onPress={() => handleConfirm(item.id)}
                       loading={isProcessing}
                       disabled={isProcessing}
                       style={styles.actionButton}
-                      buttonColor={figmaColors.success}
-                      icon="check-circle"
+                      buttonColor={figmaColors.primary}
+                      icon="check"
                     >
-                      Hoàn thành ca khám
+                      Chấp nhận
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      onPress={() => handleReject(item.id)}
+                      disabled={isProcessing}
+                      style={styles.actionButton}
+                      textColor={figmaColors.error}
+                      icon="close"
+                    >
+                      Từ chối
                     </Button>
                   </View>
+                )}
+
+                {(item.status === 'CONFIRMED' || item.status === 'AWAITING_PAYMENT') && (
+                  <Button
+                    mode="contained"
+                    onPress={() => router.push(`/doctor-exam?id=${item.id}`)}
+                    style={styles.actionButton}
+                    buttonColor={item.status === 'CONFIRMED' ? figmaColors.info : '#7C4DFF'}
+                    icon={item.status === 'CONFIRMED' ? 'stethoscope' : 'eye'}
+                  >
+                    {item.status === 'CONFIRMED' ? 'Khám bệnh' : 'Xem chi tiết'}
+                  </Button>
                 )}
               </View>
             )}
@@ -379,7 +392,7 @@ export function DoctorHomeScreen() {
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <GradientHeader
-        title={`BS. ${user?.name ?? 'Bác sĩ'}`}
+        title={user?.name?.startsWith('BS.') ? user.name : `BS. ${user?.name ?? 'Bác sĩ'}`}
         subtitle="Chào mừng quay lại"
         colors={HEADER_COLORS}
       />
@@ -387,8 +400,8 @@ export function DoctorHomeScreen() {
       <View style={styles.statsRow}>
         <StatCard
           icon="account-group"
-          value={todayAppointments.length}
-          label="Bệnh nhân hôm nay"
+          value={displayAppointments.length}
+          label="Tổng lịch hẹn"
           color={figmaColors.info}
           bg={figmaColors.infoBg}
           delay={100}
@@ -435,7 +448,7 @@ export function DoctorHomeScreen() {
 
       <FadeInView delay={400}>
         <View style={styles.sectionWrap}>
-          <SectionTitle title="Lịch khám hôm nay" />
+          <SectionTitle title="Lịch hẹn" />
         </View>
       </FadeInView>
 
@@ -448,7 +461,7 @@ export function DoctorHomeScreen() {
             style={{ width: 100, height: 100 }}
           />
         </View>
-      ) : todayAppointments.length === 0 ? (
+      ) : displayAppointments.length === 0 ? (
         <FadeInView delay={450}>
           <EmptyState
             icon="calendar-blank"
@@ -457,7 +470,7 @@ export function DoctorHomeScreen() {
         </FadeInView>
       ) : (
         <FlatList
-          data={todayAppointments}
+          data={displayAppointments}
           keyExtractor={(item) => item.id}
           renderItem={renderAppointmentCard}
           scrollEnabled={false}
@@ -477,7 +490,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: figmaSpacing.lg,
-    marginTop: -figmaSpacing.xl,
+    marginTop: figmaSpacing.lg,
     gap: figmaSpacing.md,
   },
   statCardWrap: {
@@ -642,9 +655,60 @@ const styles = StyleSheet.create({
     backgroundColor: figmaColors.surface,
     fontSize: 14,
   },
+  servicePickerLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: figmaColors.textPrimary,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  serviceChips: {
+    gap: 6,
+  },
+  serviceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: figmaRadius.sm,
+    borderWidth: 1,
+    borderColor: figmaColors.border,
+    backgroundColor: figmaColors.surface,
+  },
+  serviceChipActive: {
+    borderColor: figmaColors.primary,
+    backgroundColor: figmaColors.pastelBlue,
+  },
+  serviceChipText: {
+    flex: 1,
+    fontSize: 13,
+    color: figmaColors.textSecondary,
+  },
+  serviceChipTextActive: {
+    color: figmaColors.primary,
+    fontWeight: '600',
+  },
+  serviceChipPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: figmaColors.textMuted,
+  },
+  totalText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: figmaColors.primary,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: figmaSpacing.xs,
+  },
   actionButton: {
     borderRadius: figmaRadius.md,
-    marginTop: figmaSpacing.xs,
+    flex: 1,
   },
 
   /* Loading */

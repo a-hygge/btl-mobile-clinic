@@ -307,7 +307,7 @@ export async function createAppointment(
   }
 
   const serviceTotal = services.reduce((sum, s) => sum + decimalToNumber(s.price), 0);
-  const totalAmount = decimalToNumber(doctor.consultationFee) + serviceTotal;
+  const totalAmount = serviceTotal; // Fee comes from services added by doctor after exam
 
   const appointment = await prisma.$transaction(async (tx) => {
     const lockedSlot = await tx.timeSlot.updateMany({
@@ -368,12 +368,37 @@ export async function getMyAppointments(
 
   if (context.role === Role.PATIENT) {
     where.patientId = context.userId;
+    if (query.status) {
+      where.status = query.status;
+    }
   } else if (context.role === Role.DOCTOR) {
-    where.doctorId = await getDoctorIdForUser(context.userId);
-  }
+    const myDoctorId = await getDoctorIdForUser(context.userId);
+    const myDoctor = await prisma.doctor.findUnique({
+      where: { id: myDoctorId },
+      select: { specialtyId: true },
+    });
 
-  if (query.status) {
-    where.status = query.status;
+    if (query.status) {
+      where.status = query.status;
+      where.doctorId = myDoctorId;
+    } else {
+      // Show: all PENDING in my specialty + my own non-PENDING
+      where.OR = [
+        {
+          status: AppointmentStatus.PENDING,
+          doctor: { specialtyId: myDoctor!.specialtyId },
+        },
+        {
+          doctorId: myDoctorId,
+          status: { not: AppointmentStatus.PENDING },
+        },
+      ];
+    }
+  } else {
+    // ADMIN sees all
+    if (query.status) {
+      where.status = query.status;
+    }
   }
 
   const [items, total] = await prisma.$transaction([
@@ -443,6 +468,11 @@ export async function cancelAppointment(
   return mapAppointment(canceled);
 }
 
+/**
+ * Any doctor in the same specialty can confirm a PENDING appointment.
+ * First to confirm wins (optimistic lock on status).
+ * Reassigns the appointment to the confirming doctor.
+ */
 export async function confirmAppointment(
   context: AppointmentUserContext,
   appointmentId: string
@@ -452,32 +482,53 @@ export async function confirmAppointment(
   }
 
   const doctorId = await getDoctorIdForUser(context.userId);
+
+  // Get confirming doctor's specialty
+  const confirmingDoctor = await prisma.doctor.findUnique({
+    where: { id: doctorId },
+    select: { specialtyId: true },
+  });
+  if (!confirmingDoctor) throw AppError.notFound('Doctor not found');
+
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: appointmentInclude,
+    include: {
+      ...appointmentInclude,
+      doctor: { include: { specialty: true, clinic: true, user: true } },
+    },
   });
 
-  if (!appointment) {
-    throw AppError.notFound('Appointment not found');
-  }
+  if (!appointment) throw AppError.notFound('Appointment not found');
 
-  if (appointment.doctorId !== doctorId) {
-    throw AppError.forbidden('You can only confirm your own appointments');
+  // Must be same specialty
+  if (appointment.doctor.specialtyId !== confirmingDoctor.specialtyId) {
+    throw AppError.forbidden('Appointment is not in your specialty');
   }
 
   if (appointment.status !== AppointmentStatus.PENDING) {
-    throw AppError.conflict('Only pending appointments can be confirmed');
+    throw AppError.conflict('Lịch hẹn này đã được bác sĩ khác nhận hoặc đã bị hủy.');
   }
 
-  const confirmed = await prisma.appointment.update({
-    where: { id: appointmentId },
+  // Optimistic lock: only update if still PENDING
+  const result = await prisma.appointment.updateMany({
+    where: { id: appointmentId, status: AppointmentStatus.PENDING },
     data: {
       status: AppointmentStatus.CONFIRMED,
+      doctorId, // reassign to confirming doctor
     },
+  });
+
+  if (result.count === 0) {
+    throw AppError.conflict('Lịch hẹn này đã được bác sĩ khác nhận.');
+  }
+
+  // Fetch updated record
+  const confirmed = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
     include: appointmentInclude,
   });
 
-  return mapAppointment(confirmed);
+  return mapAppointment(confirmed!);
 }
 
 /**
@@ -505,11 +556,8 @@ export async function rescheduleAppointment(
     throw AppError.forbidden('You can only reschedule your own appointment');
   }
 
-  if (
-    original.status !== AppointmentStatus.PENDING &&
-    original.status !== AppointmentStatus.CONFIRMED
-  ) {
-    throw AppError.conflict('Only pending or confirmed appointments can be rescheduled');
+  if (original.status !== AppointmentStatus.PENDING) {
+    throw AppError.conflict('Chỉ có thể đổi lịch khi trạng thái là chờ xác nhận');
   }
 
   const dateFilter = new Date(input.date + 'T00:00:00.000Z');
@@ -578,10 +626,57 @@ export async function rescheduleAppointment(
   return mapAppointment(updated);
 }
 
+/**
+ * Doctor rejects a pending appointment with a reason.
+ */
+export async function rejectAppointment(
+  context: AppointmentUserContext,
+  appointmentId: string,
+  reason: string
+): Promise<AppointmentDto> {
+  if (context.role !== Role.DOCTOR) {
+    throw AppError.forbidden('Only doctors can reject appointments');
+  }
+
+  const doctorId = await getDoctorIdForUser(context.userId);
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: appointmentInclude,
+  });
+
+  if (!appointment) throw AppError.notFound('Appointment not found');
+  if (appointment.doctorId !== doctorId) throw AppError.forbidden('Not your appointment');
+  if (appointment.status !== AppointmentStatus.PENDING) {
+    throw AppError.conflict('Only pending appointments can be rejected');
+  }
+
+  const rejected = await prisma.$transaction(async (tx) => {
+    await tx.timeSlot.updateMany({
+      where: { id: appointment.timeSlotId, isBooked: true },
+      data: { isBooked: false },
+    });
+    return tx.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: AppointmentStatus.CANCELED,
+        rejectionReason: reason,
+        canceledAt: new Date(),
+      },
+      include: appointmentInclude,
+    });
+  });
+
+  return mapAppointment(rejected);
+}
+
+/**
+ * Doctor completes exam → AWAITING_PAYMENT.
+ * Can add diagnosis and additional services.
+ */
 export async function completeAppointment(
   context: AppointmentUserContext,
   appointmentId: string,
-  diagnosis?: string
+  input: { diagnosis?: string; serviceIds?: string[] }
 ): Promise<AppointmentDto> {
   if (context.role !== Role.DOCTOR) {
     throw AppError.forbidden('Only doctors can complete appointments');
@@ -593,26 +688,94 @@ export async function completeAppointment(
     include: appointmentInclude,
   });
 
-  if (!appointment) {
-    throw AppError.notFound('Appointment not found');
-  }
-
-  if (appointment.doctorId !== doctorId) {
-    throw AppError.forbidden('You can only complete your own appointments');
-  }
-
+  if (!appointment) throw AppError.notFound('Appointment not found');
+  if (appointment.doctorId !== doctorId) throw AppError.forbidden('Not your appointment');
   if (appointment.status !== AppointmentStatus.CONFIRMED) {
     throw AppError.conflict('Only confirmed appointments can be completed');
   }
 
-  const completed = await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: {
-      status: AppointmentStatus.COMPLETED,
-      diagnosis,
-    },
-    include: appointmentInclude,
+  // Add extra services if provided
+  const newServiceIds = (input.serviceIds ?? []).filter(
+    (sid) => !appointment.services.some((s) => s.serviceId === sid)
+  );
+  let newServices: { id: string; price: Prisma.Decimal }[] = [];
+  if (newServiceIds.length > 0) {
+    newServices = await prisma.service.findMany({
+      where: { id: { in: newServiceIds }, deletedAt: null },
+      select: { id: true, price: true },
+    });
+  }
+
+  const existingTotal = decimalToNumber(appointment.totalAmount);
+  const addedTotal = newServices.reduce((sum, s) => sum + decimalToNumber(s.price), 0);
+
+  const completed = await prisma.$transaction(async (tx) => {
+    if (newServices.length > 0) {
+      await tx.appointmentService.createMany({
+        data: newServices.map((s) => ({
+          appointmentId,
+          serviceId: s.id,
+          price: s.price,
+        })),
+      });
+    }
+
+    return tx.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: AppointmentStatus.AWAITING_PAYMENT,
+        diagnosis: input.diagnosis ?? appointment.diagnosis,
+        totalAmount: existingTotal + addedTotal,
+      },
+      include: appointmentInclude,
+    });
   });
 
   return mapAppointment(completed);
+}
+
+/**
+ * Patient confirms payment → COMPLETED.
+ */
+export async function payAppointment(
+  context: AppointmentUserContext,
+  appointmentId: string,
+  paymentMethod: string
+): Promise<AppointmentDto> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: appointmentInclude,
+  });
+
+  if (!appointment) throw AppError.notFound('Appointment not found');
+
+  if (context.role === Role.PATIENT && appointment.patientId !== context.userId) {
+    throw AppError.forbidden('Not your appointment');
+  }
+
+  if (appointment.status !== AppointmentStatus.AWAITING_PAYMENT) {
+    throw AppError.conflict('Appointment is not awaiting payment');
+  }
+
+  const paid = await prisma.$transaction(async (tx) => {
+    // Create payment record
+    await tx.payment.create({
+      data: {
+        appointmentId,
+        userId: appointment.patientId,
+        amount: appointment.totalAmount,
+        method: paymentMethod === 'MOMO' ? 'MOMO' : paymentMethod === 'CASH' ? 'CASH' : 'VNPAY',
+        transactionId: `TXN-${Date.now()}`,
+        status: 'PAID',
+      },
+    });
+
+    return tx.appointment.update({
+      where: { id: appointmentId },
+      data: { status: AppointmentStatus.COMPLETED },
+      include: appointmentInclude,
+    });
+  });
+
+  return mapAppointment(paid);
 }

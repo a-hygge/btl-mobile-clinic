@@ -63,34 +63,55 @@ export async function registerDoctorSchedules(
   }
 
   const doctorId = await getDoctorIdForUser(context.userId);
-  const uniqueIds = [...new Set(input.workScheduleIds)];
 
-  const workSchedules = await prisma.workSchedule.findMany({
-    where: {
-      id: { in: uniqueIds },
-    },
-  });
+  let workScheduleIds: string[];
 
-  if (workSchedules.length !== uniqueIds.length) {
-    throw AppError.notFound('One or more work schedules were not found');
+  if (input.workScheduleIds && input.workScheduleIds.length > 0) {
+    // Legacy path: use pre-existing WorkSchedule IDs
+    workScheduleIds = [...new Set(input.workScheduleIds)];
+  } else if (input.date && input.shift) {
+    // New path: auto-create WorkSchedule by date+shift
+    const dateObj = new Date(input.date + 'T00:00:00.000Z');
+    if (Number.isNaN(dateObj.getTime())) {
+      throw AppError.badRequest('Invalid date');
+    }
+
+    // Find or create WorkSchedule for this date+shift
+    let ws = await prisma.workSchedule.findFirst({
+      where: {
+        date: dateObj,
+        shift: input.shift,
+      },
+    });
+
+    if (!ws) {
+      ws = await prisma.workSchedule.create({
+        data: {
+          date: dateObj,
+          shift: input.shift,
+          startTime: input.startTime ?? (input.shift === 'MORNING' ? '08:00' : '13:00'),
+          endTime: input.endTime ?? (input.shift === 'MORNING' ? '12:00' : '17:00'),
+        },
+      });
+    }
+
+    workScheduleIds = [ws.id];
+  } else {
+    throw AppError.badRequest('Provide workScheduleIds or date+shift');
   }
 
-  const existingAssignments = await prisma.doctorSchedule.findMany({
-    where: {
-      doctorId,
-      workScheduleId: { in: uniqueIds },
-    },
-    select: {
-      workScheduleId: true,
-    },
+  // Check not already registered
+  const existing = await prisma.doctorSchedule.findMany({
+    where: { doctorId, workScheduleId: { in: workScheduleIds } },
+    select: { workScheduleId: true },
   });
 
-  if (existingAssignments.length > 0) {
-    throw AppError.conflict('One or more work schedules are already registered');
+  if (existing.length > 0) {
+    throw AppError.conflict('Ca làm này đã được đăng ký');
   }
 
   await prisma.doctorSchedule.createMany({
-    data: uniqueIds.map((workScheduleId) => ({
+    data: workScheduleIds.map((workScheduleId) => ({
       doctorId,
       workScheduleId,
       room: input.room,
@@ -98,18 +119,13 @@ export async function registerDoctorSchedules(
   });
 
   const created = await prisma.doctorSchedule.findMany({
-    where: {
-      doctorId,
-      workScheduleId: { in: uniqueIds },
-    },
+    where: { doctorId, workScheduleId: { in: workScheduleIds } },
     include: doctorScheduleInclude,
   });
 
   return created
     .map(mapDoctorSchedule)
-    .sort((left, right) => {
-      return left.workSchedule.date.localeCompare(right.workSchedule.date);
-    });
+    .sort((a, b) => a.workSchedule.date.localeCompare(b.workSchedule.date));
 }
 
 export async function getMyDoctorSchedules(

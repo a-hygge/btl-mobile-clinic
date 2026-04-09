@@ -59,6 +59,9 @@ async function main() {
     prisma.specialty.create({
       data: { name: 'Mắt', description: 'Chuyên khoa Mắt', symptoms: ['mờ mắt', 'đau mắt', 'nhìn không rõ'] },
     }),
+    prisma.specialty.create({
+      data: { name: 'Đa khoa', description: 'Khám tổng quát, tầm soát sức khỏe', symptoms: ['mệt mỏi', 'sốt', 'đau nhức cơ thể', 'khám định kỳ'] },
+    }),
   ]);
 
   const specTimMach = specialties[0];
@@ -67,6 +70,7 @@ async function main() {
   const specDaLieu = specialties[3];
   const specNhiKhoa = specialties[4];
   const specMat = specialties[5];
+  const specDaKhoa = specialties[6];
 
   // ====== CLINICS ======
   const clinics = await Promise.all([

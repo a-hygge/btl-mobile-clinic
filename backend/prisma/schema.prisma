@@ -26,6 +26,7 @@ enum DoctorStatus {
 enum AppointmentStatus {
   PENDING
   CONFIRMED
+  AWAITING_PAYMENT
   COMPLETED
   CANCELED
 }
@@ -274,13 +275,14 @@ model Appointment {
   patientId   String            @map("patient_id")
   doctorId    String            @map("doctor_id")
   timeSlotId  String            @unique @map("time_slot_id")
-  status      AppointmentStatus @default(PENDING)
-  notes       String?
-  diagnosis   String?
-  totalAmount Decimal           @default(0) @map("total_amount") @db.Decimal(10, 2)
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
-  canceledAt  DateTime?         @map("canceled_at")
+  status          AppointmentStatus @default(PENDING)
+  notes           String?
+  diagnosis       String?
+  rejectionReason String?           @map("rejection_reason")
+  totalAmount     Decimal           @default(0) @map("total_amount") @db.Decimal(10, 2)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  canceledAt      DateTime?         @map("canceled_at")
 
   // Relations
   patient  User     @relation("PatientAppointments", fields: [patientId], references: [id])

@@ -1,7 +1,11 @@
 import { Role, Shift } from '@prisma/client';
 
 export interface RegisterDoctorScheduleInput {
-  workScheduleIds: string[];
+  workScheduleIds?: string[];
+  date?: string;
+  shift?: Shift;
+  startTime?: string;
+  endTime?: string;
   room?: string;
 }
 

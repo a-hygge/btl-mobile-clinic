@@ -36,6 +36,7 @@ const SPECIALTY_VISUALS: Record<string, SpecialtyVisual> = {
   'Da liễu': { icon: '🧴', bgColor: figmaColors.pastelPurple },
   'Nhi khoa': { icon: '👶', bgColor: figmaColors.pastelGreen },
   'Mắt': { icon: '👁️', bgColor: figmaColors.pastelOrange },
+  'Đa khoa': { icon: '🏥', bgColor: figmaColors.pastelBlue },
 };
 
 const DEFAULT_SPECIALTY: SpecialtyVisual = {
@@ -241,7 +242,6 @@ export function HomeScreen() {
                 name={doctor.name}
                 specialty={doctor.specialty?.name ?? ''}
                 rating={doctor.averageRating ?? 0}
-                fee={doctor.consultationFee}
                 avatarText={getInitials(doctor.name)}
                 onPress={() => {
                   console.log('[home] push doctor-view, id=', doctor.id);

@@ -238,7 +238,7 @@ export function DoctorReviewsScreen() {
 const styles = StyleSheet.create({
   statsWrap: {
     marginHorizontal: figmaSpacing.lg,
-    marginTop: -figmaSpacing.xl,
+    marginTop: figmaSpacing.lg,
   },
   statsCard: {
     borderRadius: figmaRadius.lg,

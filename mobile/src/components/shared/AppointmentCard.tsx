@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { figmaColors, figmaFonts, figmaRadius } from '../../constants/theme';
 
-type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED';
+type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'AWAITING_PAYMENT' | 'COMPLETED' | 'CANCELED';
 
 interface AppointmentCardProps {
   doctorName: string;
@@ -24,6 +24,7 @@ interface AppointmentCardProps {
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
+  AWAITING_PAYMENT: 'Chờ thanh toán',
   COMPLETED: 'Hoàn thành',
   CANCELED: 'Đã hủy',
 };
@@ -31,6 +32,7 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 const STATUS_CFG: Record<AppointmentStatus, { color: string; bg: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = {
   PENDING: { color: '#F57C00', bg: '#FFF3E0', icon: 'clock-outline' },
   CONFIRMED: { color: figmaColors.success, bg: figmaColors.successBg, icon: 'check-circle-outline' },
+  AWAITING_PAYMENT: { color: '#7C4DFF', bg: figmaColors.pastelPurple, icon: 'cash-clock' },
   COMPLETED: { color: figmaColors.info, bg: figmaColors.infoBg, icon: 'checkbox-marked-circle-outline' },
   CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, icon: 'close-circle-outline' },
 };
