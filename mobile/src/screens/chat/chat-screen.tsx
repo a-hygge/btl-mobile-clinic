@@ -72,7 +72,6 @@ export function ChatScreen() {
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const turnCompleteRef = useRef(false);
 
   // ── Load token from SecureStore ──────────────────────────
 
@@ -91,7 +90,12 @@ export function ChatScreen() {
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data as string);
+      let msg: any;
+      try {
+        msg = JSON.parse(event.data as string);
+      } catch {
+        return;
+      }
 
       switch (msg.type) {
         case 'ready':
@@ -114,7 +118,6 @@ export function ChatScreen() {
           break;
 
         case 'turn_complete':
-          turnCompleteRef.current = true;
           // If sound is not playing (e.g. text-only response), go idle
           if (!soundRef.current) {
             setState('IDLE');
@@ -151,6 +154,7 @@ export function ChatScreen() {
 
   const playAudio = async (wavBase64: string) => {
     try {
+      await stopPlayback();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
@@ -168,6 +172,7 @@ export function ChatScreen() {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
           soundRef.current = null;
+          FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
           setState('IDLE');
           // Keep subtitle visible briefly then clear
           setTimeout(() => setSubtitle(''), 3000);
@@ -229,7 +234,6 @@ export function ChatScreen() {
         wsRef.current.send(JSON.stringify({ type: 'audio', data: base64 }));
         setState('PROCESSING');
         setSubtitle('');
-        turnCompleteRef.current = false;
       } else {
         setState('IDLE');
       }
@@ -264,7 +268,6 @@ export function ChatScreen() {
       setTextInput('');
       setState('PROCESSING');
       setSubtitle('');
-      turnCompleteRef.current = false;
     }
   }, [textInput, state]);
 
