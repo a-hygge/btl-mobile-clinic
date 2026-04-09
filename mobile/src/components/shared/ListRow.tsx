@@ -1,16 +1,21 @@
 /**
  * ListRow - Generic list item with leading icon, title/subtitle, optional trailing
- * Matches Figma `div.list-item` pattern.
+ * Uses MaterialCommunityIcons instead of emoji for consistent styling.
  */
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { figmaColors, figmaFonts, figmaRadius } from '../../constants/theme';
 
+type MCIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
 interface ListRowProps {
-  icon?: string; // emoji
+  icon?: MCIconName;
   iconBgColor?: string;
+  iconColor?: string;
   title: string;
   subtitle?: string;
-  trailing?: string; // text e.g. "→" or value
+  trailing?: string;
   trailingColor?: string;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -19,6 +24,7 @@ interface ListRowProps {
 export function ListRow({
   icon,
   iconBgColor = figmaColors.pastelBlue,
+  iconColor = figmaColors.primary,
   title,
   subtitle,
   trailing = '›',
@@ -40,7 +46,7 @@ export function ListRow({
     >
       {icon ? (
         <View style={[styles.iconBox, { backgroundColor: iconBgColor }]}>
-          <Text style={styles.icon}>{icon}</Text>
+          <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
         </View>
       ) : null}
       <View style={styles.content}>
@@ -53,7 +59,9 @@ export function ListRow({
           </Text>
         ) : null}
       </View>
-      {trailing ? <Text style={[styles.trailing, { color: trailingColor }]}>{trailing}</Text> : null}
+      {trailing ? (
+        <MaterialCommunityIcons name="chevron-right" size={20} color={trailingColor} />
+      ) : null}
     </Pressable>
   );
 }
@@ -77,9 +85,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    fontSize: 20,
-  },
   content: {
     flex: 1,
     gap: 2,
@@ -92,9 +97,5 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: figmaFonts.sizes.base,
     color: figmaColors.textSecondary,
-  },
-  trailing: {
-    fontSize: 20,
-    fontWeight: figmaFonts.weights.medium,
   },
 });

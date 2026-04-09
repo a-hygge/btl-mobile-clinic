@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth.store';
@@ -149,13 +150,13 @@ export function HomeScreen() {
             onPress={() => router.push('/notifications' as never)}
             style={styles.iconBtn}
           >
-            <Text style={styles.iconBtnText}>🔔</Text>
+            <MaterialCommunityIcons name="bell-outline" size={20} color={figmaColors.textPrimary} />
           </Pressable>
           <Pressable
-            onPress={() => router.push('/edit-profile' as never)}
+            onPress={() => router.push('/settings' as never)}
             style={styles.iconBtn}
           >
-            <Text style={styles.iconBtnText}>⚙️</Text>
+            <MaterialCommunityIcons name="cog-outline" size={20} color={figmaColors.textPrimary} />
           </Pressable>
         </View>
       </View>

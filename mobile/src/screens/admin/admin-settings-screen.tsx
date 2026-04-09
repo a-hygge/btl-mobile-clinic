@@ -87,7 +87,7 @@ export function AdminSettingsScreen() {
           <SectionTitle title="Tài khoản" />
           <GlassCard style={styles.card}>
             <ListRow
-              icon="👤"
+              icon="account-outline"
               iconBgColor={figmaColors.pastelBlue}
               title="Thông tin cá nhân"
               subtitle="Họ tên, email, số điện thoại"
@@ -95,8 +95,9 @@ export function AdminSettingsScreen() {
             />
             <View style={styles.divider} />
             <ListRow
-              icon="🔒"
+              icon="lock-outline"
               iconBgColor={figmaColors.pastelOrange}
+              iconColor="#F57C00"
               title="Đổi mật khẩu"
               subtitle="Bảo mật tài khoản"
               onPress={() => comingSoon('Đổi mật khẩu')}
@@ -108,24 +109,27 @@ export function AdminSettingsScreen() {
           <SectionTitle title="Hệ thống" />
           <GlassCard style={styles.card}>
             <ListRow
-              icon="💾"
+              icon="database-outline"
               iconBgColor={figmaColors.pastelGreen}
+              iconColor={figmaColors.success}
               title="Sao lưu dữ liệu"
               subtitle="Sao lưu cơ sở dữ liệu định kỳ"
               onPress={() => comingSoon('Sao lưu dữ liệu')}
             />
             <View style={styles.divider} />
             <ListRow
-              icon="⚙️"
+              icon="cog-outline"
               iconBgColor={figmaColors.surfaceMuted}
+              iconColor={figmaColors.textSecondary}
               title="Cài đặt hệ thống"
               subtitle="Cấu hình chung của ứng dụng"
               onPress={() => comingSoon('Cài đặt hệ thống')}
             />
             <View style={styles.divider} />
             <ListRow
-              icon="🔔"
+              icon="bell-outline"
               iconBgColor={figmaColors.pastelPurple}
+              iconColor="#7C4DFF"
               title="Thông báo"
               subtitle="Quản lý thông báo gửi đi"
               onPress={() => router.push('/notifications')}
@@ -137,15 +141,16 @@ export function AdminSettingsScreen() {
           <SectionTitle title="Quản lý" />
           <GlassCard style={styles.card}>
             <ListRow
-              icon="🩺"
+              icon="stethoscope"
               iconBgColor={figmaColors.pastelTeal}
+              iconColor={figmaColors.info}
               title="Quản lý bác sĩ"
               subtitle="Danh sách và trạng thái bác sĩ"
               onPress={() => router.push('/admin-doctors')}
             />
             <View style={styles.divider} />
             <ListRow
-              icon="🏥"
+              icon="hospital-building"
               iconBgColor={figmaColors.pastelBlue}
               title="Quản lý phòng khám"
               subtitle="Địa điểm và thông tin liên hệ"
@@ -153,8 +158,9 @@ export function AdminSettingsScreen() {
             />
             <View style={styles.divider} />
             <ListRow
-              icon="⚕️"
+              icon="medical-bag"
               iconBgColor={figmaColors.pastelPurple}
+              iconColor="#7C4DFF"
               title="Quản lý dịch vụ"
               subtitle="Danh mục và bảng giá"
               onPress={() => router.push('/admin-services')}
@@ -166,7 +172,7 @@ export function AdminSettingsScreen() {
           <GlassCard style={[styles.card, styles.logoutCard]}>
             <Pressable onPress={handleLogout} style={styles.logoutRow}>
               <View style={[styles.logoutIcon, { backgroundColor: figmaColors.errorBg }]}>
-                <Text style={styles.logoutIconText}>🚪</Text>
+                <MaterialCommunityIcons name="logout" size={20} color={figmaColors.error} />
               </View>
               <Text style={styles.logoutText}>Đăng xuất</Text>
             </Pressable>

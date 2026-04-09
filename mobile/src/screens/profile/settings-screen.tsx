@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Alert, Linking, StyleSheet, Switch, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
+
+type MCIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 import { GlassCard } from '../../components/ui/GlassCard';
 import {
   FadeInView,
@@ -17,19 +20,20 @@ import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../consta
 // ---------------------------------------------------------------------------
 
 interface ToggleRowProps {
-  icon: string;
+  icon: MCIconName;
   iconBgColor: string;
+  iconColor?: string;
   title: string;
   subtitle?: string;
   value: boolean;
   onToggle: (v: boolean) => void;
 }
 
-function ToggleRow({ icon, iconBgColor, title, subtitle, value, onToggle }: ToggleRowProps) {
+function ToggleRow({ icon, iconBgColor, iconColor = figmaColors.primary, title, subtitle, value, onToggle }: ToggleRowProps) {
   return (
     <View style={styles.toggleRow}>
       <View style={[styles.toggleIcon, { backgroundColor: iconBgColor }]}>
-        <Text style={styles.toggleIconText}>{icon}</Text>
+        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
       </View>
       <View style={styles.toggleContent}>
         <Text style={styles.toggleTitle}>{title}</Text>
@@ -79,8 +83,9 @@ export function SettingsScreen() {
           <SectionTitle title="Thông báo" />
           <GlassCard style={styles.card}>
             <ToggleRow
-              icon="🔔"
+              icon="bell-ring-outline"
               iconBgColor={figmaColors.pastelPurple}
+              iconColor="#7C4DFF"
               title="Nhận thông báo đẩy"
               subtitle="Nhận thông báo trên thiết bị"
               value={pushEnabled}
@@ -88,7 +93,7 @@ export function SettingsScreen() {
             />
             <View style={styles.divider} />
             <ToggleRow
-              icon="📅"
+              icon="calendar-clock-outline"
               iconBgColor={figmaColors.pastelBlue}
               title="Nhắc lịch hẹn"
               subtitle="Nhắc trước 1 giờ khi có lịch khám"
@@ -97,8 +102,9 @@ export function SettingsScreen() {
             />
             <View style={styles.divider} />
             <ToggleRow
-              icon="💊"
+              icon="pill"
               iconBgColor={figmaColors.pastelGreen}
+              iconColor={figmaColors.success}
               title="Nhắc uống thuốc"
               subtitle="Nhắc theo toa thuốc đã lưu"
               value={medicineReminder}
@@ -112,8 +118,9 @@ export function SettingsScreen() {
           <SectionTitle title="Giao diện" />
           <GlassCard style={styles.card}>
             <ToggleRow
-              icon="🌙"
+              icon="weather-night"
               iconBgColor={figmaColors.pastelTeal}
+              iconColor={figmaColors.info}
               title="Chế độ tối"
               subtitle="Giao diện tối cho ban đêm"
               value={darkMode}
@@ -124,11 +131,11 @@ export function SettingsScreen() {
             />
             <View style={styles.divider} />
             <ListRow
-              icon="🌐"
+              icon="translate"
               iconBgColor={figmaColors.pastelOrange}
+              iconColor="#F57C00"
               title="Ngôn ngữ"
               subtitle="Tiếng Việt"
-              trailing="›"
               onPress={() => showComingSoon('Ngôn ngữ')}
             />
           </GlassCard>
@@ -139,7 +146,7 @@ export function SettingsScreen() {
           <SectionTitle title="Hỗ trợ" />
           <GlassCard style={styles.card}>
             <ListRow
-              icon="📖"
+              icon="book-open-outline"
               iconBgColor={figmaColors.pastelBlue}
               title="Hướng dẫn sử dụng"
               subtitle="Cách sử dụng ứng dụng"
@@ -147,22 +154,25 @@ export function SettingsScreen() {
             />
             <View style={styles.divider} />
             <ListRow
-              icon="📄"
+              icon="file-document-outline"
               iconBgColor={figmaColors.surfaceMuted}
+              iconColor={figmaColors.textSecondary}
               title="Điều khoản sử dụng"
               onPress={() => showComingSoon('Điều khoản sử dụng')}
             />
             <View style={styles.divider} />
             <ListRow
-              icon="🔐"
+              icon="shield-lock-outline"
               iconBgColor={figmaColors.surfaceMuted}
+              iconColor={figmaColors.textSecondary}
               title="Chính sách bảo mật"
               onPress={() => showComingSoon('Chính sách bảo mật')}
             />
             <View style={styles.divider} />
             <ListRow
-              icon="💬"
+              icon="message-text-outline"
               iconBgColor={figmaColors.pastelGreen}
+              iconColor={figmaColors.success}
               title="Liên hệ hỗ trợ"
               subtitle="hotro@btlhealthcare.vn"
               onPress={() => Linking.openURL('mailto:hotro@btlhealthcare.vn')}
