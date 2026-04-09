@@ -19,6 +19,7 @@ const envSchema = z.object({
   AI_API_KEY: z.string().default(''),
   AI_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
   AI_MODEL: z.string().default('google/gemini-2.0-flash-001'),
+  AI_OCR_MODEL: z.string().default('gemini/gemini-3-flash-preview'),
 
   CLOUDINARY_CLOUD_NAME: z.string().default(''),
   CLOUDINARY_API_KEY: z.string().default(''),
