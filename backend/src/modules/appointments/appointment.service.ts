@@ -226,6 +226,7 @@ export async function getAvailableSlots(input: {
     startTime: string;
     endTime: string;
     count: number;
+    totalFee: number;
     clinics: Map<string, { id: string; name: string; address: string }>;
   }>();
 
@@ -235,9 +236,11 @@ export async function getAvailableSlots(input: {
       startTime: slot.startTime,
       endTime: slot.endTime,
       count: 0,
+      totalFee: 0,
       clinics: new Map(),
     };
     group.count++;
+    group.totalFee += Number(slot.doctor.consultationFee ?? 0);
     if (slot.doctor.clinic) {
       group.clinics.set(slot.doctor.clinic.id, slot.doctor.clinic);
     }
@@ -249,6 +252,7 @@ export async function getAvailableSlots(input: {
     startTime: g.startTime,
     endTime: g.endTime,
     availableCount: g.count,
+    avgFee: g.count > 0 ? Math.round(g.totalFee / g.count) : 0,
     clinics: Array.from(g.clinics.values()),
   }));
 }

@@ -1,8 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../utils/app-error';
 import { sendSuccess } from '../../utils/api-response';
-import { registerDoctorScheduleSchema } from './schedule.schemas';
-import { getMyDoctorSchedules, registerDoctorSchedules } from './schedule.service';
+import {
+  registerDoctorScheduleSchema,
+  getTimeSlotsQuerySchema,
+  bulkUpsertTimeSlotsSchema,
+} from './schedule.schemas';
+import {
+  getMyDoctorSchedules,
+  registerDoctorSchedules,
+  getDoctorTimeSlots,
+  bulkUpsertDoctorTimeSlots,
+} from './schedule.service';
 
 export async function registerDoctorSchedulesController(
   req: Request,
@@ -36,6 +45,44 @@ export async function getMyDoctorSchedulesController(
 
     const schedules = await getMyDoctorSchedules(user);
     sendSuccess(res, schedules);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDoctorTimeSlotsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw AppError.unauthorized();
+    }
+
+    const { date } = getTimeSlotsQuerySchema.parse(req.query);
+    const slots = await getDoctorTimeSlots(user, date);
+    sendSuccess(res, slots);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function bulkUpsertDoctorTimeSlotsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw AppError.unauthorized();
+    }
+
+    const { date, slots } = bulkUpsertTimeSlotsSchema.parse(req.body);
+    const result = await bulkUpsertDoctorTimeSlots(user, date, slots);
+    sendSuccess(res, result);
   } catch (error) {
     next(error);
   }

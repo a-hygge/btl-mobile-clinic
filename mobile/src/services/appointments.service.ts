@@ -16,6 +16,7 @@ export interface AvailableSlot {
   startTime: string;
   endTime: string;
   availableCount: number;
+  avgFee: number;
   clinics: { id: string; name: string; address: string }[];
 }
 

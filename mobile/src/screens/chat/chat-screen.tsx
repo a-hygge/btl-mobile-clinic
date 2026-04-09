@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   // Mic
   micRow: {
     alignItems: 'center',
-    marginBottom: figmaSpacing['2xl'],
+    marginBottom: 100,
     paddingTop: figmaSpacing.sm,
   },
   micBtn: {

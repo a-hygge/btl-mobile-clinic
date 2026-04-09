@@ -9,3 +9,17 @@ export const registerDoctorScheduleSchema = z.object({
   endTime: z.string().optional(),
   room: z.string().trim().max(100).optional(),
 });
+
+const timeSlotSchema = z.object({
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM'),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM'),
+});
+
+export const getTimeSlotsQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+});
+
+export const bulkUpsertTimeSlotsSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+  slots: z.array(timeSlotSchema),
+});

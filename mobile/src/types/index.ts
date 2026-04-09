@@ -4,6 +4,8 @@
 
 export type Role = 'PATIENT' | 'DOCTOR' | 'ADMIN';
 
+export type DoctorStatus = 'PENDING' | 'ACTIVE' | 'REJECTED';
+
 export interface User {
   id: string;
   email: string;
@@ -14,6 +16,7 @@ export interface User {
   address?: string;
   avatarUrl?: string;
   insuranceId?: string;
+  doctorStatus?: DoctorStatus;
 }
 
 export interface Doctor {

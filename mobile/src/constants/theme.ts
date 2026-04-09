@@ -4,7 +4,8 @@
  * Source: Figma file irHzbqppinqWTMxxliY6GK
  * Style: Healthcare appointment app (Vietnamese), Inter font, blue primary
  */
-import { MD3LightTheme } from 'react-native-paper';
+import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
+import { useThemeStore } from '../store/theme.store';
 
 // =============================================================
 // FIGMA DESIGN TOKENS
@@ -116,6 +117,59 @@ export const figmaShadows = {
 } as const;
 
 // =============================================================
+// DARK MODE COLORS
+// =============================================================
+
+export const figmaColorsDark = {
+  // Brand (same hue, slightly brighter for dark bg)
+  primary: '#42A5F5',
+  primaryDark: '#1565C0',
+  primaryLight: '#64B5F6',
+
+  // Text (inverted)
+  textPrimary: '#E8EAED',
+  textSecondary: '#9AA0A6',
+  textMuted: '#6B7280',
+
+  // Surfaces
+  background: '#121212',
+  surface: '#1E1E1E',
+  surfaceMuted: '#2C2C2C',
+  border: '#3C3C3C',
+
+  // Status (same, slightly adjusted for dark bg)
+  success: '#66BB6A',
+  successBg: '#1B3A1B',
+  warning: '#FFD54F',
+  warningBg: '#3E3214',
+  info: '#4DB6AC',
+  infoBg: '#0D3028',
+  error: '#EF5350',
+  errorBg: '#3B1414',
+
+  // Specialty pastels (darkened)
+  pastelRed: '#3B1414',
+  pastelOrange: '#3E2E14',
+  pastelTeal: '#0D2E2E',
+  pastelBlue: '#142840',
+  pastelPurple: '#2A1433',
+  pastelGreen: '#143014',
+} as const;
+
+export type FigmaColorKeys = keyof typeof figmaColors;
+export type FigmaColors = Record<FigmaColorKeys, string>;
+
+/**
+ * Hook that returns the correct color palette based on dark mode state.
+ * Use this in components instead of importing `figmaColors` directly
+ * when you want dark mode support.
+ */
+export function useColors(): FigmaColors {
+  const isDark = useThemeStore((s) => s.isDark);
+  return isDark ? figmaColorsDark : figmaColors;
+}
+
+// =============================================================
 // REACT NATIVE PAPER THEME
 // =============================================================
 
@@ -137,6 +191,28 @@ export const theme = {
     onSurface: figmaColors.textPrimary,
     onSurfaceVariant: figmaColors.textSecondary,
     onBackground: figmaColors.textPrimary,
+  },
+  roundness: figmaRadius.lg,
+};
+
+export const darkTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    primary: figmaColorsDark.primary,
+    primaryContainer: figmaColorsDark.pastelBlue,
+    secondary: figmaColorsDark.success,
+    secondaryContainer: figmaColorsDark.successBg,
+    tertiary: figmaColorsDark.info,
+    error: figmaColorsDark.error,
+    errorContainer: figmaColorsDark.errorBg,
+    background: figmaColorsDark.background,
+    surface: figmaColorsDark.surface,
+    surfaceVariant: figmaColorsDark.surfaceMuted,
+    outline: figmaColorsDark.border,
+    onSurface: figmaColorsDark.textPrimary,
+    onSurfaceVariant: figmaColorsDark.textSecondary,
+    onBackground: figmaColorsDark.textPrimary,
   },
   roundness: figmaRadius.lg,
 };

@@ -4,6 +4,8 @@ import { authenticate, authorize } from '../../middleware/auth.middleware';
 import {
   getMyDoctorSchedulesController,
   registerDoctorSchedulesController,
+  getDoctorTimeSlotsController,
+  bulkUpsertDoctorTimeSlotsController,
 } from './schedule.controller';
 
 const asyncHandler = (handler: RequestHandler): RequestHandler => {
@@ -26,5 +28,19 @@ schedulesRouter.get(
   authenticate,
   authorize(Role.DOCTOR),
   asyncHandler(getMyDoctorSchedulesController)
+);
+
+schedulesRouter.get(
+  '/doctor/time-slots',
+  authenticate,
+  authorize(Role.DOCTOR),
+  asyncHandler(getDoctorTimeSlotsController)
+);
+
+schedulesRouter.put(
+  '/doctor/time-slots',
+  authenticate,
+  authorize(Role.DOCTOR),
+  asyncHandler(bulkUpsertDoctorTimeSlotsController)
 );
 

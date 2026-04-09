@@ -9,6 +9,7 @@
 import React from 'react';
 import { Platform, StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useThemeStore } from '../../store/theme.store';
 
 const CAN_USE_GLASS = (() => {
   if (Platform.OS !== 'ios') return false;
@@ -42,6 +43,8 @@ export function GlassCard({
   tintColor,
   interactive = false,
 }: GlassCardProps) {
+  const isDark = useThemeStore((s) => s.isDark);
+
   if (CAN_USE_GLASS) {
     return (
       <View style={[styles.wrap, style]}>
@@ -58,7 +61,7 @@ export function GlassCard({
   }
 
   return (
-    <View style={[styles.fallback, style]}>
+    <View style={[isDark ? styles.fallbackDark : styles.fallback, style]}>
       {children}
     </View>
   );
@@ -80,6 +83,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  fallbackDark: {
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: 'rgba(30, 30, 30, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 60, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 3,
   },

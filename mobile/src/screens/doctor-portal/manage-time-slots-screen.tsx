@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Snackbar, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import {
   ScreenContainer,
   SectionTitle,
 } from '../../components/shared';
+import { api, extractData } from '../../services/api';
 
 const HEADER_COLORS = [figmaColors.info, '#00695C'] as const;
 const VN_DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -99,29 +100,44 @@ export function ManageTimeSlotsScreen() {
   const initialDate = weekDays.find((d) => d.isToday)?.date ?? weekDays[0].date;
 
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [slotsByDate, setSlotsByDate] = useState<Record<string, Slot[]>>(() => {
-    const init: Record<string, Slot[]> = {};
-    for (const d of weekDays) {
-      // Mock: a few are pre-booked or available for demo flair
-      const slots = buildSlots();
-      if (d.date === todayStr) {
-        slots.forEach((s) => {
-          if (s.time === '09:00' || s.time === '10:30') s.state = 'BOOKED';
-          if (s.time === '14:00' || s.time === '15:00') s.state = 'AVAILABLE';
-        });
-      }
-      init[d.date] = slots;
-    }
-    return init;
-  });
+  const [slotsByDate, setSlotsByDate] = useState<Record<string, Slot[]>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setRefreshing(false);
+  const loadSlots = useCallback(async (dateStr: string) => {
+    try {
+      const res = await api.get('/schedules/doctor/time-slots', {
+        params: { date: dateStr },
+      });
+      const data = extractData<
+        { startTime: string; endTime: string; isBooked: boolean }[]
+      >(res);
+      const base = buildSlots();
+      for (const s of base) {
+        const match = data.find((d) => d.startTime === s.time);
+        if (match) s.state = match.isBooked ? 'BOOKED' : 'AVAILABLE';
+      }
+      return base;
+    } catch {
+      return buildSlots();
+    }
   }, []);
+
+  const loadCurrentDate = useCallback(async (dateStr: string) => {
+    setRefreshing(true);
+    const slots = await loadSlots(dateStr);
+    setSlotsByDate((prev) => ({ ...prev, [dateStr]: slots }));
+    setRefreshing(false);
+  }, [loadSlots]);
+
+  useEffect(() => {
+    loadCurrentDate(selectedDate);
+  }, [selectedDate, loadCurrentDate]);
+
+  const onRefresh = useCallback(async () => {
+    await loadCurrentDate(selectedDate);
+  }, [selectedDate, loadCurrentDate]);
 
   const currentSlots = slotsByDate[selectedDate] ?? [];
 
@@ -144,8 +160,27 @@ export function ManageTimeSlotsScreen() {
     }));
   };
 
-  const handleSave = () => {
-    setSnack('Tính năng đang phát triển');
+  const handleSave = async () => {
+    const available = currentSlots.filter((s) => s.state === 'AVAILABLE');
+    setSaving(true);
+    try {
+      await api.put('/schedules/doctor/time-slots', {
+        date: selectedDate,
+        slots: available.map((s) => {
+          const [h, m] = s.time.split(':').map(Number);
+          const endMin = m + 30;
+          const endH = h + Math.floor(endMin / 60);
+          const endM = endMin % 60;
+          const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+          return { startTime: s.time, endTime };
+        }),
+      });
+      setSnack('Đã lưu thay đổi');
+    } catch {
+      setSnack('Lỗi khi lưu. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -268,9 +303,15 @@ export function ManageTimeSlotsScreen() {
         {/* Save */}
         <FadeInView delay={320}>
           <View style={styles.saveBigWrap}>
-            <SpringPressable onPress={handleSave} style={styles.saveBigBtn}>
+            <SpringPressable
+              onPress={handleSave}
+              style={[styles.saveBigBtn, saving && { opacity: 0.6 }]}
+              disabled={saving}
+            >
               <MaterialCommunityIcons name="content-save" size={20} color="#FFFFFF" />
-              <Text style={styles.saveBigText}>Lưu thay đổi</Text>
+              <Text style={styles.saveBigText}>
+                {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </Text>
             </SpringPressable>
           </View>
         </FadeInView>

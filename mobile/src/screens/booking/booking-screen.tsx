@@ -645,7 +645,7 @@ export function BookingScreen() {
   const selectedSpecObj = specialties.find((s) => s.id === selectedSpecialty);
   const selectedClinicObj = clinics.find((c) => c.id === selectedClinic);
   const selectedSlot = slots.find((s) => s.startTime === selectedTime);
-  const estimatedFee = formatVND(150000); // placeholder — real value would come from doctor/service
+  const estimatedFee = formatVND(selectedSlot?.avgFee ?? 0);
 
   const showClinic = Boolean(selectedSpecialty);
   const showDate = Boolean(selectedSpecialty);
@@ -920,19 +920,11 @@ export function BookingScreen() {
             />
             <Text style={successStyles.title}>Đặt lịch thành công</Text>
             <Text style={successStyles.subtitle}>
-              Lịch hẹn của bạn đã được xác nhận thành công.
+              Lịch hẹn đang chờ bác sĩ xác nhận. Bạn sẽ nhận thông báo khi có bác sĩ nhận lịch.
             </Text>
 
             {bookingResult?.appointment && (
               <View style={successStyles.detailCard}>
-                {bookingResult.appointment.doctor && (
-                  <SummaryRow
-                    icon="doctor"
-                    iconColor={figmaColors.primary}
-                    label="Bác sĩ"
-                    value={bookingResult.appointment.doctor.name}
-                  />
-                )}
                 <SummaryRow
                   icon="calendar"
                   iconColor={ACCENT_ORANGE}

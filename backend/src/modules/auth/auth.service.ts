@@ -35,21 +35,53 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(input.password, 10);
+    const isDoctor = input.role === 'DOCTOR';
+
+    // For doctors, find a default specialty ("Đa khoa" or first available)
+    let defaultSpecialtyId: string | undefined;
+    if (isDoctor) {
+      const specialty = await prisma.specialty.findFirst({
+        where: { deletedAt: null, name: 'Đa khoa' },
+        select: { id: true },
+      }) ?? await prisma.specialty.findFirst({
+        where: { deletedAt: null },
+        select: { id: true },
+      });
+      if (!specialty) {
+        throw AppError.badRequest('Chưa có chuyên khoa nào trong hệ thống', 'NO_SPECIALTY');
+      }
+      defaultSpecialtyId = specialty.id;
+    }
+
     const user = await prisma.user.create({
       data: {
         email: input.email,
         password: passwordHash,
         name: input.name,
-        role: Role.PATIENT,
+        role: isDoctor ? Role.DOCTOR : Role.PATIENT,
         phone: input.phone,
       },
       select: publicUserSelect,
     });
 
+    // Create Doctor record so the doctor portal works
+    if (isDoctor && defaultSpecialtyId) {
+      await prisma.doctor.create({
+        data: {
+          userId: user.id,
+          specialtyId: defaultSpecialtyId,
+          status: 'PENDING',
+        },
+      });
+    }
+
     const tokens = createAuthTokens(toAuthPayload(user.id, user.role));
 
     return {
-      user,
+      user: {
+        ...user,
+        ...(isDoctor ? { doctorStatus: 'PENDING' as const } : {}),
+      },
       ...tokens,
     };
   }

@@ -128,6 +128,75 @@ export async function registerDoctorSchedules(
     .sort((a, b) => a.workSchedule.date.localeCompare(b.workSchedule.date));
 }
 
+export async function getDoctorTimeSlots(
+  context: ScheduleUserContext,
+  date: string
+): Promise<{ startTime: string; endTime: string; isBooked: boolean }[]> {
+  if (context.role !== Role.DOCTOR) {
+    throw AppError.forbidden('Only doctors can view time slots');
+  }
+
+  const doctorId = await getDoctorIdForUser(context.userId);
+  const dateObj = new Date(date + 'T00:00:00.000Z');
+
+  const slots = await prisma.timeSlot.findMany({
+    where: { doctorId, date: dateObj },
+    orderBy: { startTime: 'asc' },
+  });
+
+  return slots.map((s) => ({
+    startTime: s.startTime,
+    endTime: s.endTime,
+    isBooked: s.isBooked,
+  }));
+}
+
+export async function bulkUpsertDoctorTimeSlots(
+  context: ScheduleUserContext,
+  date: string,
+  slots: { startTime: string; endTime: string }[]
+): Promise<{ created: number; deleted: number }> {
+  if (context.role !== Role.DOCTOR) {
+    throw AppError.forbidden('Only doctors can manage time slots');
+  }
+
+  const doctorId = await getDoctorIdForUser(context.userId);
+  const dateObj = new Date(date + 'T00:00:00.000Z');
+
+  // Delete all non-booked slots for this doctor+date
+  const deleteResult = await prisma.timeSlot.deleteMany({
+    where: { doctorId, date: dateObj, isBooked: false },
+  });
+
+  // Create new available slots (skip any that collide with booked ones)
+  if (slots.length === 0) {
+    return { created: 0, deleted: deleteResult.count };
+  }
+
+  // Get booked slots to avoid duplicates
+  const bookedSlots = await prisma.timeSlot.findMany({
+    where: { doctorId, date: dateObj, isBooked: true },
+    select: { startTime: true },
+  });
+  const bookedTimes = new Set(bookedSlots.map((s) => s.startTime));
+
+  const toCreate = slots
+    .filter((s) => !bookedTimes.has(s.startTime))
+    .map((s) => ({
+      doctorId,
+      date: dateObj,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      isBooked: false,
+    }));
+
+  if (toCreate.length > 0) {
+    await prisma.timeSlot.createMany({ data: toCreate });
+  }
+
+  return { created: toCreate.length, deleted: deleteResult.count };
+}
+
 export async function getMyDoctorSchedules(
   context: ScheduleUserContext
 ): Promise<DoctorScheduleDto[]> {

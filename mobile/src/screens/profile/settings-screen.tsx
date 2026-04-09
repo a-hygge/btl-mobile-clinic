@@ -13,7 +13,8 @@ import {
   ScreenContainer,
   SectionTitle,
 } from '../../components/shared';
-import { figmaColors, figmaFonts, figmaRadius, figmaSpacing } from '../../constants/theme';
+import { figmaColors, figmaFonts, figmaRadius, figmaSpacing, useColors } from '../../constants/theme';
+import { useThemeStore } from '../../store/theme.store';
 
 // ---------------------------------------------------------------------------
 // Settings row with a toggle switch
@@ -57,12 +58,41 @@ export function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [appointmentReminder, setAppointmentReminder] = useState(true);
   const [medicineReminder, setMedicineReminder] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleDark = useThemeStore((s) => s.toggle);
+  const colors = useColors();
 
-  const showComingSoon = useCallback((feature: string) => {
-    Alert.alert(feature, 'Tính năng đang được phát triển. Vui lòng quay lại sau.', [
-      { text: 'Đã hiểu' },
-    ]);
+  const showTutorial = useCallback(() => {
+    Alert.alert(
+      'Hướng dẫn sử dụng',
+      '• Đặt lịch: Chọn chuyên khoa → Phòng khám → Ngày giờ → Xác nhận\n\n'
+      + '• Chat AI: Mô tả triệu chứng để nhận gợi ý chuyên khoa\n\n'
+      + '• Theo dõi sức khỏe: Ghi nhận chỉ số hàng ngày\n\n'
+      + '• Quét đơn thuốc: Chụp ảnh toa thuốc để lưu trữ',
+      [{ text: 'Đã hiểu' }],
+    );
+  }, []);
+
+  const showTerms = useCallback(() => {
+    Alert.alert(
+      'Điều khoản sử dụng',
+      '• Ứng dụng được phát triển phục vụ mục đích học tập\n\n'
+      + '• Đây là đồ án môn học tại Học viện Công nghệ Bưu chính Viễn thông (PTIT)\n\n'
+      + '• Nhóm 02, Lớp 07, GV: ThS. Nguyễn Hoàng Anh\n\n'
+      + '• Không sử dụng cho mục đích y khoa thực tế',
+      [{ text: 'Đã hiểu' }],
+    );
+  }, []);
+
+  const showPrivacyPolicy = useCallback(() => {
+    Alert.alert(
+      'Chính sách bảo mật',
+      '• Dữ liệu được lưu trữ an toàn trên hệ thống\n\n'
+      + '• Thông tin cá nhân không được chia sẻ cho bên thứ ba\n\n'
+      + '• Dữ liệu sức khỏe chỉ hiển thị cho người dùng và bác sĩ điều trị\n\n'
+      + '• Đây là môi trường demo, không lưu trữ dữ liệu y tế thật',
+      [{ text: 'Đã hiểu' }],
+    );
   }, []);
 
   const appVersion = Application.nativeApplicationVersion ?? '1.0.0';
@@ -74,7 +104,7 @@ export function SettingsScreen() {
         title="Cài đặt"
         showBack
         subtitle="Tùy chỉnh ứng dụng theo sở thích"
-        colors={[figmaColors.primary, figmaColors.primaryDark]}
+        colors={[colors.primary, colors.primaryDark]}
       />
 
       <View style={styles.body}>
@@ -123,11 +153,8 @@ export function SettingsScreen() {
               iconColor={figmaColors.info}
               title="Chế độ tối"
               subtitle="Giao diện tối cho ban đêm"
-              value={darkMode}
-              onToggle={(v) => {
-                setDarkMode(v);
-                showComingSoon('Chế độ tối');
-              }}
+              value={isDark}
+              onToggle={toggleDark}
             />
             <View style={styles.divider} />
             <ListRow
@@ -136,7 +163,11 @@ export function SettingsScreen() {
               iconColor="#F57C00"
               title="Ngôn ngữ"
               subtitle="Tiếng Việt"
-              onPress={() => showComingSoon('Ngôn ngữ')}
+              onPress={() => Alert.alert(
+                'Ngôn ngữ',
+                'Hiện tại ứng dụng chỉ hỗ trợ Tiếng Việt. Các ngôn ngữ khác sẽ được bổ sung sau.',
+                [{ text: 'Đã hiểu' }],
+              )}
             />
           </GlassCard>
         </FadeInView>
@@ -150,7 +181,7 @@ export function SettingsScreen() {
               iconBgColor={figmaColors.pastelBlue}
               title="Hướng dẫn sử dụng"
               subtitle="Cách sử dụng ứng dụng"
-              onPress={() => showComingSoon('Hướng dẫn sử dụng')}
+              onPress={showTutorial}
             />
             <View style={styles.divider} />
             <ListRow
@@ -158,7 +189,7 @@ export function SettingsScreen() {
               iconBgColor={figmaColors.surfaceMuted}
               iconColor={figmaColors.textSecondary}
               title="Điều khoản sử dụng"
-              onPress={() => showComingSoon('Điều khoản sử dụng')}
+              onPress={showTerms}
             />
             <View style={styles.divider} />
             <ListRow
@@ -166,7 +197,7 @@ export function SettingsScreen() {
               iconBgColor={figmaColors.surfaceMuted}
               iconColor={figmaColors.textSecondary}
               title="Chính sách bảo mật"
-              onPress={() => showComingSoon('Chính sách bảo mật')}
+              onPress={showPrivacyPolicy}
             />
             <View style={styles.divider} />
             <ListRow

@@ -26,7 +26,9 @@ import {
   figmaSpacing,
 } from '../../constants/theme';
 import {
+  approveDoctorApi,
   fetchAdminDoctors,
+  rejectDoctorApi,
   type AdminDoctor,
 } from '../../services/admin.service';
 
@@ -105,13 +107,59 @@ export function ManageDoctorsScreen() {
     );
   }, []);
 
-  const handleEdit = useCallback((_doctor: AdminDoctor) => {
-    Alert.alert(
-      'Chỉnh sửa bác sĩ',
-      'Tính năng đang được phát triển. Vui lòng quay lại sau.',
-      [{ text: 'Đã hiểu' }],
-    );
-  }, []);
+  const handleApprove = useCallback(
+    (doctor: AdminDoctor) => {
+      Alert.alert(
+        'Duyệt bác sĩ',
+        `Xác nhận duyệt hồ sơ BS. ${doctor.user.name}?`,
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Duyệt',
+            onPress: async () => {
+              try {
+                await approveDoctorApi(doctor.id);
+                await loadData();
+                Alert.alert('Thành công', `Đã duyệt BS. ${doctor.user.name}`);
+              } catch {
+                Alert.alert('Lỗi', 'Không thể duyệt bác sĩ.');
+              }
+            },
+          },
+        ],
+      );
+    },
+    [loadData],
+  );
+
+  const handleReject = useCallback(
+    (doctor: AdminDoctor) => {
+      Alert.prompt(
+        'Từ chối bác sĩ',
+        `Nhập lý do từ chối BS. ${doctor.user.name}:`,
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Từ chối',
+            style: 'destructive',
+            onPress: async (reason?: string) => {
+              try {
+                await rejectDoctorApi(doctor.id, reason?.trim() || 'Hồ sơ không đạt yêu cầu');
+                await loadData();
+                Alert.alert('Đã từ chối', `BS. ${doctor.user.name}`);
+              } catch {
+                Alert.alert('Lỗi', 'Không thể từ chối bác sĩ.');
+              }
+            },
+          },
+        ],
+        'plain-text',
+        '',
+        'default',
+      );
+    },
+    [loadData],
+  );
 
   const handleDelete = useCallback(
     (doctor: AdminDoctor) => {
@@ -254,24 +302,41 @@ export function ManageDoctorsScreen() {
                       </View>
                     </View>
                     <View style={styles.cardActions}>
-                      <Button
-                        mode="outlined"
-                        onPress={() => handleEdit(doctor)}
-                        compact
-                        style={styles.actionBtn}
-                        textColor={HEADER_GRADIENT[0]}
-                      >
-                        Chỉnh sửa
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        onPress={() => handleDelete(doctor)}
-                        compact
-                        style={[styles.actionBtn, { borderColor: figmaColors.error }]}
-                        textColor={figmaColors.error}
-                      >
-                        Xóa
-                      </Button>
+                      {doctor.status === 'PENDING' ? (
+                        <>
+                          <Button
+                            mode="contained"
+                            onPress={() => handleApprove(doctor)}
+                            compact
+                            style={styles.actionBtn}
+                            buttonColor={figmaColors.success}
+                            icon="check"
+                          >
+                            Duyệt
+                          </Button>
+                          <Button
+                            mode="outlined"
+                            onPress={() => handleReject(doctor)}
+                            compact
+                            style={[styles.actionBtn, { borderColor: figmaColors.error }]}
+                            textColor={figmaColors.error}
+                            icon="close"
+                          >
+                            Từ chối
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          mode="outlined"
+                          onPress={() => handleDelete(doctor)}
+                          compact
+                          style={[styles.actionBtn, { borderColor: figmaColors.error }]}
+                          textColor={figmaColors.error}
+                          icon="trash-can-outline"
+                        >
+                          Xóa
+                        </Button>
+                      )}
                     </View>
                   </GlassCard>
                 </FadeInView>

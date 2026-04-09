@@ -22,14 +22,23 @@ export class UsersService {
         deletedAt: null,
         isActive: true,
       },
-      select: currentUserSelect,
+      select: {
+        ...currentUserSelect,
+        doctor: {
+          select: { status: true },
+        },
+      },
     });
 
     if (!user) {
       throw AppError.notFound('User not found', 'USER_NOT_FOUND');
     }
 
-    return user;
+    const { doctor, ...rest } = user;
+    return {
+      ...rest,
+      ...(doctor ? { doctorStatus: doctor.status } : {}),
+    };
   }
 
   static async updateCurrentUser(userId: string, input: UpdateCurrentUserInput) {
