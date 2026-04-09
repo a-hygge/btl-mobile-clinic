@@ -51,10 +51,13 @@ export function DoctorReviewsScreen() {
 
   const fetchReviews = useCallback(async () => {
     try {
-      // First, derive the current doctor's id from any of the doctor's appointments.
-      const apptsRes = await api.get('/appointments/me', { params: { limit: 1 } });
+      // Get own doctorId from a CONFIRMED/COMPLETED appointment (not PENDING)
+      const apptsRes = await api.get('/appointments/me', {
+        params: { limit: 50 },
+      });
       const { data: appts } = extractPaginatedData<Appointment[]>(apptsRes);
-      const doctorId = appts[0]?.doctorId;
+      const ownAppt = appts.find((a) => a.status !== 'PENDING');
+      const doctorId = ownAppt?.doctorId;
       if (!doctorId) {
         setReviews([]);
         return;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { figmaColors, figmaRadius, figmaSpacing } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -105,7 +106,12 @@ export function DoctorPatientsScreen() {
     setRefreshing(false);
   }, [fetchAppointments]);
 
-  const patients = useMemo(() => groupByPatient(appointments), [appointments]);
+  // Only show accepted patients (not PENDING — those are unaccepted specialty-wide)
+  const myAppointments = useMemo(
+    () => appointments.filter((a) => a.status !== 'PENDING'),
+    [appointments]
+  );
+  const patients = useMemo(() => groupByPatient(myAppointments), [myAppointments]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -173,20 +179,39 @@ export function DoctorPatientsScreen() {
                     <Text style={styles.detailText}>{item.phone}</Text>
                   </View>
                 ) : null}
-                <Text style={styles.subSectionTitle}>Lịch hẹn gần đây</Text>
-                {item.appointments.slice(0, 5).map((appt) => (
-                  <View key={appt.id} style={styles.apptRow}>
-                    <MaterialCommunityIcons
-                      name="circle-small"
-                      size={18}
-                      color={figmaColors.info}
-                    />
-                    <Text style={styles.apptText}>
-                      {formatDate(appt.timeSlot?.date)}
-                      {appt.diagnosis ? ` · ${appt.diagnosis}` : ''}
-                    </Text>
-                  </View>
-                ))}
+                <Text style={styles.subSectionTitle}>Lịch hẹn</Text>
+                {item.appointments.slice(0, 5).map((appt) => {
+                  const canExam = appt.status === 'CONFIRMED' || appt.status === 'AWAITING_PAYMENT';
+                  return (
+                    <Pressable
+                      key={appt.id}
+                      onPress={() => canExam && router.push(`/doctor-exam?id=${appt.id}`)}
+                      style={({ pressed }) => [styles.apptRow, canExam && pressed && { opacity: 0.6 }]}
+                    >
+                      <View style={[styles.apptDot, {
+                        backgroundColor: appt.status === 'CONFIRMED' ? figmaColors.primary
+                          : appt.status === 'AWAITING_PAYMENT' ? '#7C4DFF'
+                          : appt.status === 'COMPLETED' ? figmaColors.success
+                          : figmaColors.textMuted,
+                      }]} />
+                      <View style={styles.apptInfo}>
+                        <Text style={styles.apptText}>
+                          {formatDate(appt.timeSlot?.date)} · {appt.timeSlot?.startTime?.slice(0, 5)}
+                        </Text>
+                        <Text style={styles.apptStatus}>
+                          {appt.status === 'CONFIRMED' ? 'Đang khám'
+                            : appt.status === 'AWAITING_PAYMENT' ? 'Chờ thanh toán'
+                            : appt.status === 'COMPLETED' ? 'Hoàn thành'
+                            : appt.status}
+                          {appt.diagnosis ? ` · ${appt.diagnosis}` : ''}
+                        </Text>
+                      </View>
+                      {canExam && (
+                        <MaterialCommunityIcons name="chevron-right" size={18} color={figmaColors.textMuted} />
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </GlassCard>
@@ -320,7 +345,23 @@ const styles = StyleSheet.create({
   apptRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 10,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: figmaColors.border,
+  },
+  apptDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  apptInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  apptStatus: {
+    fontSize: 11,
+    color: figmaColors.textMuted,
   },
   apptText: {
     fontSize: 13,

@@ -94,7 +94,7 @@ export function DoctorExamScreen({ appointmentId }: Props) {
 
   const totalAmount = services
     .filter((s) => selectedServiceIds.includes(s.id))
-    .reduce((sum, s) => sum + s.price, 0);
+    .reduce((sum, s) => sum + Number(s.price ?? 0), 0);
 
   const handleComplete = async () => {
     if (!diagnosis.trim()) {
@@ -240,7 +240,7 @@ export function DoctorExamScreen({ appointmentId }: Props) {
                       {svc.name}
                     </Text>
                     <Text style={styles.servicePrice}>
-                      {svc.price.toLocaleString('vi-VN')}đ
+                      {Number(svc.price).toLocaleString('vi-VN')}đ
                     </Text>
                   </Pressable>
                 );
