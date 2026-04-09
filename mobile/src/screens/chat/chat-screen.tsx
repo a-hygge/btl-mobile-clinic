@@ -269,6 +269,8 @@ export function ChatScreen() {
       setState('LISTENING');
     } catch (err) {
       console.error('[VoiceChat] Recording start error:', err);
+      setState('IDLE');
+      setSubtitle('Không thể ghi âm. Vui lòng nhập tin nhắn bằng văn bản.');
     }
   };
 
