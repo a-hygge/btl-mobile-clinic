@@ -50,8 +50,8 @@ function categoryIcon(category?: string): string {
   return '⚕️';
 }
 
-function formatVnd(value: number): string {
-  return `${value.toLocaleString('vi-VN')}₫`;
+function formatVnd(value: number | string): string {
+  return `${Number(value).toLocaleString('vi-VN')}₫`;
 }
 
 interface ServiceFormState {
@@ -247,24 +247,12 @@ export function ManageServicesScreen() {
                       </View>
                     </View>
                     <View style={styles.cardActions}>
-                      <Button
-                        mode="outlined"
-                        compact
-                        onPress={() => openEdit(service)}
-                        textColor={HEADER_GRADIENT[0]}
-                        style={styles.actionBtn}
-                      >
-                        Chỉnh sửa
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        compact
-                        onPress={() => handleDelete(service)}
-                        textColor={figmaColors.error}
-                        style={[styles.actionBtn, { borderColor: figmaColors.error }]}
-                      >
-                        Xóa
-                      </Button>
+                      <Pressable onPress={() => openEdit(service)} hitSlop={8} style={styles.iconAction}>
+                        <MaterialCommunityIcons name="pencil-outline" size={18} color={HEADER_GRADIENT[0]} />
+                      </Pressable>
+                      <Pressable onPress={() => handleDelete(service)} hitSlop={8} style={styles.iconAction}>
+                        <MaterialCommunityIcons name="trash-can-outline" size={18} color={figmaColors.error} />
+                      </Pressable>
                     </View>
                   </GlassCard>
                 </FadeInView>
@@ -427,7 +415,18 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
-    gap: figmaSpacing.md,
+    gap: figmaSpacing.sm,
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  iconAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: figmaColors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtn: {
     flex: 1,
