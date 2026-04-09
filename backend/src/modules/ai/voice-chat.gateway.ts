@@ -245,20 +245,18 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
       inactivityTimer: null,
     };
 
-    const geminiUrl = `${GEMINI_WS_URL}?key=${env.GOOGLE_API_KEY}`;
+    const geminiUrl = `${GEMINI_WS_URL}?key=AIzaSyAxu3R5xFTtKDJAxFXX12lnwW5Tn2uoGRs`;
     const geminiWs = new WebSocket(geminiUrl);
     session.geminiWs = geminiWs;
 
     geminiWs.on('open', () => {
       geminiWs.send(JSON.stringify({
-        setup: {
-          model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Kore' },
-              },
+        config: {
+          model: 'models/gemini-3.1-flash-live-preview',
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: 'Kore' },
             },
           },
           systemInstruction: {
