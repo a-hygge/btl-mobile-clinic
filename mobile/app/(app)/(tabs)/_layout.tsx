@@ -26,8 +26,8 @@ export default function TabsLayout() {
           <Label>Bệnh nhân</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="chat">
-          <Icon sf={{ default: 'star', selected: 'star.fill' }} />
-          <Label>Đánh giá</Label>
+          <Icon sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }} />
+          <Label>Chat AI</Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="profile">
           <Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} />
