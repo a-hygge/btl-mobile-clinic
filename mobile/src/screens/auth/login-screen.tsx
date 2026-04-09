@@ -133,18 +133,26 @@ export function LoginScreen() {
             colors={[figmaColors.primary, figmaColors.primaryDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.gradient, { paddingTop: insets.top + figmaSpacing.lg }]}
+            style={[styles.gradient, { paddingTop: insets.top + figmaSpacing['2xl'] }]}
           >
-            <View style={styles.lottieWrapper}>
+            {/* ECG heartbeat line background */}
+            <View style={styles.ecgContainer}>
               <LottieView
                 source={require('../../assets/animations/medical-hero.json')}
                 autoPlay
                 loop
-                style={styles.lottie}
+                style={styles.ecgAnimation}
               />
             </View>
+
+            {/* Heart icon overlay */}
+            <View style={styles.heartCircle}>
+              <MaterialCommunityIcons name="heart-pulse" size={48} color="#fff" />
+            </View>
+
             <Text style={styles.heroTitle}>BTL Healthcare</Text>
-            <Text style={styles.heroSubtitle}>Đăng nhập để tiếp tục</Text>
+            <Text style={styles.heroSubtitle}>Chăm sóc sức khỏe thông minh</Text>
+            <Text style={styles.heroCaption}>Đăng nhập để tiếp tục</Text>
           </LinearGradient>
         </Animated.View>
 
@@ -305,32 +313,53 @@ const styles = StyleSheet.create({
   },
   gradient: {
     width: SCREEN_WIDTH,
-    paddingBottom: figmaSpacing['3xl'] + figmaSpacing.lg,
+    paddingBottom: figmaSpacing['3xl'] + figmaSpacing['2xl'],
     alignItems: 'center',
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-  lottieWrapper: {
-    width: 160,
-    height: 160,
-    marginBottom: figmaSpacing.sm,
+  ecgContainer: {
+    width: SCREEN_WIDTH,
+    height: 180,
+    overflow: 'hidden',
+    opacity: 0.25,
+    marginBottom: -20,
   },
-  lottie: {
-    width: '100%',
-    height: '100%',
+  ecgAnimation: {
+    width: SCREEN_WIDTH * 1.2,
+    height: 180,
+    alignSelf: 'center',
+  },
+  heartCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: figmaSpacing.lg,
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: figmaFonts.weights.bold,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   heroSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: figmaFonts.sizes.md,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: figmaFonts.sizes.lg,
     textAlign: 'center',
     marginTop: figmaSpacing.xs,
     fontWeight: figmaFonts.weights.medium,
+  },
+  heroCaption: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: figmaFonts.sizes.sm,
+    textAlign: 'center',
+    marginTop: figmaSpacing.xs,
   },
   card: {
     marginTop: -figmaSpacing.xl,
