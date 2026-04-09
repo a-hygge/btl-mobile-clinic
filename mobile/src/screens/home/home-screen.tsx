@@ -242,7 +242,6 @@ export function HomeScreen() {
                 name={doctor.name}
                 specialty={doctor.specialty?.name ?? ''}
                 rating={doctor.averageRating ?? 0}
-                fee={doctor.consultationFee}
                 avatarText={getInitials(doctor.name)}
                 onPress={() => {
                   console.log('[home] push doctor-view, id=', doctor.id);

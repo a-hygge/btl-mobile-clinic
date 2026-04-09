@@ -21,7 +21,7 @@ import {
   ScreenContainer,
   SectionTitle,
 } from '../../components/shared';
-import { api, extractPaginatedData } from '../../services/api';
+import { api, extractData, extractPaginatedData } from '../../services/api';
 import type { Appointment } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -154,15 +154,23 @@ export function DoctorHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [diagnosisInput, setDiagnosisInput] = useState('');
+  const [prescriptionNote, setPrescriptionNote] = useState('');
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [allServices, setAllServices] = useState<{ id: string; name: string; price: number; category: string }[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     try {
-      const res = await api.get('/appointments/me', {
-        params: { limit: 50, sort: 'date', order: 'asc' },
-      });
-      const { data } = extractPaginatedData<Appointment[]>(res);
+      const [apptRes, svcRes] = await Promise.all([
+        api.get('/appointments/me', { params: { limit: 50, sort: 'date', order: 'asc' } }),
+        api.get('/services'),
+      ]);
+      const { data } = extractPaginatedData<Appointment[]>(apptRes);
       setAppointments(data);
+      try {
+        const svcData = extractData<{ id: string; name: string; price: number; category: string }[]>(svcRes);
+        setAllServices(Array.isArray(svcData) ? svcData : []);
+      } catch { /* ignore */ }
     } catch {
       // silently handle
     } finally {
@@ -228,8 +236,11 @@ export function DoctorHomeScreen() {
     try {
       await api.put(`/appointments/${id}/complete`, {
         diagnosis: diagnosisInput || undefined,
+        serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
       });
       setDiagnosisInput('');
+      setPrescriptionNote('');
+      setSelectedServiceIds([]);
       setExpandedId(null);
       await fetchAppointments();
     } catch {
@@ -238,6 +249,16 @@ export function DoctorHomeScreen() {
       setActionLoading(null);
     }
   };
+
+  const toggleService = (serviceId: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
+    );
+  };
+
+  const selectedServicesTotal = allServices
+    .filter((s) => selectedServiceIds.includes(s.id))
+    .reduce((sum, s) => sum + (s.price ?? 0), 0);
 
   // -----------------------------------------------------------------------
   // Computed
@@ -396,6 +417,55 @@ export function DoctorHomeScreen() {
                       multiline
                       numberOfLines={2}
                     />
+
+                    <TextInput
+                      mode="outlined"
+                      label="Ghi chú đơn thuốc (nếu có)"
+                      value={prescriptionNote}
+                      onChangeText={setPrescriptionNote}
+                      style={styles.diagnosisInput}
+                      outlineColor={figmaColors.border}
+                      activeOutlineColor={figmaColors.info}
+                      multiline
+                      numberOfLines={2}
+                    />
+
+                    {/* Service picker */}
+                    <Text style={styles.servicePickerLabel}>Dịch vụ đã sử dụng:</Text>
+                    <View style={styles.serviceChips}>
+                      {allServices.map((svc) => {
+                        const isSelected = selectedServiceIds.includes(svc.id);
+                        return (
+                          <Pressable
+                            key={svc.id}
+                            onPress={() => toggleService(svc.id)}
+                            style={[
+                              styles.serviceChip,
+                              isSelected && styles.serviceChipActive,
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={isSelected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                              size={16}
+                              color={isSelected ? figmaColors.primary : figmaColors.textMuted}
+                            />
+                            <Text style={[styles.serviceChipText, isSelected && styles.serviceChipTextActive]}>
+                              {svc.name}
+                            </Text>
+                            <Text style={styles.serviceChipPrice}>
+                              {svc.price.toLocaleString('vi-VN')}đ
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {selectedServiceIds.length > 0 && (
+                      <Text style={styles.totalText}>
+                        Tổng: {selectedServicesTotal.toLocaleString('vi-VN')}đ
+                      </Text>
+                    )}
+
                     <Button
                       mode="contained"
                       onPress={() => handleComplete(item.id)}
@@ -420,7 +490,7 @@ export function DoctorHomeScreen() {
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <GradientHeader
-        title={`BS. ${user?.name ?? 'Bác sĩ'}`}
+        title={user?.name?.startsWith('BS.') ? user.name : `BS. ${user?.name ?? 'Bác sĩ'}`}
         subtitle="Chào mừng quay lại"
         colors={HEADER_COLORS}
       />
@@ -518,7 +588,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: figmaSpacing.lg,
-    marginTop: -figmaSpacing.xl,
+    marginTop: figmaSpacing.lg,
     gap: figmaSpacing.md,
   },
   statCardWrap: {
@@ -682,6 +752,52 @@ const styles = StyleSheet.create({
   diagnosisInput: {
     backgroundColor: figmaColors.surface,
     fontSize: 14,
+  },
+  servicePickerLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: figmaColors.textPrimary,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  serviceChips: {
+    gap: 6,
+  },
+  serviceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: figmaRadius.sm,
+    borderWidth: 1,
+    borderColor: figmaColors.border,
+    backgroundColor: figmaColors.surface,
+  },
+  serviceChipActive: {
+    borderColor: figmaColors.primary,
+    backgroundColor: figmaColors.pastelBlue,
+  },
+  serviceChipText: {
+    flex: 1,
+    fontSize: 13,
+    color: figmaColors.textSecondary,
+  },
+  serviceChipTextActive: {
+    color: figmaColors.primary,
+    fontWeight: '600',
+  },
+  serviceChipPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: figmaColors.textMuted,
+  },
+  totalText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: figmaColors.primary,
+    textAlign: 'right',
+    marginTop: 4,
   },
   actionRow: {
     flexDirection: 'row',

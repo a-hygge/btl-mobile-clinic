@@ -307,7 +307,7 @@ export async function createAppointment(
   }
 
   const serviceTotal = services.reduce((sum, s) => sum + decimalToNumber(s.price), 0);
-  const totalAmount = decimalToNumber(doctor.consultationFee) + serviceTotal;
+  const totalAmount = serviceTotal; // Fee comes from services added by doctor after exam
 
   const appointment = await prisma.$transaction(async (tx) => {
     const lockedSlot = await tx.timeSlot.updateMany({

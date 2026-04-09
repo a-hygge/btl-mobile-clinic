@@ -298,7 +298,6 @@ export function DoctorSearchScreen() {
               }
               rating={item.averageRating}
               totalReviews={item.totalReviews}
-              fee={item.consultationFee}
               onPress={() =>
                 router.push({ pathname: '/doctor-view', params: { id: item.id } })
               }

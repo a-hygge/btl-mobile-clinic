@@ -217,12 +217,15 @@ export function AppointmentDetailScreen({
   }, [fetchDetail]);
 
   async function performCancel() {
+    console.log('[appt-detail] canceling', appointmentId);
     setCanceling(true);
     try {
       const updated = await cancelAppointment(appointmentId);
+      console.log('[appt-detail] cancel success, new status:', updated.status);
       setAppointment(updated);
       setNotice('Đã hủy lịch hẹn thành công.');
-    } catch {
+    } catch (err) {
+      console.error('[appt-detail] cancel error:', err);
       setNotice('Không thể hủy lịch hẹn.');
     } finally {
       setCanceling(false);
