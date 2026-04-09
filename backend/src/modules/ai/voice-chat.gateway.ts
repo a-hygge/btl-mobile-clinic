@@ -1,5 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server as HttpServer } from 'http';
+import { execSync } from 'child_process';
+import { writeFileSync, readFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { env } from '../../config/env';
@@ -30,14 +34,59 @@ interface ClientSession {
   inactivityTimer: ReturnType<typeof setTimeout> | null;
 }
 
-// ── WAV helpers ──────────────────────────────────────────────
+// ── Audio helpers ───────────────────────────────────────────
+
+/** Convert any audio format to raw 16-bit PCM 16kHz mono base64.
+ *  - WAV/RIFF: strips header directly (fast path)
+ *  - Other formats (3GP, AMR, AAC from Android): uses ffmpeg to convert
+ */
+function audioToRawPcm(audioBase64: string): string {
+  const buf = Buffer.from(audioBase64, 'base64');
+
+  // Fast path: WAV/RIFF → strip header
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF') {
+    return stripWavHeader(audioBase64);
+  }
+
+  // Slow path: use ffmpeg to convert non-PCM formats (Android 3GP/AMR/AAC)
+  const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const inputPath = join(tmpdir(), `voice_in_${ts}`);
+  const outputPath = join(tmpdir(), `voice_out_${ts}.pcm`);
+  try {
+    writeFileSync(inputPath, buf);
+    execSync(
+      `ffmpeg -i "${inputPath}" -f s16le -acodec pcm_s16le -ar 16000 -ac 1 "${outputPath}" -y`,
+      { stdio: 'pipe', timeout: 10_000 },
+    );
+    const pcm = readFileSync(outputPath);
+    return pcm.toString('base64');
+  } catch (err) {
+    console.error('[voice-chat] ffmpeg conversion failed:', (err as Error).message);
+    // Last resort: return raw data and hope for the best
+    return audioBase64;
+  } finally {
+    try { unlinkSync(inputPath); } catch { /* ignore */ }
+    try { unlinkSync(outputPath); } catch { /* ignore */ }
+  }
+}
 
 function stripWavHeader(wavBase64: string): string {
   const buf = Buffer.from(wavBase64, 'base64');
-  if (buf.length > 44 && buf.toString('ascii', 0, 4) === 'RIFF') {
-    return buf.slice(44).toString('base64');
+  if (buf.length < 12 || buf.toString('ascii', 0, 4) !== 'RIFF') {
+    return wavBase64;
   }
-  return wavBase64;
+  // Walk chunks to find the 'data' chunk (handles extended headers)
+  let offset = 12; // skip RIFF header + 'WAVE'
+  while (offset + 8 < buf.length) {
+    const chunkId = buf.toString('ascii', offset, offset + 4);
+    const chunkSize = buf.readUInt32LE(offset + 4);
+    if (chunkId === 'data') {
+      return buf.slice(offset + 8, offset + 8 + chunkSize).toString('base64');
+    }
+    offset += 8 + chunkSize;
+  }
+  // Fallback: skip standard 44-byte header
+  return buf.slice(44).toString('base64');
 }
 
 function createWavBuffer(pcmData: Buffer, sampleRate = 24000): Buffer {
@@ -128,7 +177,7 @@ function handleClientMessage(raw: Buffer | string, session: ClientSession) {
   console.log('[BE-WS] client msg type:', msg.type, msg.type === 'audio' ? `(${msg.data?.length} chars)` : msg.content?.slice(0, 100));
 
   if (msg.type === 'audio') {
-    const pcmBase64 = stripWavHeader(msg.data);
+    const pcmBase64 = audioToRawPcm(msg.data);
     console.log('[BE-WS] sending audio to Gemini, pcm size:', pcmBase64.length);
     gemini.sendRealtimeInput({
       audio: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' },
