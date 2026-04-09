@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Snackbar, Text, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
@@ -11,6 +11,7 @@ import {
   ScreenContainer,
   SectionTitle,
 } from '../../components/shared';
+import { router } from 'expo-router';
 import { api, extractData } from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import type { Appointment, User } from '../../types';
@@ -67,6 +68,21 @@ function SpringPressable({ onPress, children, style, disabled }: SpringPressable
 export function DoctorProfileScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const authUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  function handleLogout() {
+    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/login');
+        },
+      },
+    ]);
+  }
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -174,11 +190,6 @@ export function DoctorProfileScreen() {
           title="Hồ sơ của tôi"
           subtitle="Cập nhật thông tin cá nhân"
           colors={HEADER_COLORS}
-          rightSlot={
-            <SpringPressable onPress={handleSave} disabled={saving} style={styles.saveBtn}>
-              <Text style={styles.saveBtnText}>{saving ? 'Đang lưu...' : 'Lưu'}</Text>
-            </SpringPressable>
-          }
         />
 
         {/* Avatar */}
@@ -327,6 +338,18 @@ export function DoctorProfileScreen() {
             </SpringPressable>
           </View>
         </FadeInView>
+
+        {/* Đăng xuất */}
+        <FadeInView delay={400}>
+          <GlassCard style={styles.logoutCard}>
+            <Pressable onPress={handleLogout} style={styles.logoutRow}>
+              <View style={styles.logoutIcon}>
+                <MaterialCommunityIcons name="logout" size={20} color={figmaColors.error} />
+              </View>
+              <Text style={styles.logoutText}>Đăng xuất</Text>
+            </Pressable>
+          </GlassCard>
+        </FadeInView>
       </ScreenContainer>
 
       <Snackbar
@@ -461,5 +484,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  logoutCard: {
+    marginHorizontal: figmaSpacing.lg,
+    marginTop: figmaSpacing.xl,
+    paddingVertical: figmaSpacing.xs,
+    paddingHorizontal: 0,
+  },
+  logoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: figmaSpacing.lg,
+  },
+  logoutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: figmaRadius.md,
+    backgroundColor: figmaColors.errorBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: figmaColors.error,
   },
 });

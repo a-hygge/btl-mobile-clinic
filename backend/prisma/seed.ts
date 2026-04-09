@@ -469,6 +469,17 @@ async function main() {
     { patientId: patient2.id, doctorIdx: 0, dayOffset: -5, status: AppointmentStatus.COMPLETED, diagnosis: 'Tim mạch bình thường, cần luyện tập điều độ', serviceIdxs: [0, 4] },
     { patientId: patient2.id, doctorIdx: 6, dayOffset: -12, status: AppointmentStatus.CANCELED, notes: 'Có việc đột xuất', serviceIdxs: [0] },
 
+    // TODAY appointments for doctor1 (Tim mạch) — visible on doctor portal
+    { patientId: patient3.id, doctorIdx: 0, dayOffset: 0, status: AppointmentStatus.CONFIRMED, notes: 'Tái khám huyết áp định kỳ', serviceIdxs: [0, 4] },
+    { patientId: patient4.id, doctorIdx: 0, dayOffset: 0, status: AppointmentStatus.CONFIRMED, notes: 'Đau ngực khi leo cầu thang', serviceIdxs: [0] },
+    { patientId: patient5.id, doctorIdx: 0, dayOffset: 0, status: AppointmentStatus.PENDING, notes: 'Khám lần đầu, có tiền sử gia đình bệnh tim', serviceIdxs: [0, 4] },
+
+    // TODAY for doctor2 (Thần kinh)
+    { patientId: patient6.id, doctorIdx: 1, dayOffset: 0, status: AppointmentStatus.CONFIRMED, notes: 'Đau đầu migraine tái phát', serviceIdxs: [0] },
+
+    // Tomorrow for doctor1
+    { patientId: patient6.id, doctorIdx: 0, dayOffset: 1, status: AppointmentStatus.PENDING, notes: 'Kiểm tra điện tâm đồ', serviceIdxs: [0, 4] },
+
     // Other patients - mostly completed for review data
     { patientId: patient3.id, doctorIdx: 0, dayOffset: -3, status: AppointmentStatus.COMPLETED, diagnosis: 'Rối loạn nhịp tim nhẹ', serviceIdxs: [0, 4] },
     { patientId: patient3.id, doctorIdx: 1, dayOffset: -8, status: AppointmentStatus.COMPLETED, diagnosis: 'Chóng mặt tư thế lành tính', serviceIdxs: [0] },
