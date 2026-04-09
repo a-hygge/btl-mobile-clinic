@@ -30,12 +30,6 @@ export function ProfileScreen() {
     ]);
   }
 
-  function showComingSoon(feature: string) {
-    Alert.alert(feature, 'Tính năng đang được phát triển. Vui lòng quay lại sau.', [
-      { text: 'Đã hiểu' },
-    ]);
-  }
-
   const initials = (user?.name ?? 'U')
     .split(' ')
     .map((w) => w[0])
@@ -127,7 +121,7 @@ export function ProfileScreen() {
               iconBgColor={figmaColors.pastelOrange}
               title="Đổi mật khẩu"
               subtitle="Bảo mật tài khoản"
-              onPress={() => showComingSoon('Đổi mật khẩu')}
+              onPress={() => router.push('/settings')}
             />
           </GlassCard>
         </FadeInView>
@@ -141,7 +135,7 @@ export function ProfileScreen() {
               iconBgColor={figmaColors.surfaceMuted}
               title="Cài đặt"
               subtitle="Ngôn ngữ, giao diện, quyền riêng tư"
-              onPress={() => showComingSoon('Cài đặt')}
+              onPress={() => router.push('/settings')}
             />
             {user?.role === 'ADMIN' ? (
               <>
