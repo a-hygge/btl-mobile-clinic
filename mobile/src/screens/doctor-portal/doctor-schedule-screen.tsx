@@ -35,11 +35,14 @@ interface WorkSchedule {
 
 interface RegisteredShift {
   id: string;
-  workScheduleId: string;
-  date: string;
-  shift: 'MORNING' | 'AFTERNOON';
-  startTime: string;
-  endTime: string;
+  room?: string | null;
+  workSchedule: {
+    id: string;
+    date: string;
+    shift: 'MORNING' | 'AFTERNOON';
+    startTime: string;
+    endTime: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +186,7 @@ export function DoctorScheduleScreen() {
 
   const isShiftRegistered = (shift: WorkSchedule): boolean => {
     return registeredShifts.some(
-      (s) => s.date?.slice(0, 10) === shift.date && s.shift === shift.shift
+      (s) => s.workSchedule.date?.slice(0, 10) === shift.date && s.workSchedule.shift === shift.shift
     );
   };
 
@@ -206,7 +209,7 @@ export function DoctorScheduleScreen() {
   };
 
   const shiftsForDate = registeredShifts.filter(
-    (s) => s.date?.slice(0, 10) === selectedDate
+    (s) => s.workSchedule.date?.slice(0, 10) === selectedDate
   );
 
   return (
@@ -354,9 +357,9 @@ export function DoctorScheduleScreen() {
           ) : (
             <View style={styles.shiftsList}>
               {shiftsForDate.map((shift) => {
-                const isMorning = shift.shift === 'MORNING';
-                const start = shift.startTime?.slice(0, 5);
-                const end = shift.endTime?.slice(0, 5);
+                const isMorning = shift.workSchedule.shift === 'MORNING';
+                const start = shift.workSchedule.startTime?.slice(0, 5);
+                const end = shift.workSchedule.endTime?.slice(0, 5);
                 const shiftLabel = isMorning
                   ? `Ca sáng (${start} - ${end})`
                   : `Ca chiều (${start} - ${end})`;
