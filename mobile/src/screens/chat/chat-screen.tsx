@@ -109,8 +109,7 @@ export function ChatScreen() {
 
   // ── Derived state ───────────────────────────────────────
   const isTalking = state === 'AI_SPEAKING';
-  // Mic disabled — expo-av Recording broken, needs native rebuild with expo-audio
-  const micDisabled = true;
+  const micDisabled = state === 'CONNECTING' || state === 'PROCESSING';
 
   // ── Switch avatar video on state change ──────────────────
   useEffect(() => {
