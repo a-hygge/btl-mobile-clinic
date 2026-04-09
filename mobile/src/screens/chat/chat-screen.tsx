@@ -123,18 +123,31 @@ export function ChatScreen() {
   // ── WebSocket lifecycle ──────────────────────────────────
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      console.log('[FE-WS] no token yet, skipping WS connect');
+      return;
+    }
 
-    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    const url = `${WS_URL}?token=${token}`;
+    console.log('[FE-WS] connecting to:', url);
+
+    const ws = new WebSocket(url);
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('[FE-WS] ✅ onopen — readyState:', ws.readyState);
+    };
 
     ws.onmessage = (event) => {
       let msg: any;
       try {
         msg = JSON.parse(event.data as string);
       } catch {
+        console.log('[FE-WS] non-JSON message:', String(event.data).slice(0, 200));
         return;
       }
+
+      console.log('[FE-WS] message:', msg.type, JSON.stringify(msg).slice(0, 300));
 
       switch (msg.type) {
         case 'ready':
@@ -148,7 +161,6 @@ export function ChatScreen() {
           break;
 
         case 'transcript_in':
-          // Could display user transcription — skip for now
           break;
 
         case 'audio_response':
@@ -157,7 +169,6 @@ export function ChatScreen() {
           break;
 
         case 'turn_complete':
-          // If sound is not playing (e.g. text-only response), go idle
           if (!soundRef.current) {
             setState('IDLE');
           }
@@ -170,25 +181,25 @@ export function ChatScreen() {
           break;
 
         case 'error':
-          console.warn('[VoiceChat] Server error:', msg.message);
+          console.warn('[FE-WS] server error:', msg.message);
           setState('IDLE');
           break;
       }
     };
 
-    ws.onclose = () => {
-      // Don't go back to CONNECTING — allow text input
-      console.log('[VoiceChat] WS closed');
+    ws.onclose = (event) => {
+      console.log('[FE-WS] ❌ onclose — code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
     };
 
     ws.onerror = (err) => {
-      console.error('[VoiceChat] WS error:', err);
+      console.error('[FE-WS] onerror:', JSON.stringify(err));
       setState('IDLE');
       setSubtitle('Kết nối voice không thành công. Bạn có thể nhập tin nhắn bằng văn bản.');
     };
 
     // Fallback: if not ready after 5s, go IDLE for text-only mode
     const timeout = setTimeout(() => {
+      console.log('[FE-WS] 5s timeout — readyState:', ws.readyState, 'state:', state);
       if (ws.readyState !== WebSocket.OPEN || state === 'CONNECTING') {
         setState('IDLE');
         setSubtitle('Đang chờ kết nối voice... Bạn có thể nhập tin nhắn.');
@@ -254,6 +265,14 @@ export function ChatScreen() {
   const startRecording = async () => {
     if (!Audio) return;
     try {
+      // Clean up any existing recording first
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch { /* ignore */ }
+        recordingRef.current = null;
+      }
+
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
 

@@ -204,10 +204,12 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws/voice-chat' });
 
   wss.on('connection', async (clientWs, req) => {
+    console.log('[BE-WS] new connection from', req.socket.remoteAddress);
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const token = url.searchParams.get('token');
 
     if (!token) {
+      console.log('[BE-WS] ❌ no token');
       clientWs.close(4001, 'Missing token');
       return;
     }
@@ -216,7 +218,9 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     try {
       const payload = jwt.verify(token, env.JWT_SECRET) as { userId: string };
       userId = payload.userId;
-    } catch {
+      console.log('[BE-WS] ✅ auth OK, userId:', userId);
+    } catch (err) {
+      console.log('[BE-WS] ❌ invalid token:', (err as Error).message);
       clientWs.close(4001, 'Invalid token');
       return;
     }
@@ -236,6 +240,7 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     };
 
     try {
+      console.log('[BE-WS] connecting to Gemini via SDK...');
       const geminiSession = await ai.live.connect({
         model: GEMINI_MODEL,
         config: {
@@ -253,6 +258,7 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
         },
         callbacks: {
           onopen: () => {
+            console.log('[BE-WS] ✅ Gemini session opened');
             send(clientWs, { type: 'ready', sessionId: session.chatSessionId });
             resetInactivityTimer(session, clientWs);
           },
@@ -260,10 +266,11 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
             handleGeminiSdkMessage(message, session, clientWs);
           },
           onerror: (e: any) => {
-            console.error('[voice-chat] Gemini SDK error:', e.message);
+            console.error('[BE-WS] ❌ Gemini SDK error:', e.message);
             send(clientWs, { type: 'error', message: 'Lỗi kết nối AI' });
           },
-          onclose: () => {
+          onclose: (e: any) => {
+            console.log('[BE-WS] ❌ Gemini session closed:', e?.reason);
             if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
           },
         },
@@ -271,7 +278,7 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
 
       session.geminiSession = geminiSession;
     } catch (err: any) {
-      console.error('[voice-chat] Failed to connect to Gemini:', err.message);
+      console.error('[BE-WS] ❌ Failed to connect to Gemini:', err.message);
       send(clientWs, { type: 'error', message: 'Không thể kết nối AI' });
       clientWs.close(4002, 'Gemini connection failed');
       return;
@@ -282,9 +289,12 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
       resetInactivityTimer(session, clientWs);
     });
 
-    clientWs.on('close', () => cleanup(session));
+    clientWs.on('close', (code, reason) => {
+      console.log('[BE-WS] client closed — code:', code, 'reason:', reason?.toString());
+      cleanup(session);
+    });
     clientWs.on('error', (err) => {
-      console.error('[voice-chat] Client WS error:', err.message);
+      console.error('[BE-WS] client WS error:', err.message);
       cleanup(session);
     });
   });
