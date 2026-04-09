@@ -264,13 +264,14 @@ export function DoctorHomeScreen() {
   // Computed
   // -----------------------------------------------------------------------
 
-  const todayAppointments = appointments.filter(
-    (a) => isToday(a.timeSlot?.date) && a.status !== 'CANCELED'
+  // All PENDING in specialty (any date) + today's non-PENDING non-CANCELED
+  const pendingAll = appointments.filter((a) => a.status === 'PENDING');
+  const todayNonPending = appointments.filter(
+    (a) => isToday(a.timeSlot?.date) && a.status !== 'CANCELED' && a.status !== 'PENDING'
   );
-  const todayCompleted = todayAppointments.filter((a) => a.status === 'COMPLETED').length;
-  const todayPending = todayAppointments.filter(
-    (a) => a.status === 'PENDING' || a.status === 'CONFIRMED'
-  ).length;
+  const displayAppointments = [...pendingAll, ...todayNonPending];
+  const todayCompleted = displayAppointments.filter((a) => a.status === 'COMPLETED' || a.status === 'AWAITING_PAYMENT').length;
+  const todayPending = pendingAll.length;
 
   // -----------------------------------------------------------------------
   // Render
@@ -498,8 +499,8 @@ export function DoctorHomeScreen() {
       <View style={styles.statsRow}>
         <StatCard
           icon="account-group"
-          value={todayAppointments.length}
-          label="Bệnh nhân hôm nay"
+          value={displayAppointments.length}
+          label="Tổng lịch hẹn"
           color={figmaColors.info}
           bg={figmaColors.infoBg}
           delay={100}
@@ -559,7 +560,7 @@ export function DoctorHomeScreen() {
             style={{ width: 100, height: 100 }}
           />
         </View>
-      ) : todayAppointments.length === 0 ? (
+      ) : displayAppointments.length === 0 ? (
         <FadeInView delay={450}>
           <EmptyState
             icon="calendar-blank"
@@ -568,7 +569,7 @@ export function DoctorHomeScreen() {
         </FadeInView>
       ) : (
         <FlatList
-          data={todayAppointments}
+          data={displayAppointments}
           keyExtractor={(item) => item.id}
           renderItem={renderAppointmentCard}
           scrollEnabled={false}

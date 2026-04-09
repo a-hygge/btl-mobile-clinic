@@ -982,7 +982,8 @@ export function BookingScreen() {
               mode="text"
               onPress={() => {
                 setShowSuccess(false);
-                router.dismissAll();
+                // Navigate to home tab
+                router.navigate('/(tabs)/home' as never);
               }}
               textColor={figmaColors.textSecondary}
               labelStyle={{ fontSize: 14 }}
