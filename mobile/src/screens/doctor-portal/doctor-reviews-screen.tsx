@@ -65,12 +65,14 @@ export function DoctorReviewsScreen() {
       const reviewsRes = await api.get(`/doctors/${doctorId}/reviews`, {
         params: { limit: 100 },
       });
-      try {
-        const { data } = extractPaginatedData<Review[]>(reviewsRes);
-        setReviews(Array.isArray(data) ? data : []);
-      } catch {
-        const data = extractData<Review[]>(reviewsRes);
-        setReviews(Array.isArray(data) ? data : []);
+      // API may return { data: [...] } or { data: { items: [...] } }
+      const raw = extractData<Review[] | { items: Review[] }>(reviewsRes);
+      if (Array.isArray(raw)) {
+        setReviews(raw);
+      } else if (raw && Array.isArray((raw as { items: Review[] }).items)) {
+        setReviews((raw as { items: Review[] }).items);
+      } else {
+        setReviews([]);
       }
     } catch {
       // silently handle
