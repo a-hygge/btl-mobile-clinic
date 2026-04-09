@@ -15,6 +15,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@google/genai": "^1.49.0",
     "@prisma/client": "^6.4.1",
     "@types/node-cron": "^3.0.11",
     "axios": "^1.15.0",

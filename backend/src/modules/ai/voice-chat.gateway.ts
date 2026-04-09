@@ -1,12 +1,15 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server as HttpServer } from 'http';
 import jwt from 'jsonwebtoken';
+import { GoogleGenAI, Modality } from '@google/genai';
 import { env } from '../../config/env';
 import { prisma } from '../../config/database';
 import type { ChatMessageRole } from '@prisma/client';
 
-const GEMINI_WS_URL =
-  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+const GOOGLE_API_KEY = 'AIzaSyAxu3R5xFTtKDJAxFXX12lnwW5Tn2uoGRs';
+const GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
+
+const ai = new GoogleGenAI({ apiKey: GOOGLE_API_KEY });
 
 const VOICE_SYSTEM_PROMPT = `Bạn là trợ lý y tế ảo của hệ thống đặt lịch khám bệnh.
 - Hỏi làm rõ triệu chứng (tối đa 2-3 câu hỏi)
@@ -20,7 +23,7 @@ const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
 interface ClientSession {
   userId: string;
   chatSessionId: string;
-  geminiWs: WebSocket | null;
+  geminiSession: any | null;
   audioChunks: Buffer[];
   inputTranscript: string;
   outputTranscript: string;
@@ -55,27 +58,14 @@ function createWavBuffer(pcmData: Buffer, sampleRate = 24000): Buffer {
   return Buffer.concat([header, pcmData]);
 }
 
-// ── Gemini message handlers ──────────────────────────────────
+// ── Handle Gemini SDK message ────────────────────────────────
 
-function handleGeminiMessage(
-  raw: Buffer | string,
+function handleGeminiSdkMessage(
+  response: any,
   session: ClientSession,
   clientWs: WebSocket,
 ) {
-  let msg: any;
-  try {
-    msg = JSON.parse(raw.toString());
-  } catch {
-    return;
-  }
-
-  if (msg.setupComplete) {
-    send(clientWs, { type: 'ready', sessionId: session.chatSessionId });
-    resetInactivityTimer(session, clientWs);
-    return;
-  }
-
-  const sc = msg.serverContent;
+  const sc = response.serverContent;
   if (!sc) return;
 
   if (sc.modelTurn?.parts) {
@@ -119,9 +109,11 @@ function handleGeminiMessage(
   }
 }
 
+// ── Handle client message ────────────────────────────────────
+
 function handleClientMessage(raw: Buffer | string, session: ClientSession) {
-  const gws = session.geminiWs;
-  if (!gws || gws.readyState !== WebSocket.OPEN) return;
+  const gemini = session.geminiSession;
+  if (!gemini) return;
 
   let msg: any;
   try {
@@ -132,11 +124,9 @@ function handleClientMessage(raw: Buffer | string, session: ClientSession) {
 
   if (msg.type === 'audio') {
     const pcmBase64 = stripWavHeader(msg.data);
-    gws.send(JSON.stringify({
-      realtimeInput: {
-        audio: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' },
-      },
-    }));
+    gemini.sendRealtimeInput({
+      audio: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' },
+    });
   } else if (msg.type === 'text') {
     prisma.chatMessage
       .create({
@@ -148,7 +138,7 @@ function handleClientMessage(raw: Buffer | string, session: ClientSession) {
       })
       .catch(console.error);
 
-    gws.send(JSON.stringify({ realtimeInput: { text: msg.content } }));
+    gemini.sendRealtimeInput({ text: msg.content });
   }
 }
 
@@ -196,16 +186,16 @@ function resetInactivityTimer(
   session.inactivityTimer = setTimeout(() => {
     console.log(`[voice-chat] session ${session.chatSessionId} timed out`);
     clientWs.close(4000, 'Inactivity timeout');
-    session.geminiWs?.close();
+    session.geminiSession?.close();
   }, INACTIVITY_TIMEOUT_MS);
 }
 
 function cleanup(session: ClientSession) {
   if (session.inactivityTimer) clearTimeout(session.inactivityTimer);
-  if (session.geminiWs?.readyState === WebSocket.OPEN) {
-    session.geminiWs.close();
-  }
-  session.geminiWs = null;
+  try {
+    session.geminiSession?.close();
+  } catch { /* ignore */ }
+  session.geminiSession = null;
 }
 
 // ── Public setup ─────────────────────────────────────────────
@@ -238,22 +228,18 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     const session: ClientSession = {
       userId,
       chatSessionId: chatSession.id,
-      geminiWs: null,
+      geminiSession: null,
       audioChunks: [],
       inputTranscript: '',
       outputTranscript: '',
       inactivityTimer: null,
     };
 
-    const geminiUrl = `${GEMINI_WS_URL}?key=AIzaSyAxu3R5xFTtKDJAxFXX12lnwW5Tn2uoGRs`;
-    const geminiWs = new WebSocket(geminiUrl);
-    session.geminiWs = geminiWs;
-
-    geminiWs.on('open', () => {
-      geminiWs.send(JSON.stringify({
+    try {
+      const geminiSession = await ai.live.connect({
+        model: GEMINI_MODEL,
         config: {
-          model: 'models/gemini-3.1-flash-live-preview',
-          responseModalities: ['AUDIO'],
+          responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -262,18 +248,34 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
           systemInstruction: {
             parts: [{ text: VOICE_SYSTEM_PROMPT }],
           },
-          realtimeInputConfig: {
-            inputAudioTranscription: {},
-          },
+          inputAudioTranscription: {},
           outputAudioTranscription: {},
         },
-      }));
+        callbacks: {
+          onopen: () => {
+            send(clientWs, { type: 'ready', sessionId: session.chatSessionId });
+            resetInactivityTimer(session, clientWs);
+          },
+          onmessage: (message: any) => {
+            handleGeminiSdkMessage(message, session, clientWs);
+          },
+          onerror: (e: any) => {
+            console.error('[voice-chat] Gemini SDK error:', e.message);
+            send(clientWs, { type: 'error', message: 'Lỗi kết nối AI' });
+          },
+          onclose: () => {
+            if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+          },
+        },
+      });
 
-    });
-
-    geminiWs.on('message', (data) => {
-      handleGeminiMessage(data as Buffer, session, clientWs);
-    });
+      session.geminiSession = geminiSession;
+    } catch (err: any) {
+      console.error('[voice-chat] Failed to connect to Gemini:', err.message);
+      send(clientWs, { type: 'error', message: 'Không thể kết nối AI' });
+      clientWs.close(4002, 'Gemini connection failed');
+      return;
+    }
 
     clientWs.on('message', (data) => {
       handleClientMessage(data as Buffer, session);
@@ -281,14 +283,6 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     });
 
     clientWs.on('close', () => cleanup(session));
-    geminiWs.on('close', () => {
-      if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
-    });
-    geminiWs.on('error', (err) => {
-      console.error('[voice-chat] Gemini WS error:', err.message);
-      send(clientWs, { type: 'error', message: 'Lỗi kết nối AI' });
-      geminiWs.close();
-    });
     clientWs.on('error', (err) => {
       console.error('[voice-chat] Client WS error:', err.message);
       cleanup(session);
