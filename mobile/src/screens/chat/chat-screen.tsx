@@ -5,7 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  FlatList,
+  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 // expo-video loaded lazily — may not be in native build
@@ -29,6 +30,7 @@ import {
   figmaSpacing,
   figmaRadius,
 } from '../../constants/theme';
+import { getSessionMessages, ChatMessageItem } from '../../services/chat.service';
 
 // Lazy-load expo-av (requires native build / dev client)
 let Audio: any = null;
@@ -48,6 +50,14 @@ const WS_URL = API_URL.replace(/^http/, 'ws').replace('/api/v1', '') + '/ws/voic
 
 type VoiceState = 'CONNECTING' | 'IDLE' | 'LISTENING' | 'PROCESSING' | 'AI_SPEAKING';
 
+// Chat bubble type for in-memory conversation history
+interface ChatBubble {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 // Recording options built lazily (Audio may not be available in Expo Go)
 function getRecordingOptions() {
   if (!Audio) return null;
@@ -55,9 +65,6 @@ function getRecordingOptions() {
     isMeteringEnabled: false,
     android: {
       extension: '.wav',
-      // Android 10+ supports PCM/WAV via MPEG_2_TS workaround is unreliable;
-      // use AAC in MP4 container — backend will detect and convert if needed,
-      // but most modern Android devices handle DEFAULT as PCM when extension is .wav
       outputFormat: Audio.AndroidOutputFormat.DEFAULT,
       audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
       sampleRate: 16000,
@@ -80,7 +87,7 @@ function getRecordingOptions() {
 }
 
 /**
- * Voice-first AI chat screen.
+ * Voice-assistant hybrid AI chat screen.
  * Exported as ChatScreen to keep tab route unchanged.
  */
 export function ChatScreen() {
@@ -88,14 +95,15 @@ export function ChatScreen() {
   const [token, setToken] = useState<string | null>(null);
 
   const [state, setState] = useState<VoiceState>('CONNECTING');
-  const [subtitle, setSubtitle] = useState('');
   const [textInput, setTextInput] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatBubble[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<any>(null);
   const soundRef = useRef<any>(null);
   const playingRef = useRef(false);
+  const flatListRef = useRef<FlatList>(null);
 
   // ── Video player for avatar (may be null if expo-video unavailable) ──
   const player = useVideoPlayer ? useVideoPlayer(WAITING_VIDEO, (p: any) => {
@@ -104,7 +112,6 @@ export function ChatScreen() {
   }) : null;
 
   // ── Load token from SecureStore ──────────────────────────
-
   useEffect(() => {
     SecureStore.getItemAsync('accessToken').then((t) => {
       if (t) setToken(t);
@@ -124,8 +131,50 @@ export function ChatScreen() {
     player.play();
   }, [isTalking]);
 
-  // ── WebSocket lifecycle ──────────────────────────────────
+  // ── Helper: add or update a message bubble ───────────────
+  const addMessage = useCallback((bubble: ChatBubble) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === bubble.id);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = bubble;
+        return updated;
+      }
+      return [...prev, bubble];
+    });
+  }, []);
 
+  // ── Load session history ─────────────────────────────────
+  useEffect(() => {
+    if (!sessionId) return;
+    const welcomeMsg: ChatBubble = {
+      id: 'welcome',
+      role: 'assistant',
+      content: 'Xin chào! Tôi là trợ lý AI sức khỏe. Tôi có thể giúp gì cho bạn?',
+      timestamp: new Date(),
+    };
+    getSessionMessages(sessionId)
+      .then((data) => {
+        if (data.messages && data.messages.length > 0) {
+          const history: ChatBubble[] = data.messages.map(
+            (m: ChatMessageItem) => ({
+              id: m.id,
+              role: m.role === 'USER' ? 'user' as const : 'assistant' as const,
+              content: m.content,
+              timestamp: new Date(m.createdAt),
+            })
+          );
+          setMessages(history);
+        } else {
+          setMessages([welcomeMsg]);
+        }
+      })
+      .catch(() => {
+        setMessages([welcomeMsg]);
+      });
+  }, [sessionId]);
+
+  // ── WebSocket lifecycle ──────────────────────────────────
   useEffect(() => {
     if (!token) {
       console.log('[FE-WS] no token yet, skipping WS connect');
@@ -139,7 +188,7 @@ export function ChatScreen() {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('[FE-WS] ✅ onopen — readyState:', ws.readyState);
+      console.log('[FE-WS] onopen — readyState:', ws.readyState);
     };
 
     ws.onmessage = (event) => {
@@ -157,24 +206,60 @@ export function ChatScreen() {
         case 'ready':
           setSessionId(msg.sessionId);
           setState('IDLE');
-          setSubtitle('Xin chào! Tôi có thể giúp gì cho bạn?');
-          break;
-
-        case 'transcript_out':
-          setSubtitle((prev) => prev + msg.text);
+          // Welcome message shown only if history load finds nothing (see useEffect below)
           break;
 
         case 'transcript_in':
+          addMessage({
+            id: 'user-pending',
+            role: 'user',
+            content: msg.text,
+            timestamp: new Date(),
+          });
+          break;
+
+        case 'transcript_out':
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === 'ai-streaming');
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                content: updated[idx].content + msg.text,
+              };
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: 'ai-streaming',
+                role: 'assistant' as const,
+                content: msg.text,
+                timestamp: new Date(),
+              },
+            ];
+          });
           break;
 
         case 'audio_response':
           playingRef.current = true;
           setState('AI_SPEAKING');
-          setSubtitle('');
           playAudio(msg.audio);
           break;
 
         case 'turn_complete':
+          // Finalize pending message IDs
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id === 'user-pending') {
+                return { ...m, id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
+              }
+              if (m.id === 'ai-streaming') {
+                return { ...m, id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
+              }
+              return m;
+            })
+          );
           if (!playingRef.current) {
             setState('IDLE');
           }
@@ -182,25 +267,48 @@ export function ChatScreen() {
 
         case 'interrupted':
           stopPlayback();
+          // Finalize streaming messages
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id === 'ai-streaming') {
+                return { ...m, id: `ai-interrupted-${Date.now()}` };
+              }
+              return m;
+            })
+          );
           setState('IDLE');
-          setSubtitle('');
           break;
 
         case 'error':
           console.warn('[FE-WS] server error:', msg.message);
+          addMessage({
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: msg.message || 'Đã xảy ra lỗi. Vui lòng thử lại.',
+            timestamp: new Date(),
+          });
           setState('IDLE');
           break;
       }
     };
 
     ws.onclose = (event) => {
-      console.log('[FE-WS] ❌ onclose — code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
+      console.log(
+        '[FE-WS] onclose — code:', event.code,
+        'reason:', event.reason,
+        'wasClean:', event.wasClean
+      );
     };
 
     ws.onerror = (err) => {
       console.error('[FE-WS] onerror:', JSON.stringify(err));
       setState('IDLE');
-      setSubtitle('Kết nối voice không thành công. Bạn có thể nhập tin nhắn bằng văn bản.');
+      addMessage({
+        id: `error-conn-${Date.now()}`,
+        role: 'assistant',
+        content: 'Kết nối voice không thành công. Bạn có thể nhập tin nhắn bằng văn bản.',
+        timestamp: new Date(),
+      });
     };
 
     // Fallback: if not ready after 5s, go IDLE for text-only mode
@@ -208,7 +316,6 @@ export function ChatScreen() {
       console.log('[FE-WS] 5s timeout — readyState:', ws.readyState, 'state:', state);
       if (ws.readyState !== WebSocket.OPEN || state === 'CONNECTING') {
         setState('IDLE');
-        setSubtitle('Đang chờ kết nối voice... Bạn có thể nhập tin nhắn.');
       }
     }, 5000);
 
@@ -296,7 +403,12 @@ export function ChatScreen() {
     } catch (err) {
       console.error('[VoiceChat] Recording start error:', err);
       setState('IDLE');
-      setSubtitle('Không thể ghi âm. Vui lòng nhập tin nhắn bằng văn bản.');
+      addMessage({
+        id: `error-rec-${Date.now()}`,
+        role: 'assistant',
+        content: 'Không thể ghi âm. Vui lòng nhập tin nhắn bằng văn bản.',
+        timestamp: new Date(),
+      });
     }
   };
 
@@ -309,7 +421,10 @@ export function ChatScreen() {
       const uri = recording.getURI();
       recordingRef.current = null;
 
-      console.log('[FE-WS] stopRecording — uri:', uri ? 'yes' : 'no', 'ws readyState:', wsRef.current?.readyState);
+      console.log(
+        '[FE-WS] stopRecording — uri:', uri ? 'yes' : 'no',
+        'ws readyState:', wsRef.current?.readyState
+      );
       if (uri && wsRef.current?.readyState === WebSocket.OPEN) {
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
@@ -318,17 +433,20 @@ export function ChatScreen() {
         console.log('[FE-WS] sending audio, size:', base64.length, 'chars');
         wsRef.current.send(JSON.stringify({ type: 'audio', data: base64 }));
         setState('PROCESSING');
-        setSubtitle('');
 
         // Timeout: if no response in 15s, go back to IDLE
         setTimeout(() => {
           setState((prev) => prev === 'PROCESSING' ? 'IDLE' : prev);
-          setSubtitle((prev) => prev || 'Không nhận được phản hồi. Thử lại hoặc nhập văn bản.');
         }, 15000);
       } else {
         console.log('[FE-WS] WS not open, cannot send audio');
         setState('IDLE');
-        setSubtitle('Kết nối voice đã mất. Vui lòng nhập văn bản.');
+        addMessage({
+          id: `error-ws-${Date.now()}`,
+          role: 'assistant',
+          content: 'Kết nối voice đã mất. Vui lòng nhập văn bản.',
+          timestamp: new Date(),
+        });
       }
     } catch (err) {
       console.error('[VoiceChat] Recording stop error:', err);
@@ -356,9 +474,17 @@ export function ChatScreen() {
     const text = textInput.trim();
     if (!text || state !== 'IDLE') return;
 
+    // Add user bubble immediately
+    const userBubbleId = `user-${Date.now()}`;
+    addMessage({
+      id: userBubbleId,
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    });
+
     setTextInput('');
     setState('PROCESSING');
-    setSubtitle('');
 
     // Try WS first
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -378,21 +504,83 @@ export function ChatScreen() {
         body: JSON.stringify({ message: text }),
       });
       const json = await res.json();
-      const reply = json?.data?.aiMessage?.content ?? json?.data?.reply ?? 'Không có phản hồi.';
-      setSubtitle(reply);
+      const reply =
+        json?.data?.aiMessage?.content ?? json?.data?.reply ?? 'Không có phản hồi.';
+      addMessage({
+        id: `ai-rest-${Date.now()}`,
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date(),
+      });
       setState('IDLE');
     } catch (err) {
       console.error('[Chat] REST fallback error:', err);
-      setSubtitle('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      addMessage({
+        id: `error-rest-${Date.now()}`,
+        role: 'assistant',
+        content: 'Không thể gửi tin nhắn. Vui lòng thử lại.',
+        timestamp: new Date(),
+      });
       setState('IDLE');
     }
-  }, [textInput, state, token]);
+  }, [textInput, state, token, addMessage]);
 
-  // ── End session ─────────────────────────────────────────
+  // ── Status text + dot color ─────────────────────────────
+  const getStatusInfo = (): { text: string; dotColor: string } => {
+    switch (state) {
+      case 'CONNECTING':
+        return { text: 'Đang kết nối...', dotColor: figmaColors.warning };
+      case 'IDLE':
+        return { text: 'Trực tuyến', dotColor: figmaColors.success };
+      case 'LISTENING':
+        return { text: 'Đang nghe...', dotColor: '#EF4444' };
+      case 'PROCESSING':
+        return { text: 'Đang suy nghĩ...', dotColor: figmaColors.warning };
+      case 'AI_SPEAKING':
+        return { text: 'Đang trả lời...', dotColor: figmaColors.primary };
+      default:
+        return { text: '', dotColor: figmaColors.textMuted };
+    }
+  };
 
-  const endSession = useCallback(() => {
-    wsRef.current?.close();
-    router.back();
+  const statusInfo = getStatusInfo();
+
+  // ── Render a single chat bubble ──────────────────────────
+  const renderBubble = useCallback(({ item }: { item: ChatBubble }) => {
+    const isUser = item.role === 'user';
+    return (
+      <View
+        style={[
+          styles.bubbleRow,
+          isUser ? styles.bubbleRowRight : styles.bubbleRowLeft,
+        ]}
+      >
+        {!isUser && (
+          <View style={styles.bubbleIcon}>
+            <MaterialCommunityIcons
+              name="robot-outline"
+              size={18}
+              color={figmaColors.primary}
+            />
+          </View>
+        )}
+        <View
+          style={[
+            styles.bubble,
+            isUser ? styles.bubbleUser : styles.bubbleAssistant,
+          ]}
+        >
+          <Text
+            style={[
+              styles.bubbleText,
+              isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant,
+            ]}
+          >
+            {item.content}
+          </Text>
+        </View>
+      </View>
+    );
   }, []);
 
   return (
@@ -410,54 +598,57 @@ export function ChatScreen() {
         }
       />
 
-      <View style={styles.content}>
-        {/* Video Avatar */}
-        <View style={styles.avatarContainer}>
-          {VideoView && player ? (
-            <VideoView
-              player={player}
-              style={styles.avatar}
-              nativeControls={false}
-              contentFit="cover"
-            />
-          ) : (
-            <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: figmaColors.pastelBlue }]}>
-              <MaterialCommunityIcons
-                name={isTalking ? 'account-voice' : 'robot-outline'}
-                size={80}
-                color={isTalking ? figmaColors.primary : figmaColors.textMuted}
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        {/* Avatar bar — small avatar top-left + name + status */}
+        <View style={styles.avatarBar}>
+          <View style={styles.smallAvatarContainer}>
+            {VideoView && player ? (
+              <VideoView
+                player={player}
+                style={styles.smallAvatar}
+                nativeControls={false}
+                contentFit="cover"
               />
+            ) : (
+              <View style={[styles.smallAvatar, styles.smallAvatarFallback]}>
+                <MaterialCommunityIcons
+                  name={isTalking ? 'account-voice' : 'robot-outline'}
+                  size={28}
+                  color={isTalking ? figmaColors.primary : figmaColors.textMuted}
+                />
+              </View>
+            )}
+          </View>
+          <View style={styles.avatarInfo}>
+            <Text style={styles.avatarName}>Trợ lý AI</Text>
+            <View style={styles.statusRow}>
+              <View
+                style={[styles.statusDot, { backgroundColor: statusInfo.dotColor }]}
+              />
+              <Text style={styles.statusText}>{statusInfo.text}</Text>
             </View>
-          )}
-          {state === 'CONNECTING' && (
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>Đang kết nối...</Text>
-            </View>
-          )}
-          {state === 'PROCESSING' && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>AI đang suy nghĩ...</Text>
-            </View>
-          )}
-          {state === 'LISTENING' && (
-            <View style={[styles.badge, styles.badgeRed]}>
-              <Text style={styles.badgeText}>Đang nghe...</Text>
-            </View>
-          )}
+          </View>
         </View>
 
-        {/* Subtitle */}
-        {subtitle ? (
-          <View style={styles.subtitleBox}>
-            <Text style={styles.subtitleText} numberOfLines={3}>
-              {subtitle}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.subtitleBox} />
-        )}
+        {/* Chat transcript */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderBubble}
+          style={styles.chatList}
+          contentContainerStyle={styles.chatListContent}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }}
+        />
 
-        {/* Text input */}
+        {/* Text input bar */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.textInput}
@@ -480,37 +671,30 @@ export function ChatScreen() {
           ) : null}
         </View>
 
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
+        {/* Mic toggle button */}
+        <View style={styles.micRow}>
           <TouchableOpacity
-            style={[styles.micBtn, state === 'LISTENING' && styles.micBtnActive]}
+            style={[
+              styles.micBtn,
+              (state === 'LISTENING') && styles.micBtnActive,
+            ]}
             onPress={toggleMic}
             disabled={micDisabled}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons
-              name={state === 'LISTENING' ? 'stop' : 'microphone'}
-              size={32}
+              name={state === 'LISTENING' ? 'microphone-off' : 'microphone'}
+              size={28}
               color="#fff"
             />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.endBtn}
-            onPress={endSession}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="phone-hangup" size={26} color="#fff" />
-          </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────
-
-const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -519,71 +703,128 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
 
-  // Avatar
-  avatarContainer: {
-    width: width * 0.85,
-    height: height * 0.42,
-    borderRadius: figmaRadius.xl,
+  // Avatar bar
+  avatarBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.md,
+    backgroundColor: figmaColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: figmaColors.border,
+  },
+  smallAvatarContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: 'hidden',
-    marginTop: figmaSpacing.xl,
     backgroundColor: '#000',
   },
-  avatar: {
-    width: '100%',
-    height: '100%',
+  smallAvatar: {
+    width: 56,
+    height: 56,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+  smallAvatarFallback: {
+    backgroundColor: figmaColors.pastelBlue,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 28,
   },
-  overlayText: {
-    color: '#fff',
+  avatarInfo: {
+    marginLeft: figmaSpacing.md,
+    flex: 1,
+  },
+  avatarName: {
     fontSize: figmaFonts.sizes.lg,
     fontWeight: figmaFonts.weights.semibold,
+    color: figmaColors.textPrimary,
   },
-  badge: {
-    position: 'absolute',
-    bottom: figmaSpacing.md,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: figmaSpacing.lg,
-    paddingVertical: figmaSpacing.sm,
-    borderRadius: figmaRadius.pill,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
   },
-  badgeRed: {
-    backgroundColor: 'rgba(239,68,68,0.8)',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: figmaSpacing.xs,
   },
-  badgeText: {
-    color: '#fff',
-    fontSize: figmaFonts.sizes.base,
-    fontWeight: figmaFonts.weights.medium,
+  statusText: {
+    fontSize: figmaFonts.sizes.sm,
+    color: figmaColors.textSecondary,
   },
 
-  // Subtitle
-  subtitleBox: {
-    minHeight: 60,
-    paddingHorizontal: figmaSpacing['2xl'],
-    justifyContent: 'center',
+  // Chat list
+  chatList: {
+    flex: 1,
   },
-  subtitleText: {
-    fontSize: figmaFonts.sizes.lg,
+  chatListContent: {
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.md,
+  },
+
+  // Bubble rows
+  bubbleRow: {
+    flexDirection: 'row',
+    marginBottom: figmaSpacing.sm,
+    maxWidth: '75%',
+  },
+  bubbleRowLeft: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  bubbleRowRight: {
+    alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
+  },
+  bubbleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: figmaColors.pastelBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: figmaSpacing.xs,
+    marginBottom: 2,
+  },
+
+  // Bubbles
+  bubble: {
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.md,
+    borderRadius: figmaRadius.lg,
+    flexShrink: 1,
+  },
+  bubbleUser: {
+    backgroundColor: figmaColors.primary,
+    borderBottomRightRadius: figmaSpacing.xs,
+  },
+  bubbleAssistant: {
+    backgroundColor: figmaColors.surface,
+    borderWidth: 1,
+    borderColor: figmaColors.border,
+    borderBottomLeftRadius: figmaSpacing.xs,
+  },
+  bubbleText: {
+    fontSize: figmaFonts.sizes.md,
+    lineHeight: figmaFonts.sizes.md * figmaFonts.lineHeights.relaxed,
+  },
+  bubbleTextUser: {
+    color: '#FFFFFF',
+  },
+  bubbleTextAssistant: {
     color: figmaColors.textPrimary,
-    textAlign: 'center',
-    lineHeight: figmaFonts.sizes.lg * figmaFonts.lineHeights.relaxed,
   },
 
   // Input
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: figmaSpacing.xl,
+    paddingHorizontal: figmaSpacing.lg,
+    paddingVertical: figmaSpacing.sm,
     gap: figmaSpacing.sm,
   },
   textInput: {
@@ -606,29 +847,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Actions
-  actionRow: {
-    flexDirection: 'row',
+  // Mic
+  micRow: {
     alignItems: 'center',
-    gap: figmaSpacing['2xl'],
+    marginBottom: figmaSpacing['2xl'],
+    paddingTop: figmaSpacing.sm,
   },
   micBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: figmaColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   micBtnActive: {
     backgroundColor: '#EF4444',
-  },
-  endBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#EF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
