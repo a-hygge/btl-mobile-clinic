@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { prisma } from '../../config/database';
+import { env } from '../../config/env';
 import { visionAnalysis } from '../../utils/ai-client';
 import type { SavePrescriptionInput, GetPrescriptionsQuery } from './prescription.schemas';
 
@@ -49,7 +50,7 @@ export class PrescriptionService {
 
     let aiResponse: string;
     try {
-      aiResponse = await visionAnalysis(dataUri, OCR_PROMPT);
+      aiResponse = await visionAnalysis(dataUri, OCR_PROMPT, { model: env.AI_OCR_MODEL });
       console.log('[ocr] AI raw response (first 500):', aiResponse.slice(0, 500));
     } catch (err) {
       console.error('[ocr] AI vision call failed:', err);
