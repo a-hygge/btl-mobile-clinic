@@ -198,7 +198,7 @@ export function ChatScreen() {
       const { sound } = await Audio.Sound.createAsync({ uri: fileUri });
       soundRef.current = sound;
 
-      sound.setOnPlaybackStatusUpdate((status) => {
+      sound.setOnPlaybackStatusUpdate((status: any) => {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
           soundRef.current = null;
