@@ -48,6 +48,12 @@ const STATUS_CONFIG: Record<
     icon: 'check-circle-outline',
     label: 'Đã xác nhận',
   },
+  AWAITING_PAYMENT: {
+    color: '#fff',
+    bgColor: PURPLE,
+    icon: 'cash-clock',
+    label: 'Chờ thanh toán',
+  },
   COMPLETED: {
     color: '#fff',
     bgColor: figmaColors.success,
@@ -240,6 +246,26 @@ export function AppointmentDetailScreen({
     );
   }
 
+  const [paying, setPaying] = useState(false);
+
+  async function handlePay() {
+    setPaying(true);
+    try {
+      const res = await api.put(`/appointments/${appointmentId}/pay`, { method: 'VNPAY' });
+      const updated = extractData<Appointment>(res);
+      setAppointment(updated);
+      setNotice('Thanh toán thành công!');
+      // After short delay, navigate to review
+      setTimeout(() => {
+        router.push({ pathname: '/review', params: { appointmentId } });
+      }, 1200);
+    } catch {
+      setNotice('Thanh toán thất bại. Vui lòng thử lại.');
+    } finally {
+      setPaying(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top + 60 }]}>
@@ -277,6 +303,7 @@ export function AppointmentDetailScreen({
   const review = appointment.review;
   const canCancel =
     appointment.status === 'PENDING' || appointment.status === 'CONFIRMED';
+  const canPay = appointment.status === 'AWAITING_PAYMENT';
   const canReview =
     appointment.status === 'COMPLETED' && !review;
 
@@ -538,25 +565,10 @@ export function AppointmentDetailScreen({
                 ) : (
                   <View style={styles.paymentContent}>
                     <Text style={styles.noPaymentText}>
-                      Chưa có thông tin thanh toán.
+                      {canPay
+                        ? 'Bác sĩ đã hoàn tất khám. Vui lòng thanh toán bên dưới.'
+                        : 'Chưa có thông tin thanh toán.'}
                     </Text>
-                    {canCancel && (
-                      <Button
-                        mode="contained"
-                        onPress={() =>
-                          router.push({
-                            pathname: '/payment',
-                            params: { appointmentId: appointment.id },
-                          })
-                        }
-                        buttonColor={figmaColors.success}
-                        textColor="#fff"
-                        icon="credit-card"
-                        style={styles.payNowBtn}
-                      >
-                        Thanh toán ngay
-                      </Button>
-                    )}
                   </View>
                 )}
               </View>
@@ -655,6 +667,42 @@ export function AppointmentDetailScreen({
                 >
                   Hủy lịch hẹn
                 </Button>
+              )}
+
+              {canPay && (
+                <>
+                  <GlassCard style={styles.qrCard}>
+                    <View style={styles.qrContent}>
+                      <Text style={styles.qrTitle}>Quét mã QR để thanh toán</Text>
+                      <Image
+                        source={{
+                          uri: `https://img.vietqr.io/image/970422-0123456789-compact2.png?amount=${Math.round(appointment.totalAmount)}&addInfo=BTL+${appointment.id.slice(0, 8)}&accountName=BTL+Healthcare`,
+                        }}
+                        style={styles.qrImage}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.qrAmount}>
+                        {formatVND(appointment.totalAmount)}
+                      </Text>
+                      <Text style={styles.qrNote}>
+                        MB Bank • STK: 0123456789
+                      </Text>
+                    </View>
+                  </GlassCard>
+                  <Button
+                    mode="contained"
+                    onPress={handlePay}
+                    loading={paying}
+                    disabled={paying}
+                    buttonColor={figmaColors.success}
+                    textColor="#fff"
+                    icon="check-circle"
+                    style={styles.payBtn}
+                    contentStyle={styles.actionBtnContent}
+                  >
+                    {paying ? 'Đang xử lý...' : 'Xác nhận đã thanh toán'}
+                  </Button>
+                </>
               )}
 
               {canReview && (
@@ -886,6 +934,35 @@ const styles = StyleSheet.create({
   },
   reviewBtn: {
     borderRadius: 14,
+  },
+  payBtn: {
+    borderRadius: 14,
+  },
+  qrCard: {
+    marginBottom: 12,
+  },
+  qrContent: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  qrTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: figmaColors.textPrimary,
+  },
+  qrImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+  },
+  qrAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: figmaColors.primary,
+  },
+  qrNote: {
+    fontSize: 12,
+    color: figmaColors.textMuted,
   },
   actionBtnContent: {
     paddingVertical: 4,

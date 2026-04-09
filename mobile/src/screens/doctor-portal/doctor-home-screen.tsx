@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   FlatList,
   Pressable,
@@ -41,6 +42,7 @@ function isToday(dateStr?: string): boolean {
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
   PENDING: { color: figmaColors.warning, bg: figmaColors.warningBg, label: 'Chờ xác nhận' },
   CONFIRMED: { color: figmaColors.primary, bg: figmaColors.pastelBlue, label: 'Đã xác nhận' },
+  AWAITING_PAYMENT: { color: '#7C4DFF', bg: figmaColors.pastelPurple, label: 'Chờ thanh toán' },
   COMPLETED: { color: figmaColors.success, bg: figmaColors.successBg, label: 'Hoàn thành' },
   CANCELED: { color: figmaColors.error, bg: figmaColors.errorBg, label: 'Đã hủy' },
 };
@@ -194,6 +196,33 @@ export function DoctorHomeScreen() {
     }
   };
 
+  const handleReject = (id: string) => {
+    Alert.prompt(
+      'Từ chối lịch hẹn',
+      'Vui lòng nhập lý do từ chối:',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Từ chối',
+          style: 'destructive',
+          onPress: async (reason?: string) => {
+            if (!reason?.trim()) return;
+            setActionLoading(id);
+            try {
+              await api.put(`/appointments/${id}/reject`, { reason: reason.trim() });
+              await fetchAppointments();
+            } catch { /* ignore */ } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ],
+      'plain-text',
+      '',
+      'default'
+    );
+  };
+
   const handleComplete = async (id: string) => {
     setActionLoading(id);
     try {
@@ -329,17 +358,29 @@ export function DoctorHomeScreen() {
                 ) : null}
 
                 {item.status === 'PENDING' && (
-                  <Button
-                    mode="contained"
-                    onPress={() => handleConfirm(item.id)}
-                    loading={isProcessing}
-                    disabled={isProcessing}
-                    style={styles.actionButton}
-                    buttonColor={figmaColors.primary}
-                    icon="check"
-                  >
-                    Xác nhận
-                  </Button>
+                  <View style={styles.actionRow}>
+                    <Button
+                      mode="contained"
+                      onPress={() => handleConfirm(item.id)}
+                      loading={isProcessing}
+                      disabled={isProcessing}
+                      style={styles.actionButton}
+                      buttonColor={figmaColors.primary}
+                      icon="check"
+                    >
+                      Chấp nhận
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      onPress={() => handleReject(item.id)}
+                      disabled={isProcessing}
+                      style={styles.actionButton}
+                      textColor={figmaColors.error}
+                      icon="close"
+                    >
+                      Từ chối
+                    </Button>
+                  </View>
                 )}
 
                 {item.status === 'CONFIRMED' && (
@@ -642,9 +683,14 @@ const styles = StyleSheet.create({
     backgroundColor: figmaColors.surface,
     fontSize: 14,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: figmaSpacing.xs,
+  },
   actionButton: {
     borderRadius: figmaRadius.md,
-    marginTop: figmaSpacing.xs,
+    flex: 1,
   },
 
   /* Loading */
