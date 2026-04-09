@@ -64,10 +64,10 @@ export function DoctorReviewsScreen() {
       });
       try {
         const { data } = extractPaginatedData<Review[]>(reviewsRes);
-        setReviews(data);
+        setReviews(Array.isArray(data) ? data : []);
       } catch {
         const data = extractData<Review[]>(reviewsRes);
-        setReviews(data);
+        setReviews(Array.isArray(data) ? data : []);
       }
     } catch {
       // silently handle
