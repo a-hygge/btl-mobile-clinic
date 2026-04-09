@@ -302,16 +302,26 @@ export function ChatScreen() {
       const uri = recording.getURI();
       recordingRef.current = null;
 
+      console.log('[FE-WS] stopRecording — uri:', uri ? 'yes' : 'no', 'ws readyState:', wsRef.current?.readyState);
       if (uri && wsRef.current?.readyState === WebSocket.OPEN) {
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
 
+        console.log('[FE-WS] sending audio, size:', base64.length, 'chars');
         wsRef.current.send(JSON.stringify({ type: 'audio', data: base64 }));
         setState('PROCESSING');
         setSubtitle('');
+
+        // Timeout: if no response in 15s, go back to IDLE
+        setTimeout(() => {
+          setState((prev) => prev === 'PROCESSING' ? 'IDLE' : prev);
+          setSubtitle((prev) => prev || 'Không nhận được phản hồi. Thử lại hoặc nhập văn bản.');
+        }, 15000);
       } else {
+        console.log('[FE-WS] WS not open, cannot send audio');
         setState('IDLE');
+        setSubtitle('Kết nối voice đã mất. Vui lòng nhập văn bản.');
       }
     } catch (err) {
       console.error('[VoiceChat] Recording stop error:', err);

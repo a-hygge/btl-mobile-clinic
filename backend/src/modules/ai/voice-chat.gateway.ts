@@ -113,7 +113,10 @@ function handleGeminiSdkMessage(
 
 function handleClientMessage(raw: Buffer | string, session: ClientSession) {
   const gemini = session.geminiSession;
-  if (!gemini) return;
+  if (!gemini) {
+    console.log('[BE-WS] handleClientMessage — no geminiSession, ignoring');
+    return;
+  }
 
   let msg: any;
   try {
@@ -122,8 +125,11 @@ function handleClientMessage(raw: Buffer | string, session: ClientSession) {
     return;
   }
 
+  console.log('[BE-WS] client msg type:', msg.type, msg.type === 'audio' ? `(${msg.data?.length} chars)` : msg.content?.slice(0, 100));
+
   if (msg.type === 'audio') {
     const pcmBase64 = stripWavHeader(msg.data);
+    console.log('[BE-WS] sending audio to Gemini, pcm size:', pcmBase64.length);
     gemini.sendRealtimeInput({
       audio: { data: pcmBase64, mimeType: 'audio/pcm;rate=16000' },
     });
