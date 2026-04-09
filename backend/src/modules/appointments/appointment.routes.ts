@@ -9,6 +9,8 @@ import {
   getAppointmentByIdController,
   getAvailableSlotsController,
   getMyAppointmentsController,
+  payAppointmentController,
+  rejectAppointmentController,
   rescheduleAppointmentController,
 } from './appointment.controller';
 
@@ -56,5 +58,17 @@ appointmentsRouter.put(
   authenticate,
   authorize(Role.DOCTOR),
   asyncHandler(completeAppointmentController)
+);
+appointmentsRouter.put(
+  '/:id/reject',
+  authenticate,
+  authorize(Role.DOCTOR),
+  asyncHandler(rejectAppointmentController)
+);
+appointmentsRouter.put(
+  '/:id/pay',
+  authenticate,
+  authorize(Role.PATIENT, Role.ADMIN),
+  asyncHandler(payAppointmentController)
 );
 

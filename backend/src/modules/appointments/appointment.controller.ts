@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../utils/app-error';
 import { sendSuccess } from '../../utils/api-response';
 import {
-  appointmentActionSchema,
   appointmentListQuerySchema,
   availableSlotsQuerySchema,
   createAppointmentSchema,
@@ -17,6 +16,8 @@ import {
   getAppointmentById,
   getAvailableSlots,
   getMyAppointments,
+  payAppointment,
+  rejectAppointment,
   rescheduleAppointment,
 } from './appointment.service';
 
@@ -156,13 +157,48 @@ export async function completeAppointmentController(
 ): Promise<void> {
   try {
     const user = req.user;
-    if (!user) {
-      throw AppError.unauthorized();
-    }
+    if (!user) throw AppError.unauthorized();
 
     const params = idParamSchema.parse(req.params);
-    const body = appointmentActionSchema.parse(req.body);
-    const appointment = await completeAppointment(user, params.id, body.diagnosis);
+    const body = req.body as { diagnosis?: string; serviceIds?: string[] };
+    const appointment = await completeAppointment(user, params.id, body);
+    sendSuccess(res, appointment);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function rejectAppointmentController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) throw AppError.unauthorized();
+
+    const params = idParamSchema.parse(req.params);
+    const { reason } = req.body as { reason: string };
+    if (!reason?.trim()) throw AppError.badRequest('Rejection reason is required');
+    const appointment = await rejectAppointment(user, params.id, reason.trim());
+    sendSuccess(res, appointment);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function payAppointmentController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = req.user;
+    if (!user) throw AppError.unauthorized();
+
+    const params = idParamSchema.parse(req.params);
+    const { method } = req.body as { method?: string };
+    const appointment = await payAppointment(user, params.id, method ?? 'VNPAY');
     sendSuccess(res, appointment);
   } catch (error) {
     next(error);
