@@ -70,6 +70,8 @@ function handleGeminiMessage(
   }
 
   if (msg.setupComplete) {
+    send(clientWs, { type: 'ready', sessionId: session.chatSessionId });
+    resetInactivityTimer(session, clientWs);
     return;
   }
 
@@ -269,8 +271,6 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
         },
       }));
 
-      send(clientWs, { type: 'ready', sessionId: chatSession.id });
-      resetInactivityTimer(session, clientWs);
     });
 
     geminiWs.on('message', (data) => {
@@ -289,6 +289,7 @@ export function setupVoiceChatWs(httpServer: HttpServer): void {
     geminiWs.on('error', (err) => {
       console.error('[voice-chat] Gemini WS error:', err.message);
       send(clientWs, { type: 'error', message: 'Lỗi kết nối AI' });
+      geminiWs.close();
     });
     clientWs.on('error', (err) => {
       console.error('[voice-chat] Client WS error:', err.message);
