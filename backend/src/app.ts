@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error.middleware';
@@ -12,6 +13,7 @@ import { schedulesRouter } from './modules/schedules/schedule.routes';
 import { specialtyRouter } from './modules/specialties/specialty.routes';
 import { usersRoutes } from './modules/users/users.routes';
 import { aiRoutes } from './modules/ai/ai.routes';
+import { setupVoiceChatWs } from './modules/ai/voice-chat.gateway';
 import { healthMetricsRouter } from './modules/health/health.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { paymentRoutes } from './modules/payments/payment.routes';
@@ -62,7 +64,10 @@ async function main() {
 
     NotificationScheduler.start();
 
-    app.listen(env.PORT, () => {
+    const httpServer = createServer(app);
+    setupVoiceChatWs(httpServer);
+
+    httpServer.listen(env.PORT, () => {
       console.log(`Server running on http://localhost:${env.PORT}`);
       console.log(`Environment: ${env.NODE_ENV}`);
     });
