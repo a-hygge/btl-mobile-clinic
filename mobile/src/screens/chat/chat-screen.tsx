@@ -8,7 +8,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,7 +21,17 @@ import {
   figmaRadius,
 } from '../../constants/theme';
 
-// Avatar animations removed — using Lottie + icon fallback instead
+// Lazy-load expo-av (requires native build / dev client)
+let Audio: any = null;
+try {
+  Audio = require('expo-av').Audio;
+} catch {
+  console.warn('[VoiceChat] expo-av not available — audio disabled');
+}
+
+// Assets — MP4 avatar animations
+const TALKING_VIDEO = require('../../../asset/talking_avatar.mp4');
+const WAITING_VIDEO = require('../../../asset/waiting_avatar.mp4');
 
 // Derive WS URL from API URL
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
@@ -29,30 +39,33 @@ const WS_URL = API_URL.replace(/^http/, 'ws').replace('/api/v1', '') + '/ws/voic
 
 type VoiceState = 'CONNECTING' | 'IDLE' | 'LISTENING' | 'PROCESSING' | 'AI_SPEAKING';
 
-// Recording config: WAV PCM 16kHz mono (iOS guaranteed, Android best-effort)
-const RECORDING_OPTIONS: Audio.RecordingOptions = {
-  isMeteringEnabled: false,
-  android: {
-    extension: '.wav',
-    outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-    audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 256000,
-  },
-  ios: {
-    extension: '.wav',
-    outputFormat: Audio.IOSOutputFormat.LINEARPCM,
-    audioQuality: Audio.IOSAudioQuality.HIGH,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 256000,
-    linearPCMBitDepth: 16,
-    linearPCMIsBigEndian: false,
-    linearPCMIsFloat: false,
-  },
-  web: {},
-};
+// Recording options built lazily (Audio may not be available in Expo Go)
+function getRecordingOptions() {
+  if (!Audio) return null;
+  return {
+    isMeteringEnabled: false,
+    android: {
+      extension: '.wav',
+      outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+      audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      bitRate: 256000,
+    },
+    ios: {
+      extension: '.wav',
+      outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+      audioQuality: Audio.IOSAudioQuality.HIGH,
+      sampleRate: 16000,
+      numberOfChannels: 1,
+      bitRate: 256000,
+      linearPCMBitDepth: 16,
+      linearPCMIsBigEndian: false,
+      linearPCMIsFloat: false,
+    },
+    web: {},
+  };
+}
 
 /**
  * Voice-first AI chat screen.
@@ -68,8 +81,14 @@ export function ChatScreen() {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const recordingRef = useRef<any>(null);
+  const soundRef = useRef<any>(null);
+
+  // ── Video player for avatar ─────────────────────────────
+  const player = useVideoPlayer(WAITING_VIDEO, (p) => {
+    p.loop = true;
+    p.play();
+  });
 
   // ── Load token from SecureStore ──────────────────────────
 
@@ -78,6 +97,18 @@ export function ChatScreen() {
       if (t) setToken(t);
     });
   }, []);
+
+  // ── Derived state ───────────────────────────────────────
+  const isTalking = state === 'AI_SPEAKING';
+  const micDisabled = state === 'CONNECTING' || state === 'PROCESSING';
+
+  // ── Switch avatar video on state change ──────────────────
+  useEffect(() => {
+    const source = isTalking ? TALKING_VIDEO : WAITING_VIDEO;
+    player.replace(source);
+    player.loop = true;
+    player.play();
+  }, [isTalking]);
 
   // ── WebSocket lifecycle ──────────────────────────────────
 
@@ -151,6 +182,7 @@ export function ChatScreen() {
   // ── Audio playback ───────────────────────────────────────
 
   const playAudio = async (wavBase64: string) => {
+    if (!Audio) return;
     try {
       await stopPlayback();
       await Audio.setAudioModeAsync({
@@ -198,6 +230,7 @@ export function ChatScreen() {
   // ── Audio recording (push-to-talk) ──────────────────────
 
   const startRecording = async () => {
+    if (!Audio) return;
     try {
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
@@ -207,7 +240,9 @@ export function ChatScreen() {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(RECORDING_OPTIONS);
+      const opts = getRecordingOptions();
+      if (!opts) return;
+      const { recording } = await Audio.Recording.createAsync(opts);
       recordingRef.current = recording;
       setState('LISTENING');
     } catch (err) {
@@ -276,11 +311,6 @@ export function ChatScreen() {
     router.back();
   }, []);
 
-  // ── Derived state ───────────────────────────────────────
-
-  const isTalking = state === 'AI_SPEAKING';
-  const micDisabled = state === 'CONNECTING' || state === 'PROCESSING';
-
   return (
     <View style={styles.container}>
       <GradientHeader
@@ -297,15 +327,14 @@ export function ChatScreen() {
       />
 
       <View style={styles.content}>
-        {/* Avatar */}
+        {/* Video Avatar */}
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <MaterialCommunityIcons
-              name={isTalking ? 'account-voice' : 'robot-outline'}
-              size={80}
-              color={isTalking ? figmaColors.primary : figmaColors.textMuted}
-            />
-          </View>
+          <VideoView
+            player={player}
+            style={styles.avatar}
+            nativeControls={false}
+            contentFit="cover"
+          />
           {state === 'CONNECTING' && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>Đang kết nối...</Text>
