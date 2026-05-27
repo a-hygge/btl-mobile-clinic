@@ -1,3 +1,4 @@
+/** Service phía mobile gọi các endpoint /doctors của backend (danh sách, chi tiết, slot, review). */
 import { api, extractData, extractPaginatedData } from './api';
 import type { Doctor } from '../types';
 
@@ -33,6 +34,10 @@ interface PaginatedResponse<T> {
   };
 }
 
+/**
+ * Gọi GET /doctors lấy danh sách bác sĩ có phân trang, hỗ trợ lọc/search.
+ * Trả về PaginatedResponse<Doctor[]> kèm meta phân trang.
+ */
 export async function getDoctors(params?: {
   q?: string;
   specialtyId?: string;
@@ -45,11 +50,18 @@ export async function getDoctors(params?: {
   return extractPaginatedData<Doctor[]>(response);
 }
 
+/**
+ * Gọi GET /doctors/:id lấy chi tiết một bác sĩ (kèm dịch vụ, rating). Trả về DoctorDetail.
+ */
 export async function getDoctorDetail(id: string): Promise<DoctorDetail> {
   const response = await api.get(`/doctors/${id}`);
   return extractData<DoctorDetail>(response);
 }
 
+/**
+ * Gọi GET /doctors/:id/slots lấy danh sách khung giờ còn trống của bác sĩ (có thể lọc theo ngày).
+ * Trả về mảng DoctorSlot.
+ */
 export async function getDoctorSlots(id: string, date?: string): Promise<DoctorSlot[]> {
   const response = await api.get(`/doctors/${id}/slots`, {
     params: date ? { date } : undefined,
@@ -80,6 +92,10 @@ export interface DoctorReviewsPayload {
   stats: DoctorRatingStats;
 }
 
+/**
+ * Gọi GET /doctors/:id/reviews lấy danh sách review của bác sĩ kèm thống kê rating.
+ * Trả về PaginatedResponse<DoctorReviewsPayload>.
+ */
 export async function getDoctorReviews(id: string, page = 1) {
   const response = await api.get(`/doctors/${id}/reviews`, {
     params: { page, limit: 10 },

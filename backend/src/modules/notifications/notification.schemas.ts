@@ -1,3 +1,4 @@
+/** Zod schema validate query/params cho các endpoint của module thông báo. */
 import { z } from 'zod';
 
 export const getNotificationsQuerySchema = z.object({

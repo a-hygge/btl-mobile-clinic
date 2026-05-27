@@ -1,8 +1,15 @@
+/** Service xử lý nghiệp vụ thông báo: query, đánh dấu đã đọc và tạo notification cho các module khác. */
 import { NotificationType } from '@prisma/client';
 import { prisma } from '../../config/database';
 import type { GetNotificationsQuery } from './notification.schemas';
 
+/**
+ * Service xử lý toàn bộ nghiệp vụ thông báo (CRUD và helper tạo notification).
+ */
 export class NotificationService {
+  /**
+   * Lấy danh sách thông báo của user có phân trang, sắp xếp mới nhất lên đầu.
+   */
   static async getMyNotifications(userId: string, query: GetNotificationsQuery) {
     const { page, limit } = query;
     const skip = (page - 1) * limit;
@@ -28,6 +35,9 @@ export class NotificationService {
     };
   }
 
+  /**
+   * Đánh dấu một thông báo là đã đọc. Kiểm tra notification thuộc về user trước khi update.
+   */
   static async markAsRead(userId: string, notificationId: string) {
     const notification = await prisma.notification.findFirst({
       where: { id: notificationId, userId },
@@ -43,6 +53,9 @@ export class NotificationService {
     });
   }
 
+  /**
+   * Đánh dấu tất cả thông báo chưa đọc của user là đã đọc. Trả về số bản ghi đã cập nhật.
+   */
   static async markAllAsRead(userId: string) {
     const result = await prisma.notification.updateMany({
       where: { userId, isRead: false },
@@ -53,8 +66,7 @@ export class NotificationService {
   }
 
   /**
-   * Helper to create a notification — used by other services
-   * (e.g., appointment confirmation, medicine reminders, health alerts)
+   * Helper tạo thông báo mới — được gọi từ các service khác như đặt lịch, nhắc thuốc, cảnh báo sức khoẻ.
    */
   static async createNotification(
     userId: string,

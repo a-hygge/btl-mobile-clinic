@@ -1,3 +1,4 @@
+/** Khai báo route HTTP cho module thông báo, tất cả đều yêu cầu xác thực JWT. */
 import { Router, RequestHandler } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
 import { NotificationController } from './notification.controller';

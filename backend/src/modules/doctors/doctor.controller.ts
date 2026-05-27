@@ -1,3 +1,4 @@
+/** Controller xử lý request HTTP cho module bác sĩ: danh sách, chi tiết, slot khám và đánh giá. */
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { sendSuccess } from '@utils/api-response';
@@ -24,6 +25,10 @@ const reviewsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
 });
 
+/**
+ * GET /doctors — lấy danh sách bác sĩ có phân trang, hỗ trợ tìm kiếm theo từ khoá,
+ * chuyên khoa, phòng khám và trạng thái duyệt hồ sơ.
+ */
 export async function getDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = listQuerySchema.parse(req.query);
@@ -34,6 +39,9 @@ export async function getDoctors(req: Request, res: Response, next: NextFunction
   }
 }
 
+/**
+ * GET /doctors/:id — lấy chi tiết một bác sĩ (kèm dịch vụ, rating) phục vụ màn doctor-detail.
+ */
 export async function getDoctorDetail(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = paramsSchema.parse(req.params);
@@ -44,6 +52,9 @@ export async function getDoctorDetail(req: Request, res: Response, next: NextFun
   }
 }
 
+/**
+ * GET /doctors/:id/slots — lấy danh sách khung giờ còn trống của bác sĩ, có thể lọc theo ngày.
+ */
 export async function getDoctorSlots(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = paramsSchema.parse(req.params);
@@ -55,6 +66,9 @@ export async function getDoctorSlots(req: Request, res: Response, next: NextFunc
   }
 }
 
+/**
+ * GET /doctors/:id/reviews — lấy danh sách review của bác sĩ kèm thống kê rating (phân trang).
+ */
 export async function getDoctorReviewsList(
   req: Request,
   res: Response,

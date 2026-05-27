@@ -1,3 +1,4 @@
+/** Service xử lý nghiệp vụ truy vấn phòng khám: list có search và detail kèm danh sách bác sĩ. */
 import { prisma } from '@config/database';
 import { AppError } from '@utils/app-error';
 import { getSkipTake, paginationSchema, type PaginationQuery } from '@utils/pagination';
@@ -17,6 +18,10 @@ export interface ListClinicsResult {
   };
 }
 
+/**
+ * Lấy danh sách phòng khám đang hoạt động (deletedAt = null) có phân trang,
+ * search theo tên/địa chỉ/SĐT (case-insensitive), sắp xếp theo tên A-Z.
+ */
 export async function listClinics(input: ListClinicsInput): Promise<ListClinicsResult> {
   const parsed = paginationSchema.parse(input);
   const q = input.q?.trim();
@@ -54,6 +59,10 @@ export async function listClinics(input: ListClinicsInput): Promise<ListClinicsR
   };
 }
 
+/**
+ * Lấy chi tiết phòng khám kèm danh sách bác sĩ ACTIVE đang làm việc (sắp xếp theo kinh nghiệm).
+ * Throw 404 nếu không tìm thấy.
+ */
 export async function getClinicById(id: string): Promise<ClinicDetailDto> {
   const clinic = await prisma.clinic.findFirst({
     where: { id, deletedAt: null },

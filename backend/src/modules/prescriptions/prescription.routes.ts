@@ -1,3 +1,4 @@
+/** Khai báo route HTTP cho module đơn thuốc, kèm cấu hình multer cho upload ảnh OCR (giới hạn 10MB). */
 import { Router, RequestHandler } from 'express';
 import multer from 'multer';
 import { authenticate } from '../../middleware/auth.middleware';

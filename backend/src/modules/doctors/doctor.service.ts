@@ -1,3 +1,4 @@
+/** Service xử lý nghiệp vụ liên quan đến bác sĩ: truy vấn Prisma, lọc, thống kê review và mapping DTO. */
 import { prisma } from '@config/database';
 import { AppError } from '@utils/app-error';
 import { getPaginationMeta, getSkipTake, paginationSchema, type PaginationQuery } from '@utils/pagination';
@@ -20,6 +21,10 @@ export interface ListDoctorsResult {
   };
 }
 
+/**
+ * Lấy danh sách bác sĩ có phân trang, lọc theo chuyên khoa/phòng khám/trạng thái và tìm kiếm theo
+ * tên, chuyên khoa, phòng khám hoặc bio. Kèm thống kê average rating + tổng số review.
+ */
 export async function listDoctors(input: ListDoctorsInput): Promise<ListDoctorsResult> {
   const parsed = paginationSchema.parse(input);
   const q = input.q?.trim();
@@ -108,6 +113,10 @@ export async function listDoctors(input: ListDoctorsInput): Promise<ListDoctorsR
   };
 }
 
+/**
+ * Lấy chi tiết một bác sĩ ACTIVE kèm chuyên khoa, phòng khám, dịch vụ và rating stats.
+ * Throw 404 nếu không tìm thấy. Dùng cho màn doctor-detail phía mobile.
+ */
 export async function getDoctorById(id: string): Promise<DoctorDetailDto> {
   const [doctor, reviewStats] = await Promise.all([
     prisma.doctor.findFirst({
@@ -149,6 +158,10 @@ export interface ListDoctorSlotsInput {
   date?: string;
 }
 
+/**
+ * Lấy danh sách khung giờ (TimeSlot) chưa được đặt của bác sĩ, có thể lọc theo ngày cụ thể.
+ * Dùng khi bệnh nhân chọn giờ đặt lịch khám.
+ */
 export async function listDoctorSlots(input: ListDoctorSlotsInput): Promise<DoctorSlotDto[]> {
   const doctor = await prisma.doctor.findFirst({
     where: { id: input.id, deletedAt: null, status: 'ACTIVE' },
@@ -213,6 +226,9 @@ export interface ListDoctorReviewsResult {
   };
 }
 
+/**
+ * Tính thống kê đánh giá của bác sĩ: điểm trung bình, tổng số review và phân bố theo từng mức sao 1-5.
+ */
 export async function getDoctorRatingStats(doctorId: string): Promise<DoctorRatingStats> {
   const [groups, aggregate] = await Promise.all([
     prisma.review.groupBy({
@@ -249,6 +265,9 @@ export async function getDoctorRatingStats(doctorId: string): Promise<DoctorRati
   };
 }
 
+/**
+ * Lấy danh sách review của bác sĩ có phân trang, kèm thông tin người đánh giá và thống kê tổng quát.
+ */
 export async function getDoctorReviews(
   doctorId: string,
   query: { page: number; limit: number }

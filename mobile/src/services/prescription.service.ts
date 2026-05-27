@@ -1,3 +1,4 @@
+/** Service phía mobile gọi các endpoint /prescriptions của backend (OCR, lưu, lấy danh sách đơn thuốc). */
 import { api, extractData } from './api';
 
 export interface OcrMedicine {
@@ -31,6 +32,10 @@ export interface Prescription {
   }>;
 }
 
+/**
+ * Gọi POST /prescriptions/ocr — upload ảnh đơn thuốc (multipart/form-data) để backend OCR bằng AI.
+ * Trả về OcrResult gồm danh sách thuốc và raw text. Timeout 60s vì OCR có thể chậm.
+ */
 export async function ocrPrescription(imageUri: string): Promise<OcrResult> {
   const formData = new FormData();
   const filename = imageUri.split('/').pop() ?? 'photo.jpg';
@@ -50,6 +55,10 @@ export async function ocrPrescription(imageUri: string): Promise<OcrResult> {
   return extractData<OcrResult>(response);
 }
 
+/**
+ * Gọi POST /prescriptions lưu đơn thuốc đã OCR (imageUrl + danh sách thuốc) vào DB.
+ * Trả về bản ghi Prescription vừa tạo.
+ */
 export async function savePrescription(
   imageUrl: string,
   ocrData: { medicines: OcrMedicine[]; rawText?: string }
@@ -58,6 +67,10 @@ export async function savePrescription(
   return extractData<Prescription>(response);
 }
 
+/**
+ * Gọi GET /prescriptions/me lấy danh sách đơn thuốc của user hiện tại (có phân trang).
+ * Trả về mảng Prescription kèm danh sách nhắc thuốc active của từng đơn.
+ */
 export async function getMyPrescriptions(params?: {
   page?: number;
   limit?: number;

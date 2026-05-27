@@ -1,3 +1,4 @@
+/** Controller xử lý HTTP cho module bản đồ: tìm phòng khám gần, geocoding và reverse geocoding. */
 import { Request, Response, NextFunction } from 'express';
 import { sendSuccess } from '@utils/api-response';
 import {
@@ -11,6 +12,9 @@ import {
   reverseGeocode,
 } from './maps.service';
 
+/**
+ * GET /maps/clinics/nearby — tìm các phòng khám trong bán kính cho trước quanh vị trí người dùng.
+ */
 export async function nearbyClinics(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = nearbyClinicsQuerySchema.parse(req.query);
@@ -21,6 +25,9 @@ export async function nearbyClinics(req: Request, res: Response, next: NextFunct
   }
 }
 
+/**
+ * GET /maps/geocode — chuyển địa chỉ dạng text sang toạ độ lat/lng thông qua Nominatim.
+ */
 export async function geocode(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = geocodeQuerySchema.parse(req.query);
@@ -31,6 +38,9 @@ export async function geocode(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+/**
+ * GET /maps/reverse-geocode — chuyển toạ độ lat/lng sang địa chỉ dạng text thông qua Nominatim.
+ */
 export async function reverseGeocodeHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = reverseGeocodeQuerySchema.parse(req.query);

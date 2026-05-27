@@ -1,3 +1,4 @@
+/** Service xử lý đơn thuốc: nén ảnh, gọi AI vision OCR, lưu và truy vấn đơn thuốc của user. */
 import sharp from 'sharp';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
@@ -25,7 +26,14 @@ const OCR_PROMPT = `Analyze this medical prescription image. Extract all medicin
 Return as JSON: { "medicines": [{ "name": "...", "dosage": "...", "quantity": "...", "frequency": "..." }], "rawText": "full text" }
 Respond ONLY with valid JSON, no markdown.`;
 
+/**
+ * Service xử lý toàn bộ nghiệp vụ đơn thuốc (OCR bằng AI, lưu DB, query của user).
+ */
 export class PrescriptionService {
+  /**
+   * Nhận buffer ảnh đơn thuốc, resize/nén bằng sharp rồi encode base64 và gửi sang AI vision
+   * để trích xuất danh sách thuốc dưới dạng JSON. Trả về OcrResult kể cả khi parse JSON thất bại.
+   */
   static async ocrPrescription(imageBuffer: Buffer): Promise<OcrResult> {
     console.log('[ocr] received image, raw size=', imageBuffer.length, 'bytes');
 
@@ -50,6 +58,7 @@ export class PrescriptionService {
 
     let aiResponse: string;
     try {
+      // Gọi AI vision (OpenRouter/Gemini/GPT-4o) với ảnh đơn thuốc + prompt OCR để trích xuất thuốc dưới dạng JSON.
       aiResponse = await visionAnalysis(dataUri, OCR_PROMPT, { model: env.AI_OCR_MODEL });
       console.log('[ocr] AI raw response (first 500):', aiResponse.slice(0, 500));
     } catch (err) {
@@ -78,6 +87,9 @@ export class PrescriptionService {
     };
   }
 
+  /**
+   * Lưu đơn thuốc (kèm dữ liệu OCR) vào DB cho user. Trả về bản ghi vừa tạo.
+   */
   static async savePrescription(userId: string, input: SavePrescriptionInput) {
     const prescription = await prisma.prescription.create({
       data: {
@@ -90,6 +102,9 @@ export class PrescriptionService {
     return prescription;
   }
 
+  /**
+   * Lấy danh sách đơn thuốc của user có phân trang, kèm danh sách nhắc thuốc đang active.
+   */
   static async getMyPrescriptions(userId: string, query: GetPrescriptionsQuery) {
     const { page, limit } = query;
     const skip = (page - 1) * limit;

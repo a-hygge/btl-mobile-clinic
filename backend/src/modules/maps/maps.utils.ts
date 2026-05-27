@@ -1,6 +1,8 @@
+/** Tiện ích tính khoảng cách giữa hai toạ độ địa lý phục vụ tính năng tìm phòng khám gần. */
+
 /**
- * Calculate distance between two coordinates using the Haversine formula.
- * @returns Distance in kilometers
+ * Tính khoảng cách giữa 2 toạ độ (lat/lng) theo công thức Haversine.
+ * @returns Khoảng cách theo km, làm tròn tới 2 chữ số thập phân.
  */
 export function haversineDistance(
   lat1: number,

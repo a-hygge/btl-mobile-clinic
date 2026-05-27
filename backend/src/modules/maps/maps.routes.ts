@@ -1,3 +1,4 @@
+/** Khai báo route HTTP cho module bản đồ (nearby clinics, geocode, reverse-geocode). */
 import { Router } from 'express';
 import { nearbyClinics, geocode, reverseGeocodeHandler } from './maps.controller';
 

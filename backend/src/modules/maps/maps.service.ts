@@ -1,3 +1,4 @@
+/** Service xử lý nghiệp vụ bản đồ: tìm phòng khám gần và gọi Nominatim cho geocoding. */
 import axios from 'axios';
 import { prisma } from '@config/database';
 import { AppError } from '@utils/app-error';
@@ -14,6 +15,10 @@ import type {
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 const USER_AGENT = 'healthcare-booking-app/1.0';
 
+/**
+ * Lấy tất cả phòng khám có lat/lng, tính khoảng cách Haversine tới vị trí người dùng và
+ * lọc theo bán kính (km). Có thể lọc thêm theo chuyên khoa. Trả về danh sách đã sắp xếp theo khoảng cách.
+ */
 export async function getNearbyClinics(query: NearbyClinicsQuery): Promise<NearbyClinicDto[]> {
   const { lat, lng, radius, specialtyId } = query;
 
@@ -72,8 +77,13 @@ export async function getNearbyClinics(query: NearbyClinicsQuery): Promise<Nearb
   return results;
 }
 
+/**
+ * Chuyển địa chỉ dạng text sang toạ độ lat/lng. Throw 404 nếu không tìm thấy địa chỉ,
+ * 503 nếu dịch vụ Nominatim lỗi/timeout.
+ */
 export async function geocodeAddress(query: GeocodeQuery): Promise<GeocodeResultDto> {
   try {
+    // Gọi Nominatim (OpenStreetMap) để chuyển địa chỉ -> toạ độ (lat/lng). Miễn phí, không cần API key, yêu cầu User-Agent.
     const response = await axios.get(`${NOMINATIM_BASE}/search`, {
       params: {
         q: query.address,
@@ -101,8 +111,12 @@ export async function geocodeAddress(query: GeocodeQuery): Promise<GeocodeResult
   }
 }
 
+/**
+ * Chuyển toạ độ lat/lng sang địa chỉ dạng text bằng Nominatim. Throw 404 nếu không tìm thấy.
+ */
 export async function reverseGeocode(query: ReverseGeocodeQuery): Promise<ReverseGeocodeResultDto> {
   try {
+    // Gọi Nominatim reverse endpoint: gửi lat/lng -> nhận về thông tin địa chỉ (road, suburb, city, country).
     const response = await axios.get(`${NOMINATIM_BASE}/reverse`, {
       params: {
         lat: query.lat,

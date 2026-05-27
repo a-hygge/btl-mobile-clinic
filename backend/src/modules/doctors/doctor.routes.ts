@@ -1,3 +1,4 @@
+/** Khai báo các route HTTP cho module bác sĩ (danh sách, chi tiết, slot, review). */
 import { Router } from 'express';
 import {
   getDoctorDetail,

@@ -1,3 +1,4 @@
+/** Controller xử lý HTTP cho module đơn thuốc: OCR ảnh đơn thuốc, lưu và truy vấn đơn thuốc. */
 import { NextFunction, Request, Response } from 'express';
 import { sendSuccess, sendError } from '../../utils/api-response';
 import { PrescriptionService } from './prescription.service';
@@ -6,7 +7,14 @@ import {
   getPrescriptionsQuerySchema,
 } from './prescription.schemas';
 
+/**
+ * Controller cho luồng đơn thuốc (yêu cầu xác thực): OCR, lưu và liệt kê đơn của user.
+ */
 export class PrescriptionController {
+  /**
+   * POST /prescriptions/ocr — nhận file ảnh upload qua multer, gửi sang AI vision để trích xuất
+   * danh sách thuốc và trả kết quả về client.
+   */
   static async ocrPrescription(req: Request, res: Response, next: NextFunction) {
     try {
       const file = req.file;
@@ -22,6 +30,9 @@ export class PrescriptionController {
     }
   }
 
+  /**
+   * POST /prescriptions — lưu đơn thuốc đã OCR (imageUrl + danh sách thuốc) vào DB.
+   */
   static async savePrescription(req: Request, res: Response, next: NextFunction) {
     try {
       const { body } = savePrescriptionSchema.parse({ body: req.body });
@@ -32,6 +43,9 @@ export class PrescriptionController {
     }
   }
 
+  /**
+   * GET /prescriptions/me — lấy danh sách đơn thuốc của user hiện tại kèm các nhắc thuốc active.
+   */
   static async getMyPrescriptions(req: Request, res: Response, next: NextFunction) {
     try {
       const { query } = getPrescriptionsQuerySchema.parse({ query: req.query });

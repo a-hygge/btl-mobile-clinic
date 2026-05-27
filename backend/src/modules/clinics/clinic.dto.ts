@@ -1,3 +1,4 @@
+/** Định nghĩa DTO và hàm mapping entity Prisma sang dữ liệu trả cho client cho module clinic. */
 import { Clinic, Doctor, Specialty, User } from '@prisma/client';
 
 export interface ClinicDoctorDto {
@@ -33,6 +34,9 @@ type DoctorWithRelations = Doctor & {
   specialty: Pick<Specialty, 'id' | 'name'>;
 };
 
+/**
+ * Convert entity Clinic của Prisma sang DTO cho client (chuyển Decimal lat/lng thành number).
+ */
 export function mapClinicToListItemDto(clinic: Clinic): ClinicListItemDto {
   return {
     id: clinic.id,
@@ -46,6 +50,10 @@ export function mapClinicToListItemDto(clinic: Clinic): ClinicListItemDto {
   };
 }
 
+/**
+ * Convert Doctor (đang làm việc trong phòng khám) kèm user và chuyên khoa sang DTO hiển thị
+ * trong màn chi tiết phòng khám.
+ */
 export function mapClinicDoctorToDto(doctor: DoctorWithRelations): ClinicDoctorDto {
   return {
     id: doctor.id,

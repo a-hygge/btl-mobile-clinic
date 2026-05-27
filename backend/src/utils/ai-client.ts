@@ -1,3 +1,4 @@
+/** Client gọi API AI chung (OpenRouter/OpenAI compatible) cho chat completion và phân tích ảnh (OCR). */
 import { env } from '../config/env';
 
 interface ChatMessage {
@@ -21,8 +22,8 @@ interface ChatCompletionResponse {
 }
 
 /**
- * Unified AI client - works with OpenRouter, OpenAI, or any compatible API.
- * OpenRouter gives access to Gemini, GPT, Claude, Llama, etc.
+ * Hàm gọi AI chat completion chung — tương thích với OpenRouter, OpenAI hoặc bất kỳ provider nào
+ * theo chuẩn /chat/completions. OpenRouter cho phép chọn model: Gemini, GPT, Claude, Llama...
  */
 export async function chatCompletion(
   messages: ChatMessage[],
@@ -36,6 +37,7 @@ export async function chatCompletion(
   const temperature = options?.temperature ?? 0.7;
   const maxTokens = options?.maxTokens ?? 2048;
 
+  // Gọi OpenRouter/OpenAI /chat/completions: gửi messages + model + temperature, nhận lại nội dung text từ AI.
   const response = await fetch(`${env.AI_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -70,8 +72,8 @@ export async function chatCompletion(
 }
 
 /**
- * Vision - send image for analysis (OCR, etc.)
- * Works with multimodal models on OpenRouter (gemini-2.0-flash, gpt-4o, etc.)
+ * Gửi ảnh kèm prompt cho AI multimodal (gemini-2.0-flash, gpt-4o...) để phân tích ảnh.
+ * Dùng cho OCR đơn thuốc trong module prescription.
  */
 export async function visionAnalysis(
   imageUrl: string,

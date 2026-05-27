@@ -1,8 +1,15 @@
+/** Scheduler chạy cron job định kỳ để gửi nhắc lịch hẹn và lời mời đánh giá sau khi khám. */
 import cron from 'node-cron';
 import { prisma } from '../../config/database';
 import { NotificationService } from './notification.service';
 
+/**
+ * Scheduler quản lý các cron job tạo thông báo tự động (nhắc lịch hẹn và prompt đánh giá).
+ */
 export class NotificationScheduler {
+  /**
+   * Khởi chạy 2 cron job: nhắc lịch hẹn (15 phút/lần) và nhắc đánh giá sau khám (30 phút/lần).
+   */
   static start() {
     // Every 15 minutes: check upcoming appointments
     cron.schedule('*/15 * * * *', () => {
@@ -17,7 +24,10 @@ export class NotificationScheduler {
     console.log('NotificationScheduler started');
   }
 
-  /** Send reminders 24h and 1h before appointment */
+  /**
+   * Quét các lịch hẹn sắp diễn ra và tạo thông báo nhắc 24h trước + 1h trước giờ khám.
+   * Có cơ chế chống gửi trùng bằng cách kiểm tra notification đã tồn tại trong cửa sổ thời gian.
+   */
   static async checkUpcomingAppointments() {
     const now = new Date();
 
@@ -93,7 +103,10 @@ export class NotificationScheduler {
     }
   }
 
-  /** Send review prompts for completed appointments without reviews */
+  /**
+   * Tìm các lịch hẹn đã hoàn thành trong 7 ngày qua nhưng chưa có review,
+   * gửi thông báo mời bệnh nhân đánh giá bác sĩ.
+   */
   static async checkPendingReviews() {
     const completed = await prisma.appointment.findMany({
       where: {

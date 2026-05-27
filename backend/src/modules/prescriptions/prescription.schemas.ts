@@ -1,3 +1,4 @@
+/** Zod schema validate body và query cho các endpoint của module đơn thuốc. */
 import { z } from 'zod';
 
 export const savePrescriptionSchema = z.object({

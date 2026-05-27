@@ -1,3 +1,4 @@
+/** Định nghĩa các DTO và hàm mapping từ entity Prisma sang dữ liệu trả cho client cho module doctor. */
 import { Clinic, Doctor, DoctorService, Service, Specialty, TimeSlot, User } from '@prisma/client';
 
 export interface DoctorServiceDto {
@@ -56,6 +57,10 @@ type DoctorWithServices = Doctor & {
   })[];
 };
 
+/**
+ * Convert entity Doctor + quan hệ user/specialty/clinic sang DTO hiển thị trong danh sách.
+ * Mặc định averageRating và totalReviews = 0, sẽ được gán lại từ service.
+ */
 export function mapDoctorToListItemDto(doctor: DoctorWithRelations): DoctorListItemDto {
   return {
     id: doctor.id,
@@ -79,6 +84,9 @@ export function mapDoctorToListItemDto(doctor: DoctorWithRelations): DoctorListI
   };
 }
 
+/**
+ * Convert Doctor kèm dịch vụ và metrics review sang DTO chi tiết cho màn doctor-detail.
+ */
 export function mapDoctorToDetailDto(doctor: DoctorWithServices, metrics: { averageRating: number; totalReviews: number }): DoctorDetailDto {
   return {
     ...mapDoctorToListItemDto(doctor as unknown as DoctorWithRelations),
@@ -96,6 +104,9 @@ export function mapDoctorToDetailDto(doctor: DoctorWithServices, metrics: { aver
   };
 }
 
+/**
+ * Convert entity TimeSlot sang DTO cho client (chuyển date thành ISO string).
+ */
 export function mapTimeSlotToDto(timeSlot: TimeSlot): DoctorSlotDto {
   return {
     id: timeSlot.id,

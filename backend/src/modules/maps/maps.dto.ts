@@ -1,3 +1,4 @@
+/** Định nghĩa Zod schema và DTO cho các endpoint của module maps. */
 import { z } from 'zod';
 
 // --- Query Schemas ---
